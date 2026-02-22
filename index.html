@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Flatlander Simulator</title>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <h1>Flatlander 0.1</h1>
+
+        <section class="panel">
+          <h2>Simulation</h2>
+          <div class="row">
+            <label for="seed-input">Seed</label>
+            <input id="seed-input" type="number" value="42" step="1" />
+          </div>
+          <div class="row">
+            <label for="world-topology">Topology</label>
+            <select id="world-topology">
+              <option value="torus" selected>Torus (Wrap)</option>
+              <option value="bounded">Bounded (Walls)</option>
+            </select>
+          </div>
+          <div class="row">
+            <label for="south-enabled">South Attraction</label>
+            <input id="south-enabled" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="south-strength">Strength</label>
+            <input id="south-strength" type="number" min="0" step="0.1" value="2" />
+          </div>
+          <div class="row">
+            <label for="south-women-multiplier">Women Multiplier</label>
+            <input id="south-women-multiplier" type="number" min="0" step="0.1" value="2" />
+          </div>
+          <div class="row">
+            <label for="south-zone-start">Zone Start</label>
+            <input id="south-zone-start" type="number" min="0" max="1" step="0.01" value="0.75" />
+          </div>
+          <div class="row">
+            <label for="south-zone-end">Zone End</label>
+            <input id="south-zone-end" type="number" min="0" max="1" step="0.01" value="0.95" />
+          </div>
+          <div class="row">
+            <label for="south-drag">Drag</label>
+            <input id="south-drag" type="number" min="0" step="0.1" value="10" />
+          </div>
+          <div class="row">
+            <label for="south-max-terminal">Max Terminal</label>
+            <input id="south-max-terminal" type="number" min="0" step="0.1" value="2" />
+          </div>
+          <div class="row">
+            <label for="south-show-zone">Show South Zone</label>
+            <input id="south-show-zone" type="checkbox" />
+          </div>
+          <div class="row">
+            <label for="south-show-click-debug">Show Click Debug</label>
+            <input id="south-show-click-debug" type="checkbox" />
+          </div>
+          <div class="button-row">
+            <button id="run-btn" type="button">Start</button>
+            <button id="step-btn" type="button">Step 1 Tick</button>
+            <button id="reset-btn" type="button">Reset</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Spawn</h2>
+          <div class="row">
+            <label for="spawn-shape">Shape</label>
+            <select id="spawn-shape">
+              <option value="segment">Woman (Segment)</option>
+              <option value="polygon" selected>Man (Polygon)</option>
+              <option value="circle">Priest (Circle)</option>
+            </select>
+          </div>
+          <div class="row" id="spawn-sides-row">
+            <label for="spawn-sides">Sides</label>
+            <input id="spawn-sides" type="number" min="3" max="20" step="1" value="6" />
+          </div>
+          <div class="row" id="spawn-irregular-row">
+            <label for="spawn-irregular">Irregular</label>
+            <input id="spawn-irregular" type="checkbox" />
+          </div>
+          <div class="row" id="spawn-triangle-kind-row">
+            <label for="spawn-triangle-kind">Triangle Kind</label>
+            <select id="spawn-triangle-kind">
+              <option value="Equilateral" selected>Equilateral</option>
+              <option value="Isosceles">Isosceles</option>
+            </select>
+          </div>
+          <div class="row" id="spawn-base-ratio-row">
+            <label for="spawn-base-ratio">Base Ratio</label>
+            <input id="spawn-base-ratio" type="number" min="0.01" max="0.95" step="0.01" value="0.05" />
+          </div>
+          <div class="row">
+            <label for="spawn-size">Size</label>
+            <input id="spawn-size" type="number" min="2" max="120" value="20" />
+          </div>
+          <div class="row">
+            <label for="spawn-count">Count</label>
+            <input id="spawn-count" type="number" min="1" max="200" value="1" />
+          </div>
+          <div class="row">
+            <label for="spawn-movement-type">Behavior</label>
+            <select id="spawn-movement-type">
+              <option value="randomWalk" selected>Random Walk</option>
+              <option value="straightDrift">Straight Drift</option>
+              <option value="seekPoint">Seek Point</option>
+            </select>
+          </div>
+          <div class="row">
+            <label for="spawn-boundary">Boundary</label>
+            <select id="spawn-boundary" disabled>
+              <option value="wrap" selected>Wrap Torus</option>
+              <option value="bounce">Bounded Walls</option>
+            </select>
+          </div>
+          <p class="hint">Boundary is controlled by World Topology.</p>
+          <div class="row" id="spawn-speed-row">
+            <label for="spawn-speed">Speed</label>
+            <input id="spawn-speed" type="number" step="0.1" value="25" />
+          </div>
+          <div class="row" id="spawn-turn-rate-row">
+            <label for="spawn-turn-rate">Turn Rate</label>
+            <input id="spawn-turn-rate" type="number" step="0.1" value="2" />
+          </div>
+          <div class="row" id="spawn-drift-row">
+            <label for="spawn-vx">Velocity</label>
+            <div class="pair-input">
+              <input id="spawn-vx" type="number" step="0.1" value="40" />
+              <input id="spawn-vy" type="number" step="0.1" value="0" />
+            </div>
+          </div>
+          <div class="row" id="spawn-target-row">
+            <label for="spawn-target-x">Target</label>
+            <div class="pair-input">
+              <input id="spawn-target-x" type="number" step="0.1" value="500" />
+              <input id="spawn-target-y" type="number" step="0.1" value="350" />
+            </div>
+          </div>
+          <div class="button-row">
+            <button id="spawn-btn" type="button">Spawn</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Inspector</h2>
+          <div class="row"><span>Selected</span><strong id="selected-id">None</strong></div>
+          <div class="row"><span>Rank</span><strong id="inspector-rank">N/A</strong></div>
+          <div class="row"><span>Shape</span><strong id="inspector-shape">N/A</strong></div>
+          <p id="inspector-none" class="hint">Click a figure to edit movement.</p>
+          <div id="inspector-fields">
+            <div class="row">
+              <label for="inspector-movement-type">Behavior</label>
+              <select id="inspector-movement-type">
+                <option value="randomWalk">Random Walk</option>
+                <option value="straightDrift">Straight Drift</option>
+                <option value="seekPoint">Seek Point</option>
+              </select>
+            </div>
+            <div class="row">
+              <label for="inspector-boundary">Boundary</label>
+              <select id="inspector-boundary" disabled>
+                <option value="wrap">Wrap Torus</option>
+                <option value="bounce">Bounded Walls</option>
+              </select>
+            </div>
+            <p class="hint">Boundary is controlled by World Topology.</p>
+            <div class="row">
+              <label for="inspector-vision-enabled">Vision</label>
+              <input id="inspector-vision-enabled" type="checkbox" />
+            </div>
+            <div class="row">
+              <label for="inspector-vision-range">Vision Range</label>
+              <input id="inspector-vision-range" type="number" min="0" step="1" value="120" />
+            </div>
+            <div class="row">
+              <label for="inspector-avoid-distance">Avoid Distance</label>
+              <input id="inspector-avoid-distance" type="number" min="0" step="1" value="40" />
+            </div>
+            <div class="row" id="inspector-speed-row">
+              <label for="inspector-speed">Speed</label>
+              <input id="inspector-speed" type="number" step="0.1" value="25" />
+            </div>
+            <div class="row" id="inspector-turn-rate-row">
+              <label for="inspector-turn-rate">Turn Rate</label>
+              <input id="inspector-turn-rate" type="number" step="0.1" value="2" />
+            </div>
+            <div class="row" id="inspector-drift-row">
+              <label for="inspector-vx">Velocity</label>
+              <div class="pair-input">
+                <input id="inspector-vx" type="number" step="0.1" value="0" />
+                <input id="inspector-vy" type="number" step="0.1" value="0" />
+              </div>
+            </div>
+            <div class="row" id="inspector-target-row">
+              <label for="inspector-target-x">Target</label>
+              <div class="pair-input">
+                <input id="inspector-target-x" type="number" step="0.1" value="500" />
+                <input id="inspector-target-y" type="number" step="0.1" value="350" />
+              </div>
+            </div>
+            <div class="row" id="inspector-triangle-row">
+              <span>Triangle</span>
+              <div>
+                <strong id="inspector-triangle-kind">N/A</strong>
+                <span> | base ratio: </span>
+                <strong id="inspector-triangle-base-ratio">N/A</strong>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Stats</h2>
+          <div class="row"><span>Tick</span><strong id="stat-tick">0</strong></div>
+          <div class="row"><span>Seed</span><strong id="stat-seed">42</strong></div>
+          <div class="row"><span>Deaths This Tick</span><strong id="stat-deaths">0</strong></div>
+          <div class="row"><span>Total Alive</span><strong id="stat-total">0</strong></div>
+          <ul id="rank-list" class="rank-list"></ul>
+        </section>
+      </aside>
+
+      <main class="stage">
+        <canvas id="world-canvas" aria-label="Flatland simulation canvas"></canvas>
+      </main>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
