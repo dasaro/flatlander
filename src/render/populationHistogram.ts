@@ -122,49 +122,52 @@ export class PopulationHistogram {
     this.ctx.rect(left, top, chartWidth, bottom - top);
     this.ctx.clip();
 
-    const bandBottomY: number[][] = Array.from({ length: COMPOSITION_GROUPS.length }, () =>
-      new Array<number>(bins.length).fill(bottom),
-    );
-    const bandTopY: number[][] = Array.from({ length: COMPOSITION_GROUPS.length }, () =>
-      new Array<number>(bins.length).fill(bottom),
+    const count = bins.length;
+    const xs =
+      count <= 1
+        ? [left]
+        : Array.from({ length: count }, (_, i) => left + (i / (count - 1)) * chartWidth);
+    const cumulativeY: number[][] = Array.from({ length: COMPOSITION_GROUPS.length + 1 }, () =>
+      new Array<number>(count).fill(bottom),
     );
 
-    for (let i = 0; i < bins.length; i += 1) {
+    for (let i = 0; i < count; i += 1) {
       const bin = bins[i];
       const envelopeHeight = envelopeHeights[i] ?? 0;
+      cumulativeY[0]![i] = bottom;
       if (!bin || bin.count <= 0 || bin.population <= 0 || envelopeHeight <= 0) {
+        for (let groupIndex = 0; groupIndex < COMPOSITION_GROUPS.length; groupIndex += 1) {
+          cumulativeY[groupIndex + 1]![i] = bottom;
+        }
         continue;
       }
 
       const avgPopulation = bin.population / bin.count;
-      let cumulative = 0;
+      let cumulativeHeight = 0;
       for (let groupIndex = 0; groupIndex < COMPOSITION_GROUPS.length; groupIndex += 1) {
         const avgGroupPopulation = (bin.groups[groupIndex] ?? 0) / bin.count;
         const fraction = avgPopulation > 0 ? avgGroupPopulation / avgPopulation : 0;
         const bandHeight = Math.max(0, fraction * envelopeHeight);
-        const lowerY = bottom - cumulative;
-        const upperY = lowerY - bandHeight;
-        bandBottomY[groupIndex]![i] = lowerY;
-        bandTopY[groupIndex]![i] = upperY;
-        cumulative += bandHeight;
+        cumulativeHeight += bandHeight;
+        cumulativeY[groupIndex + 1]![i] = bottom - cumulativeHeight;
       }
     }
 
     for (let groupIndex = 0; groupIndex < COMPOSITION_GROUPS.length; groupIndex += 1) {
-      const bottomBand = bandBottomY[groupIndex];
-      const topBand = bandTopY[groupIndex];
-      if (!bottomBand || !topBand || bottomBand.length === 0 || topBand.length === 0) {
+      const lower = cumulativeY[groupIndex];
+      const upper = cumulativeY[groupIndex + 1];
+      if (!lower || !upper || lower.length === 0 || upper.length === 0) {
         continue;
       }
 
+      const forward = xs.map((x, i) => ({ x, y: lower[i] ?? bottom }));
+      const backward = xs
+        .map((x, i) => ({ x, y: upper[i] ?? bottom }))
+        .reverse();
+
       this.ctx.beginPath();
-      this.ctx.moveTo(left, bottomBand[0] ?? bottom);
-      for (let i = 1; i < bins.length; i += 1) {
-        this.ctx.lineTo(left + i, bottomBand[i] ?? bottom);
-      }
-      for (let i = bins.length - 1; i >= 0; i -= 1) {
-        this.ctx.lineTo(left + i, topBand[i] ?? bottom);
-      }
+      this.traceCardinal(forward, false);
+      this.traceCardinal(backward, true);
       this.ctx.closePath();
       this.ctx.fillStyle = COMPOSITION_GROUPS[groupIndex]?.color ?? '#888888';
       this.ctx.fill();
@@ -188,6 +191,42 @@ export class PopulationHistogram {
 
     this.drawLegend(left, height - 20, right);
     this.dirty = false;
+  }
+
+  private traceCardinal(points: Array<{ x: number; y: number }>, lineToStart: boolean): void {
+    if (points.length === 0) {
+      return;
+    }
+
+    const first = points[0];
+    if (!first) {
+      return;
+    }
+
+    if (lineToStart) {
+      this.ctx.lineTo(first.x, first.y);
+    } else {
+      this.ctx.moveTo(first.x, first.y);
+    }
+
+    if (points.length === 1) {
+      return;
+    }
+
+    const tension = 1;
+    const fallback = first;
+    for (let i = 0; i < points.length - 1; i += 1) {
+      const p0 = points[Math.max(0, i - 1)] ?? fallback;
+      const p1 = points[i] ?? fallback;
+      const p2 = points[i + 1] ?? fallback;
+      const p3 = points[Math.min(points.length - 1, i + 2)] ?? fallback;
+
+      const cp1x = p1.x + ((p2.x - p0.x) / 6) * tension;
+      const cp1y = p1.y + ((p2.y - p0.y) / 6) * tension;
+      const cp2x = p2.x - ((p3.x - p1.x) / 6) * tension;
+      const cp2y = p2.y - ((p3.y - p1.y) / 6) * tension;
+      this.ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+    }
   }
 
   private drawPopulationScaleGrid(
@@ -264,7 +303,7 @@ export class PopulationHistogram {
     firstTick: number,
     tickSpan: number,
   ): Array<{ count: number; population: number; groups: number[] }> {
-    const columns = Math.max(1, Math.floor(chartWidth));
+    const columns = Math.max(1, Math.min(Math.floor(chartWidth), 420));
     const bins = Array.from({ length: columns }, () => ({
       count: 0,
       population: 0,
