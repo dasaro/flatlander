@@ -137,7 +137,7 @@ let reproductionSettings: ReproductionSettings = {
   femaleBirthProbability: 0.54,
   maxPopulation: 500,
   irregularBirthsEnabled: true,
-  irregularBirthBaseChance: 0.02,
+  irregularBirthBaseChance: 0.14,
 };
 let eventHighlightsSettings: EventHighlightsSettings = {
   enabled: true,
@@ -157,10 +157,10 @@ let eventHighlightsSettings: EventHighlightsSettings = {
   dimByAge: false,
   dimByDeterioration: true,
   dimStrength: 0.25,
-  fogPreviewEnabled: false,
-  fogPreviewStrength: 0.2,
+  fogPreviewEnabled: true,
+  fogPreviewStrength: 0.5,
   fogPreviewHideBelowMin: false,
-  fogPreviewRings: false,
+  fogPreviewRings: true,
 };
 let flatlanderViewSettings: FlatlanderViewSettings = {
   enabled: true,
@@ -168,15 +168,16 @@ let flatlanderViewSettings: FlatlanderViewSettings = {
   fovRad: Math.PI * 2,
   lookOffsetRad: 0,
   maxDistance: 400,
-  fogDensity: 0.006,
+  fogDensity: 0.012,
   minVisibleIntensity: 0.06,
   grayscaleMode: true,
   includeObstacles: true,
+  includeBoundaries: true,
   inanimateDimMultiplier: 0.65,
 };
 let fogSightSettings: FogSightSettings = {
   sightEnabled: true,
-  fogDensity: 0.006,
+  fogDensity: 0.012,
 };
 let southAttractionSettings: SouthAttractionSettings = {
   enabled: true,
@@ -691,6 +692,7 @@ function flatlanderConfigKey(settings: FlatlanderViewSettings): string {
     settings.minVisibleIntensity.toFixed(6),
     settings.grayscaleMode ? '1' : '0',
     settings.includeObstacles ? '1' : '0',
+    settings.includeBoundaries ? '1' : '0',
     settings.inanimateDimMultiplier.toFixed(3),
   ].join('|');
 }
@@ -922,7 +924,24 @@ function defaultSpawnPlan(): SpawnRequest[] {
         intentionMinTicks: 96,
         boundary: 'wrap',
       },
-      count: 8,
+      count: 4,
+    },
+    {
+      shape: {
+        kind: 'polygon',
+        sides: 4,
+        size: 18,
+        irregular: true,
+      },
+      movement: {
+        type: 'socialNav',
+        maxSpeed: 13,
+        maxTurnRate: 1.1,
+        decisionEveryTicks: 18,
+        intentionMinTicks: 82,
+        boundary: 'wrap',
+      },
+      count: 6,
     },
     {
       shape: {
@@ -939,7 +958,24 @@ function defaultSpawnPlan(): SpawnRequest[] {
         intentionMinTicks: 96,
         boundary: 'wrap',
       },
-      count: 6,
+      count: 4,
+    },
+    {
+      shape: {
+        kind: 'polygon',
+        sides: 5,
+        size: 19,
+        irregular: true,
+      },
+      movement: {
+        type: 'socialNav',
+        maxSpeed: 14,
+        maxTurnRate: 1.15,
+        decisionEveryTicks: 17,
+        intentionMinTicks: 80,
+        boundary: 'wrap',
+      },
+      count: 5,
     },
     {
       shape: {
@@ -973,7 +1009,7 @@ function defaultSpawnPlan(): SpawnRequest[] {
         intentionMinTicks: 75,
         boundary: 'wrap',
       },
-      count: 3,
+      count: 8,
     },
     {
       shape: {
@@ -1132,15 +1168,15 @@ function applyNovelSafetyPreset(worldState: typeof world): void {
   worldState.config.conceptionHighRankPenaltyPerSide = 0.13;
   worldState.config.maxPopulation = 550;
   worldState.config.irregularBirthsEnabled = true;
-  worldState.config.irregularBirthBaseChance = 0.02;
-  worldState.config.irregularBirthChance = 0.02;
+  worldState.config.irregularBirthBaseChance = 0.14;
+  worldState.config.irregularBirthChance = 0.14;
   worldState.config.defaultVisionAvoidDistance = Math.max(worldState.config.defaultVisionAvoidDistance, 55);
   worldState.config.defaultVisionAvoidTurnRate = Math.max(worldState.config.defaultVisionAvoidTurnRate, 2.8);
   worldState.config.peaceCryEnabled = true;
   worldState.config.defaultPeaceCryCadenceTicks = 16;
   worldState.config.defaultPeaceCryRadius = 150;
   worldState.config.sightEnabled = true;
-  worldState.config.fogDensity = Math.max(worldState.config.fogDensity, 0.006);
+  worldState.config.fogDensity = Math.max(worldState.config.fogDensity, 0.012);
   worldState.config.southEscapeFraction = Math.max(0.45, worldState.config.southEscapeFraction);
 
   const ids = [...worldState.entities].sort((a, b) => a - b);

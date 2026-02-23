@@ -3,7 +3,6 @@ import type { EntityId, SocialIntention, SocialNavMovement } from '../core/compo
 import { Rank } from '../core/rank';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
-import { distance, sub } from '../geometry/vector';
 import type { Vec2 } from '../geometry/vector';
 import type { System } from './system';
 
@@ -45,100 +44,55 @@ interface DirectionCandidate {
   direction: Vec2;
 }
 
-function nearestUnknownNeighbor(
-  world: World,
-  entityId: EntityId,
-  ids: EntityId[],
-): DirectionCandidate | null {
-  const knowledge = world.knowledge.get(entityId);
-  const transform = world.transforms.get(entityId);
-  if (!knowledge || !transform) {
+function sightDirectionCandidate(world: World, entityId: EntityId): DirectionCandidate | null {
+  const hit = world.visionHits.get(entityId);
+  if (!hit) {
     return null;
   }
-
-  let best: DirectionCandidate | null = null;
-  for (const otherId of ids) {
-    if (otherId === entityId || knowledge.known.has(otherId)) {
-      continue;
-    }
-
-    if (world.staticObstacles.has(otherId)) {
-      continue;
-    }
-
-    const otherTransform = world.transforms.get(otherId);
-    if (!otherTransform) {
-      continue;
-    }
-
-    const toOther = sub(otherTransform.position, transform.position);
-    const d = Math.hypot(toOther.x, toOther.y);
-    if (
-      best === null ||
-      d < best.distance ||
-      (d === best.distance && otherId < best.id)
-    ) {
-      best = {
-        id: otherId,
-        distance: d,
-        direction: d > 0 ? { x: toOther.x / d, y: toOther.y / d } : { x: 1, y: 0 },
-      };
-    }
-  }
-
-  return best;
+  return {
+    id: hit.hitId,
+    distance: hit.distance,
+    direction: hit.direction,
+  };
 }
 
-function nearestHigherRank(
-  world: World,
-  entityId: EntityId,
-  ids: EntityId[],
-): DirectionCandidate | null {
+function seenEntityId(world: World, entityId: EntityId): EntityId | null {
+  const hit = world.visionHits.get(entityId);
+  if (!hit || hit.kind !== 'entity' || !world.entities.has(hit.hitId)) {
+    return null;
+  }
+  return hit.hitId;
+}
+
+function higherRankFromPerception(world: World, entityId: EntityId, seenId: EntityId | null): DirectionCandidate | null {
   const rank = world.ranks.get(entityId);
-  const transform = world.transforms.get(entityId);
-  if (!rank || !transform) {
+  if (!rank) {
     return null;
   }
 
   const ownWeight = rankWeight(rank.rank);
-  let best: DirectionCandidate | null = null;
-  for (const otherId of ids) {
-    if (otherId === entityId || world.staticObstacles.has(otherId)) {
-      continue;
-    }
-
-    const otherRank = world.ranks.get(otherId);
-    const otherTransform = world.transforms.get(otherId);
-    if (!otherRank || !otherTransform || rankWeight(otherRank.rank) <= ownWeight) {
-      continue;
-    }
-
-    const toOther = sub(otherTransform.position, transform.position);
-    const d = Math.hypot(toOther.x, toOther.y);
-    if (
-      best === null ||
-      d < best.distance ||
-      (d === best.distance && otherId < best.id)
-    ) {
-      best = {
-        id: otherId,
-        distance: d,
-        direction: d > 0 ? { x: toOther.x / d, y: toOther.y / d } : { x: 1, y: 0 },
+  const sightCandidate = sightDirectionCandidate(world, entityId);
+  if (seenId !== null && sightCandidate) {
+    const seenRank = world.ranks.get(seenId);
+    if (seenRank && rankWeight(seenRank.rank) > ownWeight) {
+      return {
+        id: seenId,
+        distance: sightCandidate.distance,
+        direction: sightCandidate.direction,
       };
     }
   }
 
-  return best;
+  return null;
 }
 
-function nearestMateCandidate(
-  world: World,
-  entityId: EntityId,
-  ids: EntityId[],
-): DirectionCandidate | null {
-  const transform = world.transforms.get(entityId);
-  const shape = world.shapes.get(entityId);
-  if (!transform || !shape || shape.kind !== 'segment') {
+function mateFromPerception(world: World, entityId: EntityId, seenId: EntityId | null): DirectionCandidate | null {
+  if (seenId === null) {
+    return null;
+  }
+
+  const selfShape = world.shapes.get(entityId);
+  if (!selfShape || selfShape.kind !== 'segment') {
     return null;
   }
 
@@ -151,48 +105,43 @@ function nearestMateCandidate(
   if ((age?.ticksAlive ?? 0) < fertility.maturityTicks) {
     return null;
   }
-
   if (world.tick - fertility.lastBirthTick < fertility.cooldownTicks) {
     return null;
   }
 
-  const radius = Math.max(0, world.config.matingRadius);
-  let best: DirectionCandidate | null = null;
-  for (const otherId of ids) {
-    if (otherId === entityId || world.staticObstacles.has(otherId)) {
-      continue;
-    }
-
-    const otherShape = world.shapes.get(otherId);
-    const otherTransform = world.transforms.get(otherId);
-    if (!otherShape || !otherTransform) {
-      continue;
-    }
-
-    if (!(otherShape.kind === 'polygon' || otherShape.kind === 'circle')) {
-      continue;
-    }
-
-    const d = distance(transform.position, otherTransform.position);
-    if (d > radius) {
-      continue;
-    }
-
-    const toOther = sub(otherTransform.position, transform.position);
-    if (
-      best === null ||
-      d < best.distance ||
-      (d === best.distance && otherId < best.id)
-    ) {
-      best = {
-        id: otherId,
-        distance: d,
-        direction: d > 0 ? { x: toOther.x / d, y: toOther.y / d } : { x: 1, y: 0 },
-      };
-    }
+  const seenShape = world.shapes.get(seenId);
+  if (!seenShape || !(seenShape.kind === 'polygon' || seenShape.kind === 'circle')) {
+    return null;
   }
 
-  return best;
+  const sightCandidate = sightDirectionCandidate(world, entityId);
+  if (!sightCandidate || sightCandidate.id !== seenId) {
+    return null;
+  }
+
+  if (sightCandidate.distance > Math.max(0, world.config.matingRadius)) {
+    return null;
+  }
+
+  return sightCandidate;
+}
+
+function unknownFromPerception(world: World, entityId: EntityId, seenId: EntityId | null): DirectionCandidate | null {
+  if (seenId === null) {
+    return null;
+  }
+
+  const knowledge = world.knowledge.get(entityId);
+  const sightCandidate = sightDirectionCandidate(world, entityId);
+  if (!knowledge || !sightCandidate || sightCandidate.id !== seenId) {
+    return null;
+  }
+
+  if (knowledge.known.has(seenId)) {
+    return null;
+  }
+
+  return sightCandidate;
 }
 
 function cautionFactor(world: World, entityId: EntityId): number {
@@ -268,8 +217,7 @@ export class SocialNavMindSystem implements System {
 
     for (const id of ids) {
       const movement = world.movements.get(id);
-      const transform = world.transforms.get(id);
-      if (!movement || movement.type !== 'socialNav' || !transform || world.staticObstacles.has(id)) {
+      if (!movement || movement.type !== 'socialNav' || world.staticObstacles.has(id)) {
         continue;
       }
       if (world.sleep.get(id)?.asleep) {
@@ -279,39 +227,24 @@ export class SocialNavMindSystem implements System {
 
       const needDecision = movement.intentionTicksLeft <= 0;
       const visionHit = world.visionHits.get(id);
-      const hearingHit = world.hearingHits.get(id);
       const sightHazardDistance = visionHit?.distance ?? Number.POSITIVE_INFINITY;
-      const hearingDistance = hearingHit?.distance ?? Number.POSITIVE_INFINITY;
-      const contactDistance = world.collisions.some((pair) => pair.a === id || pair.b === id) ? 0 : Number.POSITIVE_INFINITY;
-      const hazardDistance = Math.min(sightHazardDistance, hearingDistance, contactDistance);
+      const contactDistance = world.collisions.some((pair) => pair.a === id || pair.b === id)
+        ? 0
+        : Number.POSITIVE_INFINITY;
+      const hazardDistance = Math.min(sightHazardDistance, contactDistance);
       const emergencyAvoid = hazardDistance <= Math.max(4, movement.maxSpeed * 0.45);
-      let hazardDirection: Vec2 | null = null;
-      if (visionHit) {
-        const otherTransform = world.transforms.get(visionHit.hitId);
-        if (otherTransform) {
-          const toOther = sub(otherTransform.position, transform.position);
-          const length = Math.hypot(toOther.x, toOther.y);
-          hazardDirection =
-            length > 0
-              ? {
-                  x: toOther.x / length,
-                  y: toOther.y / length,
-                }
-              : null;
-        }
-      }
-      if (!hazardDirection && hearingHit) {
-        hazardDirection = hearingHit.direction;
-      }
+
+      const hazardDirection: Vec2 | null = visionHit?.direction ?? null;
 
       if (!needDecision && !emergencyAvoid) {
         movement.intentionTicksLeft -= 1;
         continue;
       }
 
-      const higher = nearestHigherRank(world, id, ids);
-      const mate = nearestMateCandidate(world, id, ids);
-      const unknown = nearestUnknownNeighbor(world, id, ids);
+      const seenId = seenEntityId(world, id);
+      const higher = higherRankFromPerception(world, id, seenId);
+      const mate = mateFromPerception(world, id, seenId);
+      const unknown = unknownFromPerception(world, id, seenId);
       const caution = cautionFactor(world, id);
 
       const hazardRadius = Math.max(8, movement.maxSpeed * 2.2);
@@ -322,11 +255,17 @@ export class SocialNavMindSystem implements System {
       const desireYield =
         higher === null ? 0 : Math.max(0, (140 - higher.distance) / 140) * (0.25 + caution * 0.8);
       const desireMate =
-        mate === null ? 0 : Math.max(0, (world.config.matingRadius - mate.distance) / Math.max(1, world.config.matingRadius));
+        mate === null
+          ? 0
+          : Math.max(0, (world.config.matingRadius - mate.distance) / Math.max(1, world.config.matingRadius));
       const desireFeel =
         unknown === null
           ? 0
-          : Math.max(0, (world.config.feelingApproachRadius - unknown.distance) / Math.max(1, world.config.feelingApproachRadius));
+          : Math.max(
+              0,
+              (world.config.feelingApproachRadius - unknown.distance) /
+                Math.max(1, world.config.feelingApproachRadius),
+            );
 
       movement.intention = chooseIntention(movement, desireAvoid, desireYield, desireMate, desireFeel);
 

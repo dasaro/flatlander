@@ -2,7 +2,13 @@ import { geometryFromComponents } from '../core/entityGeometry';
 import { getEyeWorldPosition } from '../core/eye';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
-import { raycastCircle, raycastConvexPolygon, raycastSegmentCapsule } from '../geometry/raycast';
+import {
+  WORLD_BOUNDARY_HIT_IDS,
+  raycastCircle,
+  raycastConvexPolygon,
+  raycastSegmentCapsule,
+  raycastWorldBounds,
+} from '../geometry/raycast';
 import { clamp, distance } from '../geometry/vector';
 import type { Vec2 } from '../geometry/vector';
 
@@ -35,6 +41,7 @@ export type FlatlanderViewConfig = {
   minVisibleIntensity: number;
   grayscaleMode: boolean;
   includeObstacles: boolean;
+  includeBoundaries: boolean;
   inanimateDimMultiplier: number;
 };
 
@@ -263,6 +270,31 @@ export function computeFlatlanderScan(
         bestDistance = hitDistance;
         bestId = candidate.id;
         bestInanimate = candidate.inanimate;
+      }
+    }
+
+    if (cfg.includeBoundaries && world.config.topology === 'bounded') {
+      const boundaryHit = raycastWorldBounds(eye, dir, world.config.width, world.config.height);
+      if (boundaryHit && boundaryHit.distance <= maxDistance) {
+        const intensity = sampleIntensity(
+          cfg.fogDensity,
+          boundaryHit.distance,
+          true,
+          cfg.minVisibleIntensity,
+          cfg.inanimateDimMultiplier,
+        );
+        if (intensity > 0) {
+          const boundaryHitId = WORLD_BOUNDARY_HIT_IDS[boundaryHit.side];
+          if (
+            boundaryHit.distance < bestDistance - 1e-9 ||
+            (Math.abs(boundaryHit.distance - bestDistance) <= 1e-9 &&
+              (bestId === null || boundaryHitId < bestId))
+          ) {
+            bestDistance = boundaryHit.distance;
+            bestId = boundaryHitId;
+            bestInanimate = true;
+          }
+        }
       }
     }
 

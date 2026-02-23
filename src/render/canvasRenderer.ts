@@ -79,8 +79,12 @@ export class CanvasRenderer {
 
     const selectedObserverEye =
       selectedEntityId !== null ? getEyeWorldPosition(world, selectedEntityId) : null;
-    if (selectedObserverEye && options.fogPreviewEnabled && options.fogPreviewRings) {
-      this.drawFogPreviewRings(world, selectedObserverEye, camera);
+    const fogPreviewStrength = Math.max(0, Math.min(1, options.fogPreviewStrength ?? 0.5));
+    if (selectedObserverEye && options.fogPreviewEnabled) {
+      this.drawFogFieldPreview(world, selectedObserverEye, fogPreviewStrength);
+      if (options.fogPreviewRings) {
+        this.drawFogPreviewRings(world, selectedObserverEye, camera);
+      }
     }
 
     const ids = getSortedEntityIds(world);
@@ -134,8 +138,8 @@ export class CanvasRenderer {
         if ((options.fogPreviewHideBelowMin ?? false) && intensity < world.config.fogMinIntensity) {
           continue;
         }
-        const previewStrength = Math.max(0, Math.min(1, options.fogPreviewStrength ?? 0.2));
-        entityAlpha *= 1 + (intensity - 1) * previewStrength;
+        const fogFactor = intensity ** (1 + fogPreviewStrength * 2.5);
+        entityAlpha *= 1 + (fogFactor - 1) * fogPreviewStrength;
       }
       entityAlpha = Math.max(0.05, Math.min(1, entityAlpha));
       if (isSelected) {
@@ -440,7 +444,7 @@ export class CanvasRenderer {
   }
 
   private drawFogPreviewRings(world: World, observer: Vec2, camera: Camera): void {
-    const levels = [0.8, 0.5, 0.2];
+    const levels = [0.85, 0.65, 0.45, 0.25];
     const fogDensity = Math.max(0, world.config.fogDensity);
     const fogMaxDistance = Math.max(0, world.config.fogMaxDistance);
     if (fogDensity <= 0 || fogMaxDistance <= 0) {
@@ -461,6 +465,37 @@ export class CanvasRenderer {
       this.ctx.stroke();
     }
     this.ctx.setLineDash([]);
+    this.ctx.restore();
+  }
+
+  private drawFogFieldPreview(world: World, observer: Vec2, strength: number): void {
+    const fogDensity = Math.max(0, world.config.fogDensity);
+    const fogMaxDistance = Math.max(0, world.config.fogMaxDistance);
+    if (fogDensity <= 0 || fogMaxDistance <= 0 || strength <= 0) {
+      return;
+    }
+
+    const farRadius = Math.max(1, fogMaxDistance);
+    const gradient = this.ctx.createRadialGradient(
+      observer.x,
+      observer.y,
+      0,
+      observer.x,
+      observer.y,
+      farRadius,
+    );
+    gradient.addColorStop(0, 'rgba(64, 68, 78, 0)');
+    gradient.addColorStop(0.55, `rgba(64, 68, 78, ${(0.08 * strength).toFixed(3)})`);
+    gradient.addColorStop(1, `rgba(64, 68, 78, ${(0.2 * strength).toFixed(3)})`);
+
+    this.ctx.save();
+    this.ctx.fillStyle = gradient;
+    this.ctx.fillRect(
+      observer.x - farRadius,
+      observer.y - farRadius,
+      farRadius * 2,
+      farRadius * 2,
+    );
     this.ctx.restore();
   }
 

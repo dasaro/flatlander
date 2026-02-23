@@ -102,9 +102,16 @@ export class AvoidanceSteeringSystem implements System {
         vision.avoidDistance > 0 &&
         visionHit.distance < vision.avoidDistance
       ) {
-        const otherTransform = world.transforms.get(visionHit.hitId);
-        if (otherTransform) {
-          const toHit = sub(otherTransform.position, eye);
+        const toHit =
+          visionHit.direction ??
+          (() => {
+            const otherTransform = world.transforms.get(visionHit.hitId);
+            if (!otherTransform) {
+              return null;
+            }
+            return sub(otherTransform.position, eye);
+          })();
+        if (toHit) {
           const side = cross(forward, toHit);
           const sideSign = side >= 0 ? 1 : -1;
           turnDelta -= sideSign * avoidTurnRate * dt;

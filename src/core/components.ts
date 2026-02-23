@@ -86,6 +86,9 @@ export interface VisionComponent {
 export interface VisionHitComponent {
   hitId: EntityId;
   distance: number;
+  direction: Vec2;
+  kind: 'entity' | 'boundary';
+  boundarySide?: 'north' | 'south' | 'west' | 'east';
 }
 
 export interface PerceptionComponent {

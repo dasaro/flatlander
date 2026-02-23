@@ -1,6 +1,9 @@
 import type { FlatlanderScanResult, FlatlanderViewConfig } from './flatlanderScan';
 
 function tintFromHitId(hitId: number, alpha: number): string {
+  if (hitId < 0) {
+    return `hsla(34, 24%, 38%, ${alpha.toFixed(3)})`;
+  }
   const hue = ((hitId * 53) % 360 + 360) % 360;
   return `hsla(${hue}, 56%, 42%, ${alpha.toFixed(3)})`;
 }
@@ -79,8 +82,9 @@ export class FlatlanderViewRenderer {
       }
 
       const x = count <= 1 ? width / 2 : (i / (count - 1)) * width;
-      const alpha = Math.max(0.05, Math.min(1, sample.intensity));
-      const halfHeight = 2 + sample.intensity * 10;
+      const visualIntensity = Math.max(0, Math.min(1, sample.intensity ** 1.4));
+      const alpha = Math.max(0.05, Math.min(1, visualIntensity));
+      const halfHeight = 2 + visualIntensity * 10;
 
       this.ctx.strokeStyle = cfg.grayscaleMode
         ? `rgba(33, 31, 28, ${alpha.toFixed(3)})`
@@ -107,7 +111,8 @@ export class FlatlanderViewRenderer {
         const x = count <= 1 ? width / 2 : (sampleIndex / (count - 1)) * width;
         const isClosest = j === 1;
         const radius = isClosest ? 3.2 : 2.2;
-        const alpha = Math.max(0.2, Math.min(1, sample.intensity * (isClosest ? 1 : 0.8)));
+        const visualIntensity = Math.max(0, Math.min(1, sample.intensity ** 1.4));
+        const alpha = Math.max(0.2, Math.min(1, visualIntensity * (isClosest ? 1 : 0.8)));
         const fill = cfg.grayscaleMode
           ? `rgba(22, 20, 18, ${alpha.toFixed(3)})`
           : tintFromHitId(sample.hitId, alpha);

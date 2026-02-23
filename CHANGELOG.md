@@ -2,6 +2,31 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.7.5] - 2026-02-23
+
+### Changed
+- Boundary-aware perception for bounded topology:
+  - vision now uses deterministic raycasts against world walls,
+  - wall hits are surfaced as first-class `visionHits` (`kind: "boundary"` with side metadata),
+  - avoidance steering consumes directional hits from perception output.
+- Social navigation intention selection is now perception-driven:
+  - `socialNav` decisions are selected from 1D-style visible contacts (plus immediate collision emergency),
+  - removed global neighbor scans from intention choice to reduce omniscient behavior.
+- Flatlander 1D panel controls moved next to the strip:
+  - `Greyscale / Color` toggle relocated from sidebar to the Flatlander panel header,
+  - added `Include Boundaries` toggle for bounded-world wall visibility in the strip.
+- Fog presentation strengthened:
+  - increased default fog density and minimum intensity,
+  - stronger God-view fog preview attenuation and optional field veil/ring cues,
+  - stronger strip contrast mapping for distant samples.
+- Irregular polygons are substantially more common:
+  - higher default irregular-birth probability/inheritance boost,
+  - larger irregular share in default spawn plan and presets.
+
+### Added
+- World-boundary raycast helpers and wall hit identifiers in geometry utilities.
+- Additional tests for bounded-wall visibility in both 1D scan and vision systems.
+
 ## [0.7.4] - 2026-02-23
 
 ### Fixed

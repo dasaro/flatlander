@@ -19,6 +19,7 @@ const BASE_SCAN_CONFIG: FlatlanderViewConfig = {
   minVisibleIntensity: 0.06,
   grayscaleMode: true,
   includeObstacles: true,
+  includeBoundaries: true,
   inanimateDimMultiplier: 0.65,
 };
 
@@ -93,6 +94,34 @@ describe('flatlander scan', () => {
     expect(nearHit).toBeDefined();
     expect(farHit).toBeDefined();
     expect(farHit?.intensity ?? 1).toBeLessThan(nearHit?.intensity ?? 0);
+  });
+
+  it('shows bounded-world walls as visible lines when enabled', () => {
+    const world = createWorld(654, {
+      topology: 'bounded',
+      southAttractionEnabled: false,
+      reproductionEnabled: false,
+    });
+    const viewerId = spawnEntity(
+      world,
+      { kind: 'circle', size: 8 },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'bounce' },
+      { x: world.config.width - 50, y: world.config.height / 2 },
+    );
+    const viewerTransform = world.transforms.get(viewerId);
+    if (!viewerTransform) {
+      throw new Error('Missing viewer transform in bounded wall scan test.');
+    }
+    viewerTransform.rotation = 0;
+
+    const scan = computeFlatlanderScan(world, viewerId, {
+      ...BASE_SCAN_CONFIG,
+      maxDistance: 200,
+      fogDensity: 0.012,
+      includeBoundaries: true,
+      minVisibleIntensity: 0,
+    });
+    expect(scan.samples.some((sample) => sample.hitId === -4)).toBe(true);
   });
 });
 

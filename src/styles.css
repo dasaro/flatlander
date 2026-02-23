@@ -306,6 +306,20 @@ button:active {
   background: #fffdf8;
 }
 
+.flatlander-stage-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+}
+
+.flatlander-stage-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
 #world-canvas:active {
   cursor: grabbing;
 }

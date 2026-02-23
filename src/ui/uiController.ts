@@ -189,6 +189,7 @@ interface InputRefs {
   flatlanderFogDensity: HTMLInputElement;
   flatlanderGrayscale: HTMLInputElement;
   flatlanderIncludeObstacles: HTMLInputElement;
+  flatlanderIncludeBoundaries: HTMLInputElement;
   fogSightEnabled: HTMLInputElement;
   fogSightDensity: HTMLInputElement;
   legendPanel: HTMLElement;
@@ -856,6 +857,7 @@ export class UIController {
       this.refs.flatlanderFogDensity,
       this.refs.flatlanderGrayscale,
       this.refs.flatlanderIncludeObstacles,
+      this.refs.flatlanderIncludeBoundaries,
     ];
 
     for (const input of flatlanderInputs) {
@@ -1034,7 +1036,7 @@ export class UIController {
     this.refs.reproductionFemaleBirthProbability.value = '0.56';
     this.refs.reproductionMaxPopulation.value = '550';
     this.refs.reproductionIrregularEnabled.checked = true;
-    this.refs.reproductionIrregularBaseChance.value = '0.02';
+    this.refs.reproductionIrregularBaseChance.value = '0.14';
 
     this.refs.southEnabled.checked = true;
     this.refs.southStrength.value = '2';
@@ -1043,7 +1045,7 @@ export class UIController {
     this.refs.southMaxTerminal.value = '1.8';
     this.refs.southEscapeFraction.value = '0.5';
     this.refs.fogSightEnabled.checked = true;
-    this.refs.fogSightDensity.value = '0.006';
+    this.refs.fogSightDensity.value = '0.012';
 
     this.callbacks.onPeaceCryDefaultsUpdate(this.readPeaceCrySettings());
     this.callbacks.onReproductionUpdate(this.readReproductionSettings());
@@ -1116,7 +1118,7 @@ export class UIController {
       maxPopulation: Math.max(1, parseInteger(this.refs.reproductionMaxPopulation.value, 400)),
       irregularBirthsEnabled: this.refs.reproductionIrregularEnabled.checked,
       irregularBirthBaseChance: clampRange(
-        parseNumber(this.refs.reproductionIrregularBaseChance.value, 0.02),
+        parseNumber(this.refs.reproductionIrregularBaseChance.value, 0.14),
         0,
         1,
       ),
@@ -1160,10 +1162,11 @@ export class UIController {
       fovRad: (fovDeg * Math.PI) / 180,
       lookOffsetRad: (lookOffsetDeg * Math.PI) / 180,
       maxDistance: Math.max(1, parseNumber(this.refs.flatlanderMaxDistance.value, 400)),
-      fogDensity: Math.max(0, parseNumber(this.refs.flatlanderFogDensity.value, 0.006)),
+      fogDensity: Math.max(0, parseNumber(this.refs.flatlanderFogDensity.value, 0.012)),
       minVisibleIntensity: 0.06,
       grayscaleMode: this.refs.flatlanderGrayscale.checked,
       includeObstacles: this.refs.flatlanderIncludeObstacles.checked,
+      includeBoundaries: this.refs.flatlanderIncludeBoundaries.checked,
       inanimateDimMultiplier: 0.65,
     };
   }
@@ -1171,7 +1174,7 @@ export class UIController {
   private readFogSightSettings(): FogSightSettings {
     return {
       sightEnabled: this.refs.fogSightEnabled.checked,
-      fogDensity: Math.max(0, parseNumber(this.refs.fogSightDensity.value, 0.006)),
+      fogDensity: Math.max(0, parseNumber(this.refs.fogSightDensity.value, 0.012)),
     };
   }
 
@@ -1545,6 +1548,7 @@ function collectRefs(): InputRefs {
     flatlanderFogDensity: required<HTMLInputElement>('flatlander-fog-density'),
     flatlanderGrayscale: required<HTMLInputElement>('flatlander-grayscale'),
     flatlanderIncludeObstacles: required<HTMLInputElement>('flatlander-include-obstacles'),
+    flatlanderIncludeBoundaries: required<HTMLInputElement>('flatlander-include-boundaries'),
     fogSightEnabled: required<HTMLInputElement>('fog-sight-enabled'),
     fogSightDensity: required<HTMLInputElement>('fog-sight-density'),
     legendPanel: required<HTMLElement>('legend-panel'),

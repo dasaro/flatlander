@@ -158,11 +158,11 @@
           </div>
           <div class="row">
             <label for="overlay-fog-preview">Fog Preview (Selected)</label>
-            <input id="overlay-fog-preview" type="checkbox" />
+            <input id="overlay-fog-preview" type="checkbox" checked />
           </div>
           <div class="row">
             <label for="overlay-fog-preview-strength">Fog Preview Strength</label>
-            <input id="overlay-fog-preview-strength" type="number" min="0" max="1" step="0.05" value="0.2" />
+            <input id="overlay-fog-preview-strength" type="number" min="0" max="1" step="0.05" value="0.5" />
           </div>
           <div class="row">
             <label for="overlay-fog-preview-hide-min">Hide Below Fog Min</label>
@@ -170,7 +170,7 @@
           </div>
           <div class="row">
             <label for="overlay-fog-rings">Show Fog Rings</label>
-            <input id="overlay-fog-rings" type="checkbox" />
+            <input id="overlay-fog-rings" type="checkbox" checked />
           </div>
           <p class="hint">Network legend: solid=parent, dashed=known</p>
           <p class="hint">Kill stroke legend: 0 / 1-2 / 3-5 / 6+</p>
@@ -210,11 +210,7 @@
           </div>
           <div class="row">
             <label for="flatlander-fog-density">Fog Density</label>
-            <input id="flatlander-fog-density" type="number" min="0" step="0.001" value="0.006" />
-          </div>
-          <div class="row">
-            <label for="flatlander-grayscale">Grayscale</label>
-            <input id="flatlander-grayscale" type="checkbox" checked />
+            <input id="flatlander-fog-density" type="number" min="0" step="0.001" value="0.012" />
           </div>
           <div class="row">
             <label for="flatlander-include-obstacles">Include Obstacles</label>
@@ -231,7 +227,7 @@
           </div>
           <div class="row">
             <label for="fog-sight-density">Fog Density</label>
-            <input id="fog-sight-density" type="number" min="0" step="0.001" value="0.006" />
+            <input id="fog-sight-density" type="number" min="0" step="0.001" value="0.012" />
           </div>
           <p class="hint">Fog=0 disables sight recognition (novel rule).</p>
         </section>
@@ -373,7 +369,7 @@
               min="0"
               max="1"
               step="0.0001"
-              value="0.02"
+              value="0.14"
             />
           </div>
           <p class="hint">Reset preserves current reproduction settings.</p>
@@ -762,6 +758,10 @@
         </div>
         <section class="timeline-panel" id="flatlander-stage-panel" aria-label="Flatlander view panel">
           <h2>Flatlander View (Selected)</h2>
+          <div class="flatlander-stage-controls">
+            <label><input id="flatlander-grayscale" type="checkbox" checked /> Greyscale / Color</label>
+            <label><input id="flatlander-include-boundaries" type="checkbox" checked /> Include Boundaries</label>
+          </div>
           <canvas id="flatlander-canvas" aria-label="Flatlander retina strip"></canvas>
           <p class="hint">Select an entity to view one-dimensional sight.</p>
         </section>

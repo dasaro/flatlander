@@ -110,4 +110,36 @@ describe('fog-gated sight recognition', () => {
 
     expect(makeHit()).toEqual(makeHit());
   });
+
+  it('detects bounded-world walls as visible hazards', () => {
+    const world = createWorld(91, {
+      topology: 'bounded',
+      sightEnabled: true,
+      fogDensity: 0.012,
+      fogMinIntensity: 0.08,
+      fogMaxDistance: 300,
+      southAttractionEnabled: false,
+    });
+    const viewerId = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 5, size: 20, irregular: false },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'bounce' },
+      { x: world.config.width - 40, y: world.config.height / 2 },
+    );
+    const viewerTransform = world.transforms.get(viewerId);
+    const viewerVision = world.vision.get(viewerId);
+    if (!viewerTransform || !viewerVision) {
+      throw new Error('Viewer setup failed in bounded-wall vision test.');
+    }
+    viewerTransform.rotation = 0;
+    viewerVision.enabled = true;
+    viewerVision.range = 200;
+
+    const system = new VisionSystem();
+    system.update(world);
+    const hit = world.visionHits.get(viewerId);
+    expect(hit?.kind).toBe('boundary');
+    expect(hit?.boundarySide).toBe('east');
+    expect(hit?.hitId).toBe(-4);
+  });
 });

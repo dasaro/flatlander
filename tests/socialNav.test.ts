@@ -133,4 +133,49 @@ describe('social nav movement', () => {
 
     expect(build()).toBe(build());
   });
+
+  it('chooses intentions from perceived 1D vision hits, not omniscient neighbor scans', () => {
+    const world = createWorld(403, {
+      southAttractionEnabled: false,
+      sightEnabled: false,
+    });
+    const observerId = spawnEntity(
+      world,
+      { kind: 'segment', size: 20 },
+      {
+        type: 'socialNav',
+        boundary: 'wrap',
+        maxSpeed: 14,
+        maxTurnRate: 1.25,
+        decisionEveryTicks: 4,
+        intentionMinTicks: 18,
+      },
+      { x: 220, y: 220 },
+    );
+    spawnEntity(
+      world,
+      { kind: 'polygon', sides: 4, size: 18, irregular: false },
+      {
+        type: 'socialNav',
+        boundary: 'wrap',
+        maxSpeed: 12,
+        maxTurnRate: 1.1,
+        decisionEveryTicks: 4,
+        intentionMinTicks: 18,
+      },
+      { x: 235, y: 220 },
+    );
+
+    const movement = world.movements.get(observerId);
+    if (!movement || movement.type !== 'socialNav') {
+      throw new Error('Observer social-nav component missing in perception-only test.');
+    }
+    movement.intentionTicksLeft = 0;
+
+    const mind = new SocialNavMindSystem();
+    mind.update(world);
+
+    const nextMovement = world.movements.get(observerId);
+    expect(nextMovement && nextMovement.type === 'socialNav' ? nextMovement.intention : null).toBe('roam');
+  });
 });

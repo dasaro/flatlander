@@ -25,6 +25,24 @@ function edgeAt(vertices: Vec2[], index: number): { a: Vec2; b: Vec2 } {
   return { a, b };
 }
 
+export type WorldBoundarySide = 'north' | 'south' | 'west' | 'east';
+
+export const WORLD_BOUNDARY_HIT_IDS: Record<WorldBoundarySide, number> = {
+  north: -1,
+  south: -2,
+  west: -3,
+  east: -4,
+};
+
+export function worldBoundarySideFromHitId(hitId: number): WorldBoundarySide | null {
+  for (const side of Object.keys(WORLD_BOUNDARY_HIT_IDS) as WorldBoundarySide[]) {
+    if (WORLD_BOUNDARY_HIT_IDS[side] === hitId) {
+      return side;
+    }
+  }
+  return null;
+}
+
 export function raycastCircle(origin: Vec2, dir: Vec2, center: Vec2, radius: number): number | null {
   const safeRadius = Math.max(0, radius);
   const d = normalize(dir);
@@ -124,4 +142,92 @@ export function raycastSegmentCapsule(
   ];
 
   return minimumPositive(hits);
+}
+
+export function raycastWorldBounds(
+  origin: Vec2,
+  dir: Vec2,
+  width: number,
+  height: number,
+): { distance: number; side: WorldBoundarySide; point: Vec2 } | null {
+  const d = normalize(dir);
+  if (length(d) <= EPSILON) {
+    return null;
+  }
+
+  const candidates: Array<{ distance: number; side: WorldBoundarySide; point: Vec2 }> = [];
+  const min = 1e-6;
+  const safeWidth = Math.max(0, width);
+  const safeHeight = Math.max(0, height);
+
+  if (Math.abs(d.x) > EPSILON) {
+    const tWest = (0 - origin.x) / d.x;
+    if (tWest >= min) {
+      const y = origin.y + tWest * d.y;
+      if (y >= -EPSILON && y <= safeHeight + EPSILON) {
+        candidates.push({
+          distance: tWest,
+          side: 'west',
+          point: { x: 0, y: Math.max(0, Math.min(safeHeight, y)) },
+        });
+      }
+    }
+
+    const tEast = (safeWidth - origin.x) / d.x;
+    if (tEast >= min) {
+      const y = origin.y + tEast * d.y;
+      if (y >= -EPSILON && y <= safeHeight + EPSILON) {
+        candidates.push({
+          distance: tEast,
+          side: 'east',
+          point: { x: safeWidth, y: Math.max(0, Math.min(safeHeight, y)) },
+        });
+      }
+    }
+  }
+
+  if (Math.abs(d.y) > EPSILON) {
+    const tNorth = (0 - origin.y) / d.y;
+    if (tNorth >= min) {
+      const x = origin.x + tNorth * d.x;
+      if (x >= -EPSILON && x <= safeWidth + EPSILON) {
+        candidates.push({
+          distance: tNorth,
+          side: 'north',
+          point: { x: Math.max(0, Math.min(safeWidth, x)), y: 0 },
+        });
+      }
+    }
+
+    const tSouth = (safeHeight - origin.y) / d.y;
+    if (tSouth >= min) {
+      const x = origin.x + tSouth * d.x;
+      if (x >= -EPSILON && x <= safeWidth + EPSILON) {
+        candidates.push({
+          distance: tSouth,
+          side: 'south',
+          point: { x: Math.max(0, Math.min(safeWidth, x)), y: safeHeight },
+        });
+      }
+    }
+  }
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  const sideOrder: Record<WorldBoundarySide, number> = {
+    north: 0,
+    east: 1,
+    south: 2,
+    west: 3,
+  };
+  candidates.sort((a, b) => {
+    if (Math.abs(a.distance - b.distance) > EPSILON) {
+      return a.distance - b.distance;
+    }
+    return sideOrder[a.side] - sideOrder[b.side];
+  });
+
+  return candidates[0] ?? null;
 }
