@@ -60,7 +60,6 @@ import { APP_VERSION } from './version';
 
 const TIMELINE_TYPE_CONTROL_IDS: Partial<Record<EventType, string>> = {
   handshake: 'timeline-type-handshake',
-  stab: 'timeline-type-stab',
   death: 'timeline-type-death',
   birth: 'timeline-type-birth',
   regularized: 'timeline-type-regularized',

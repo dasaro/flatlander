@@ -28,12 +28,13 @@ describe('event analytics', () => {
     analytics.ingest([
       { type: 'touch', tick: 2, aId: 7, bId: 8, pos: { x: 0, y: 0 } },
       { type: 'stab', tick: 3, attackerId: 7, victimId: 9, pos: { x: 1, y: 1 }, sharpness: 0.6 },
+      { type: 'handshake', tick: 3, aId: 7, bId: 10, pos: { x: 1, y: 1 } },
       { type: 'death', tick: 3, entityId: 77, pos: { x: 1.2, y: 1.2 } },
       { type: 'peaceCry', tick: 4, emitterId: 1, pos: { x: 3, y: 3 }, radius: 100 },
     ]);
 
     const focused = analytics.getFilteredSummaries({
-      selectedTypes: new Set(['stab', 'death', 'handshake']),
+      selectedTypes: new Set(['handshake', 'death', 'birth', 'regularized']),
       selectedRankKeys: new Set<string>(),
       splitByRank: false,
       focusEntityId: 7,
@@ -41,20 +42,22 @@ describe('event analytics', () => {
 
     expect(focused.map((summary) => summary.tick)).toEqual([3]);
     const tickThreeSummary = focused.find((summary) => summary.tick === 3);
-    expect(tickThreeSummary?.countsByType.stab).toBe(1);
+    expect(tickThreeSummary?.countsByType.handshake).toBe(1);
+    expect(tickThreeSummary?.countsByType.stab).toBe(0);
     expect(tickThreeSummary?.countsByType.death).toBe(0);
   });
 
-  it('ignores peace-cry and touch events in timeline summaries', () => {
+  it('ignores peace-cry, touch, and stab events in timeline summaries', () => {
     const analytics = new EventAnalytics();
     analytics.ingest([
       { type: 'peaceCry', tick: 4, emitterId: 1, pos: { x: 3, y: 3 }, radius: 100 },
       { type: 'touch', tick: 5, aId: 1, bId: 2, pos: { x: 1, y: 1 } },
+      { type: 'stab', tick: 5, attackerId: 1, victimId: 2, pos: { x: 1, y: 1 }, sharpness: 0.6 },
       { type: 'handshake', tick: 6, aId: 1, bId: 2, pos: { x: 1, y: 1 } },
     ]);
 
     const summaries = analytics.getFilteredSummaries({
-      selectedTypes: new Set(['handshake', 'stab', 'death', 'birth', 'regularized']),
+      selectedTypes: new Set(['handshake', 'death', 'birth', 'regularized']),
       selectedRankKeys: new Set<string>(),
       splitByRank: false,
       focusEntityId: null,
@@ -64,6 +67,7 @@ describe('event analytics', () => {
     expect(summaries[0]?.countsByType.handshake).toBe(1);
     expect(summaries[0]?.countsByType.touch).toBe(0);
     expect(summaries[0]?.countsByType.peaceCry).toBe(0);
+    expect(summaries[0]?.countsByType.stab).toBe(0);
   });
 
   it('filters by rank keys deterministically', () => {

@@ -78,7 +78,7 @@ export class PopulationHistogram {
     const left = 38;
     const right = width - 12;
     const top = 12;
-    const bottom = height - 28;
+    const bottom = height - 34;
     const chartHeight = Math.max(1, bottom - top);
     const chartWidth = Math.max(1, right - left);
 
@@ -104,8 +104,12 @@ export class PopulationHistogram {
     const lastTick = latest?.tick ?? firstTick;
     const tickSpan = Math.max(1, lastTick - firstTick);
     const bins = this.buildBins(chartWidth, firstTick, tickSpan);
-    const maxPopulation = Math.max(1, ...bins.map((bin) => (bin.count > 0 ? bin.population / bin.count : 0)));
+    const maxPopulation = Math.max(
+      1,
+      ...bins.map((bin) => (bin.count > 0 ? bin.population / bin.count : 0)),
+    );
     const barWidth = Math.max(1, Math.floor(chartWidth / bins.length));
+    this.drawPopulationScaleGrid(left, right, top, bottom, maxPopulation);
 
     this.ctx.save();
     this.ctx.beginPath();
@@ -124,6 +128,10 @@ export class PopulationHistogram {
       if (avgPopulation <= 0) {
         continue;
       }
+      const envelopeHeight = (avgPopulation / maxPopulation) * chartHeight;
+      if (envelopeHeight <= 0) {
+        continue;
+      }
       for (let groupIndex = 0; groupIndex < COMPOSITION_GROUPS.length; groupIndex += 1) {
         const avgGroupPopulation = (bin.groups[groupIndex] ?? 0) / bin.count;
         if (avgGroupPopulation <= 0) {
@@ -133,32 +141,12 @@ export class PopulationHistogram {
         if (fraction <= 0) {
           continue;
         }
-        const h = Math.max(1, fraction * chartHeight);
+        const h = fraction * envelopeHeight;
         y -= h;
         this.ctx.fillStyle = COMPOSITION_GROUPS[groupIndex]?.color ?? '#888888';
         this.ctx.fillRect(x, y, barWidth, h + 0.5);
       }
     }
-
-    this.ctx.strokeStyle = '#2f5d8f';
-    this.ctx.lineWidth = 1.6;
-    this.ctx.beginPath();
-    for (let i = 0; i < bins.length; i += 1) {
-      const bin = bins[i];
-      if (!bin || bin.count <= 0) {
-        continue;
-      }
-
-      const avgPopulation = bin.population / bin.count;
-      const x = left + i + barWidth / 2;
-      const y = bottom - (avgPopulation / maxPopulation) * chartHeight;
-      if (i === 0 || !Number.isFinite(y)) {
-        this.ctx.moveTo(x, y);
-      } else {
-        this.ctx.lineTo(x, y);
-      }
-    }
-    this.ctx.stroke();
 
     this.ctx.restore();
 
@@ -166,11 +154,42 @@ export class PopulationHistogram {
     this.ctx.font = '11px Trebuchet MS, sans-serif';
     if (latest) {
       this.ctx.fillText(`Tick 0..${lastTick}`, left, height - 8);
-      this.ctx.fillText(`Pop ${latest.population}`, right - 70, top + 10);
+      const peakPopulation = this.samples.reduce(
+        (max, sample) => Math.max(max, sample.population),
+        latest.population,
+      );
+      this.ctx.fillText(`Pop ${latest.population}`, right - 74, top + 10);
+      this.ctx.fillText(`Peak ${peakPopulation}`, right - 74, top + 22);
     }
 
-    this.drawLegend(left, height - 18, right);
+    this.drawLegend(left, height - 20, right);
     this.dirty = false;
+  }
+
+  private drawPopulationScaleGrid(
+    left: number,
+    right: number,
+    top: number,
+    bottom: number,
+    maxPopulation: number,
+  ): void {
+    const markers = [0, 25, 50, 75, 100];
+    this.ctx.save();
+    this.ctx.font = '10px Trebuchet MS, sans-serif';
+    for (const marker of markers) {
+      const ratio = marker / 100;
+      const y = bottom - ratio * (bottom - top);
+      this.ctx.strokeStyle = marker === 0 || marker === 100 ? 'rgba(70, 62, 46, 0.35)' : 'rgba(70, 62, 46, 0.17)';
+      this.ctx.lineWidth = 1;
+      this.ctx.beginPath();
+      this.ctx.moveTo(left, y + 0.5);
+      this.ctx.lineTo(right, y + 0.5);
+      this.ctx.stroke();
+      this.ctx.fillStyle = 'rgba(64, 57, 47, 0.72)';
+      const count = Math.round((marker / 100) * maxPopulation);
+      this.ctx.fillText(`${count}`, 4, y + 3);
+    }
+    this.ctx.restore();
   }
 
   private snapshot(world: World): PopulationSample {
