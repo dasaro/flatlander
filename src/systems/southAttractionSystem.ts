@@ -6,6 +6,19 @@ import type { System } from './system';
 
 const MIN_DRAG = 1e-6;
 
+function entityMaxSpeed(world: World, entityId: number): number {
+  const movement = world.movements.get(entityId);
+  if (!movement) {
+    return 0;
+  }
+
+  if (movement.type === 'straightDrift') {
+    return Math.hypot(movement.vx, movement.vy);
+  }
+
+  return Math.max(0, movement.speed);
+}
+
 export class SouthAttractionSystem implements System {
   update(world: World, dt: number): void {
     const ids = getSortedEntityIds(world);
@@ -33,7 +46,11 @@ export class SouthAttractionSystem implements System {
       }
 
       drift.vy += (effectiveAcceleration - drag * drift.vy) * dt;
-      drift.vy = clamp(drift.vy, -maxTerminal, maxTerminal);
+      const maxSpeed = entityMaxSpeed(world, id);
+      const localEscapeCap =
+        maxSpeed > 0 ? Math.max(0, world.config.southEscapeFraction) * maxSpeed : maxTerminal;
+      const localMaxTerminal = Math.min(maxTerminal, localEscapeCap);
+      drift.vy = clamp(drift.vy, -localMaxTerminal, localMaxTerminal);
     }
   }
 }

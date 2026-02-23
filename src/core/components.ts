@@ -1,4 +1,5 @@
 import type { Vec2 } from '../geometry/vector';
+import type { Rank } from './rank';
 
 export type EntityId = number;
 
@@ -49,4 +50,118 @@ export interface VisionComponent {
 export interface VisionHitComponent {
   hitId: EntityId;
   distance: number;
+}
+
+export interface PerceptionComponent {
+  sightSkill: number;
+  hearingSkill: number;
+  hearingRadius: number;
+}
+
+export type VoiceSignature = 'WomanCry' | 'Equilateral' | 'Square' | 'Pentagon' | 'HighOrder';
+
+export interface VoiceComponent {
+  signature: VoiceSignature;
+  mimicryEnabled: boolean;
+  mimicrySignature: VoiceSignature | null;
+}
+
+export interface HearingHitComponent {
+  otherId: EntityId;
+  signature: VoiceSignature;
+  distance: number;
+  direction: Vec2;
+}
+
+export interface StaticObstacleComponent {
+  kind: 'house';
+}
+
+export type HouseKind = 'Pentagon' | 'Square' | 'TriangleFort';
+
+export interface HouseComponent {
+  houseKind: HouseKind;
+  doorEastWorld: Vec2;
+  doorWestWorld: Vec2;
+}
+
+export interface PeaceCryComponent {
+  enabled: boolean;
+  cadenceTicks: number;
+  radius: number;
+  lastEmitTick: number;
+}
+
+export interface AudiblePing {
+  emitterId: EntityId;
+  position: Vec2;
+  radius: number;
+}
+
+export interface KnownInfo {
+  rank: Rank;
+  learnedBy: 'feeling';
+  learnedAtTick: number;
+}
+
+export interface KnowledgeComponent {
+  known: Map<EntityId, KnownInfo>;
+}
+
+export interface FeelingComponent {
+  enabled: boolean;
+  approachSpeed: number;
+  feelCooldownTicks: number;
+  lastFeltTick: number;
+}
+
+export interface AgeComponent {
+  ticksAlive: number;
+}
+
+export interface FertilityComponent {
+  enabled: boolean;
+  maturityTicks: number;
+  cooldownTicks: number;
+  lastBirthTick: number;
+}
+
+export interface PregnancyComponent {
+  fatherId: EntityId;
+  ticksRemaining: number;
+}
+
+export interface LineageComponent {
+  motherId: EntityId;
+  fatherId: EntityId;
+  generation: number;
+}
+
+export interface CombatStatsComponent {
+  kills: number;
+}
+
+export type FemaleRank = 'Low' | 'Middle' | 'High';
+
+export interface FemaleStatusComponent {
+  femaleRank: FemaleRank;
+}
+
+export interface SwayComponent {
+  enabled: boolean;
+  baseAmplitudeRad: number;
+  baseFrequencyHz: number;
+  phase: number;
+}
+
+export interface StillnessComponent {
+  ticksRemaining: number;
+}
+
+export interface IntelligenceComponent {
+  value: number;
+}
+
+export interface IrregularityComponent {
+  deviation: number;
 }

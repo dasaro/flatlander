@@ -12,6 +12,29 @@ export function regularPolygonVertices(sides: number, radius: number): Vec2[] {
   return vertices;
 }
 
+export function radialPolygonVertices(sides: number, baseRadius: number, radial: number[]): Vec2[] {
+  const step = (Math.PI * 2) / Math.max(3, sides);
+  const vertices: Vec2[] = [];
+
+  for (let i = 0; i < sides; i += 1) {
+    const multiplier = radial[i] ?? 1;
+    const radius = Math.max(EPSILON, baseRadius * multiplier);
+    const angle = i * step;
+    vertices.push(vec(Math.cos(angle) * radius, Math.sin(angle) * radius));
+  }
+
+  return vertices;
+}
+
+export function radialDeviation(radial: number[]): number {
+  if (radial.length === 0) {
+    return 0;
+  }
+
+  const average = mean(radial);
+  return stddev(radial, average);
+}
+
 export function isoscelesTriangleVertices(equalSideLength: number, baseRatio: number): Vec2[] {
   const side = Math.max(1, equalSideLength);
   const safeRatio = clamp(baseRatio, 0.01, 0.95);
@@ -198,6 +221,48 @@ function stddev(values: number[], avg: number): number {
 export interface IrregularPolygonResult {
   vertices: Vec2[];
   irregularity: number;
+}
+
+export interface IrregularRadialPolygonResult {
+  vertices: Vec2[];
+  irregularity: number;
+  radial: number[];
+}
+
+export function generateIrregularRadialPolygon(
+  sides: number,
+  radius: number,
+  jitter: number,
+  rng: SeededRng,
+  maxAttempts = 30,
+): IrregularRadialPolygonResult {
+  const clampedJitter = clamp(jitter, 0, 0.45);
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const radial: number[] = [];
+    for (let i = 0; i < sides; i += 1) {
+      radial.push(1 + rng.nextRange(-clampedJitter, clampedJitter));
+    }
+
+    const vertices = ensureCounterClockwise(radialPolygonVertices(sides, radius, radial));
+    if (!isConvex(vertices) || !isSimplePolygon(vertices)) {
+      continue;
+    }
+
+    return {
+      vertices,
+      irregularity: radialDeviation(radial),
+      radial,
+    };
+  }
+
+  const fallbackRadial = new Array(sides).fill(1);
+  const fallbackVertices = regularPolygonVertices(sides, radius);
+  return {
+    vertices: fallbackVertices,
+    irregularity: radialDeviation(fallbackRadial),
+    radial: fallbackRadial,
+  };
 }
 
 export function generateIrregularConvexPolygon(

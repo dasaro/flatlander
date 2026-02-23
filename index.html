@@ -45,11 +45,15 @@
           </div>
           <div class="row">
             <label for="south-drag">Drag</label>
-            <input id="south-drag" type="number" min="0" step="0.1" value="10" />
+            <input id="south-drag" type="number" min="0" step="0.1" value="12" />
           </div>
           <div class="row">
             <label for="south-max-terminal">Max Terminal</label>
-            <input id="south-max-terminal" type="number" min="0" step="0.1" value="2" />
+            <input id="south-max-terminal" type="number" min="0" step="0.1" value="1.8" />
+          </div>
+          <div class="row">
+            <label for="south-escape-fraction">Escape Fraction</label>
+            <input id="south-escape-fraction" type="number" min="0" max="1" step="0.05" value="0.5" />
           </div>
           <div class="row">
             <label for="south-show-zone">Show South Zone</label>
@@ -64,6 +68,218 @@
             <button id="step-btn" type="button">Step 1 Tick</button>
             <button id="reset-btn" type="button">Reset</button>
           </div>
+          <div class="button-row" style="margin-top: 6px">
+            <button id="novel-safety-preset-btn" type="button">Novel Safety Preset</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Event Highlights</h2>
+          <div class="row">
+            <label for="event-highlights-enabled">Enabled</label>
+            <input id="event-highlights-enabled" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="event-highlights-show-legend">Show Legend</label>
+            <input id="event-highlights-show-legend" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="event-highlights-intensity">Intensity</label>
+            <input id="event-highlights-intensity" type="number" min="0" max="3" step="0.1" value="1" />
+          </div>
+          <div class="row">
+            <label for="event-highlights-cap">Cap / Tick</label>
+            <input id="event-highlights-cap" type="number" min="1" step="1" value="120" />
+          </div>
+          <div class="button-row">
+            <button id="event-highlights-clear" type="button">Clear Effects</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Flatlander View</h2>
+          <div class="row">
+            <label for="flatlander-enabled">Enabled</label>
+            <input id="flatlander-enabled" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="flatlander-rays">Rays</label>
+            <select id="flatlander-rays">
+              <option value="360">360</option>
+              <option value="720" selected>720</option>
+              <option value="1024">1024</option>
+            </select>
+          </div>
+          <div class="row">
+            <label for="flatlander-fov">FOV</label>
+            <select id="flatlander-fov">
+              <option value="180">180°</option>
+              <option value="360" selected>360°</option>
+            </select>
+          </div>
+          <div class="row">
+            <label for="flatlander-look-offset">Look Offset (°)</label>
+            <input id="flatlander-look-offset" type="range" min="-180" max="180" step="1" value="0" />
+          </div>
+          <div class="row">
+            <label for="flatlander-max-distance">Max Distance</label>
+            <input id="flatlander-max-distance" type="number" min="1" step="1" value="400" />
+          </div>
+          <div class="row">
+            <label for="flatlander-fog-density">Fog Density</label>
+            <input id="flatlander-fog-density" type="number" min="0" step="0.001" value="0.006" />
+          </div>
+          <div class="row">
+            <label for="flatlander-grayscale">Grayscale</label>
+            <input id="flatlander-grayscale" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="flatlander-include-obstacles">Include Obstacles</label>
+            <input id="flatlander-include-obstacles" type="checkbox" checked />
+          </div>
+          <canvas id="flatlander-canvas" aria-label="Flatlander retina strip"></canvas>
+          <p class="hint">Select an entity to view one-dimensional sight.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Fog / Sight</h2>
+          <div class="row">
+            <label for="fog-sight-enabled">Sight Enabled</label>
+            <input id="fog-sight-enabled" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="fog-sight-density">Fog Density</label>
+            <input id="fog-sight-density" type="number" min="0" step="0.001" value="0.006" />
+          </div>
+          <p class="hint">Fog=0 disables sight recognition (novel rule).</p>
+        </section>
+
+        <section class="panel" id="legend-panel">
+          <h2>Legend</h2>
+          <ul class="legend-list">
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="2.1" fill="#c99d4c"></circle>
+                <circle cx="12" cy="12" r="6" fill="none" stroke="#c99d4c" stroke-opacity="0.65" stroke-width="1.4"></circle>
+              </svg>
+              <span>Touch (feeling)</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <line x1="8" y1="7" x2="8" y2="17" stroke="#2c2a24" stroke-width="2"></line>
+                <line x1="16" y1="7" x2="16" y2="17" stroke="#2c2a24" stroke-width="2"></line>
+              </svg>
+              <span>Handshake (recognized)</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="7.5" fill="none" stroke="#3a678c" stroke-width="1.5" stroke-dasharray="3 2"></circle>
+              </svg>
+              <span>Peace-cry</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <line x1="12" y1="4.5" x2="12" y2="19.5" stroke="#b84040" stroke-width="1.8"></line>
+                <line x1="5.5" y1="8" x2="18.5" y2="16" stroke="#b84040" stroke-width="1.8"></line>
+                <line x1="18.5" y1="8" x2="5.5" y2="16" stroke="#b84040" stroke-width="1.8"></line>
+              </svg>
+              <span>Stab</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <line x1="6.5" y1="6.5" x2="17.5" y2="17.5" stroke="#2c2a24" stroke-width="2"></line>
+                <line x1="17.5" y1="6.5" x2="6.5" y2="17.5" stroke="#2c2a24" stroke-width="2"></line>
+              </svg>
+              <span>Death</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="6.5" fill="none" stroke="#60845c" stroke-width="1.5"></circle>
+                <circle cx="12" cy="12" r="2.1" fill="#60845c"></circle>
+              </svg>
+              <span>Birth</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <line x1="6" y1="12" x2="18" y2="12" stroke="#2c2a24" stroke-width="1.8"></line>
+                <line x1="12" y1="6" x2="12" y2="18" stroke="#2c2a24" stroke-width="1.8"></line>
+              </svg>
+              <span>Regularized</span>
+            </li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <h2>World / Environment</h2>
+          <div class="row">
+            <label for="env-houses-enabled">Houses Enabled</label>
+            <input id="env-houses-enabled" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="env-house-count">House Count</label>
+            <input id="env-house-count" type="number" min="0" max="200" step="1" value="12" />
+          </div>
+          <div class="row">
+            <label for="env-town-population">Town Population</label>
+            <input id="env-town-population" type="number" min="0" step="100" value="5000" />
+          </div>
+          <div class="row">
+            <label for="env-allow-triangular-forts">Allow Triangular Forts</label>
+            <input id="env-allow-triangular-forts" type="checkbox" />
+          </div>
+          <div class="row">
+            <label for="env-allow-square-houses">Allow Square Houses</label>
+            <input id="env-allow-square-houses" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="env-house-size">House Size</label>
+            <input id="env-house-size" type="number" min="4" max="120" step="1" value="30" />
+          </div>
+          <div class="row">
+            <label for="peace-cry-enabled">Peace-Cry Enabled</label>
+            <input id="peace-cry-enabled" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="peace-cry-cadence">Peace-Cry Cadence</label>
+            <input id="peace-cry-cadence" type="number" min="1" step="1" value="20" />
+          </div>
+          <div class="row">
+            <label for="peace-cry-radius">Peace-Cry Radius</label>
+            <input id="peace-cry-radius" type="number" min="0" step="1" value="120" />
+          </div>
+          <div class="button-row">
+            <button id="peace-cry-apply-all" type="button">Apply Cry To Women</button>
+          </div>
+          <p class="hint">Environment and peace-cry defaults apply fully after Reset.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Reproduction</h2>
+          <div class="row">
+            <label for="reproduction-enabled">Enabled</label>
+            <input id="reproduction-enabled" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="reproduction-gestation-ticks">Gestation Ticks</label>
+            <input id="reproduction-gestation-ticks" type="number" min="1" step="1" value="220" />
+          </div>
+          <div class="row">
+            <label for="reproduction-mating-radius">Mating Radius</label>
+            <input id="reproduction-mating-radius" type="number" min="0" step="1" value="60" />
+          </div>
+          <div class="row">
+            <label for="reproduction-conception-chance">Conception / Tick</label>
+            <input id="reproduction-conception-chance" type="number" min="0" max="1" step="0.0001" value="0.0035" />
+          </div>
+          <div class="row">
+            <label for="reproduction-female-birth-probability">Female Birth Prob.</label>
+            <input id="reproduction-female-birth-probability" type="number" min="0" max="1" step="0.01" value="0.5" />
+          </div>
+          <div class="row">
+            <label for="reproduction-max-population">Max Population</label>
+            <input id="reproduction-max-population" type="number" min="1" step="1" value="500" />
+          </div>
+          <p class="hint">Reset preserves current reproduction settings.</p>
         </section>
 
         <section class="panel">
@@ -95,9 +311,29 @@
             <label for="spawn-base-ratio">Base Ratio</label>
             <input id="spawn-base-ratio" type="number" min="0.01" max="0.95" step="0.01" value="0.05" />
           </div>
+          <div class="row" id="spawn-mimicry-row">
+            <label for="spawn-mimicry-enabled">Voice Imposture</label>
+            <input id="spawn-mimicry-enabled" type="checkbox" />
+          </div>
+          <div class="row" id="spawn-mimicry-signature-row">
+            <label for="spawn-mimicry-signature">Claimed Voice</label>
+            <select id="spawn-mimicry-signature">
+              <option value="Square" selected>Square</option>
+              <option value="Pentagon">Pentagon</option>
+              <option value="HighOrder">High Order</option>
+            </select>
+          </div>
           <div class="row">
             <label for="spawn-size">Size</label>
             <input id="spawn-size" type="number" min="2" max="120" value="20" />
+          </div>
+          <div class="row" id="spawn-female-rank-row">
+            <label for="spawn-female-rank">Female Rank</label>
+            <select id="spawn-female-rank">
+              <option value="Low">Low</option>
+              <option value="Middle" selected>Middle</option>
+              <option value="High">High</option>
+            </select>
           </div>
           <div class="row">
             <label for="spawn-count">Count</label>
@@ -141,6 +377,18 @@
               <input id="spawn-target-y" type="number" step="0.1" value="350" />
             </div>
           </div>
+          <div class="row">
+            <label for="spawn-feeling-enabled">Feeling Enabled</label>
+            <input id="spawn-feeling-enabled" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="spawn-feel-cooldown">Feel Cooldown</label>
+            <input id="spawn-feel-cooldown" type="number" min="0" step="1" value="30" />
+          </div>
+          <div class="row">
+            <label for="spawn-approach-speed">Approach Speed</label>
+            <input id="spawn-approach-speed" type="number" min="0" step="0.1" value="10" />
+          </div>
           <div class="button-row">
             <button id="spawn-btn" type="button">Spawn</button>
           </div>
@@ -151,6 +399,7 @@
           <div class="row"><span>Selected</span><strong id="selected-id">None</strong></div>
           <div class="row"><span>Rank</span><strong id="inspector-rank">N/A</strong></div>
           <div class="row"><span>Shape</span><strong id="inspector-shape">N/A</strong></div>
+          <div class="row"><span>Kills</span><strong id="inspector-kills">0</strong></div>
           <p id="inspector-none" class="hint">Click a figure to edit movement.</p>
           <div id="inspector-fields">
             <div class="row">
@@ -180,6 +429,78 @@
             <div class="row">
               <label for="inspector-avoid-distance">Avoid Distance</label>
               <input id="inspector-avoid-distance" type="number" min="0" step="1" value="40" />
+            </div>
+            <div class="row">
+              <label for="inspector-hearing-skill">Hearing Skill</label>
+              <input id="inspector-hearing-skill" type="number" min="0" max="1" step="0.01" value="0.5" />
+            </div>
+            <div class="row">
+              <label for="inspector-hearing-radius">Hearing Radius</label>
+              <input id="inspector-hearing-radius" type="number" min="0" step="1" value="180" />
+            </div>
+            <div class="row">
+              <span>Nearest Heard</span>
+              <strong id="inspector-heard-signature">None</strong>
+            </div>
+            <div class="row">
+              <span>Known Count</span>
+              <strong id="inspector-known-count">0</strong>
+            </div>
+            <div class="row">
+              <span>Last Felt Tick</span>
+              <strong id="inspector-last-felt-tick">Never</strong>
+            </div>
+            <div class="row">
+              <span>Known (Last 5)</span>
+            </div>
+            <ul id="inspector-known-list" class="rank-list"></ul>
+            <div id="inspector-reproduction-row">
+              <div class="row">
+                <span>Fertility Enabled</span>
+                <strong id="inspector-fertility-enabled">N/A</strong>
+              </div>
+              <div class="row">
+                <span>Mature</span>
+                <strong id="inspector-fertility-mature">N/A</strong>
+              </div>
+              <div class="row">
+                <span>Pregnant</span>
+                <strong id="inspector-pregnant">N/A</strong>
+              </div>
+              <div class="row">
+                <span>Pregnancy Father</span>
+                <strong id="inspector-pregnancy-father">N/A</strong>
+              </div>
+              <div class="row">
+                <span>Pregnancy Ticks</span>
+                <strong id="inspector-pregnancy-ticks">N/A</strong>
+              </div>
+            </div>
+            <div class="row">
+              <label for="inspector-feeling-enabled">Feeling Enabled</label>
+              <input id="inspector-feeling-enabled" type="checkbox" checked />
+            </div>
+            <div class="row">
+              <label for="inspector-feel-cooldown">Feel Cooldown</label>
+              <input id="inspector-feel-cooldown" type="number" min="0" step="1" value="30" />
+            </div>
+            <div class="row">
+              <label for="inspector-approach-speed">Approach Speed</label>
+              <input id="inspector-approach-speed" type="number" min="0" step="0.1" value="10" />
+            </div>
+            <div id="inspector-peace-cry-row">
+              <div class="row">
+                <label for="inspector-peace-cry-enabled">Peace-Cry</label>
+                <input id="inspector-peace-cry-enabled" type="checkbox" />
+              </div>
+              <div class="row">
+                <label for="inspector-peace-cry-cadence">Cry Cadence</label>
+                <input id="inspector-peace-cry-cadence" type="number" min="1" step="1" value="20" />
+              </div>
+              <div class="row">
+                <label for="inspector-peace-cry-radius">Cry Radius</label>
+                <input id="inspector-peace-cry-radius" type="number" min="0" step="1" value="120" />
+              </div>
             </div>
             <div class="row" id="inspector-speed-row">
               <label for="inspector-speed">Speed</label>
@@ -211,6 +532,41 @@
                 <strong id="inspector-triangle-base-ratio">N/A</strong>
               </div>
             </div>
+            <div id="inspector-voice-row">
+              <div class="row">
+                <label for="inspector-voice-enabled">Voice Imposture</label>
+                <input id="inspector-voice-enabled" type="checkbox" />
+              </div>
+              <div class="row">
+                <label for="inspector-voice-signature">Claimed Voice</label>
+                <select id="inspector-voice-signature">
+                  <option value="Square">Square</option>
+                  <option value="Pentagon">Pentagon</option>
+                  <option value="HighOrder">High Order</option>
+                </select>
+              </div>
+            </div>
+            <div class="row" id="inspector-irregular-row">
+              <span>Irregular</span>
+              <div>
+                <strong id="inspector-irregular-state">No</strong>
+                <span> | deviation: </span>
+                <strong id="inspector-irregular-deviation">N/A</strong>
+              </div>
+            </div>
+            <div class="row" id="inspector-female-rank-row">
+              <span>Female Rank</span>
+              <strong id="inspector-female-rank">N/A</strong>
+            </div>
+            <div class="row" id="inspector-sway-row">
+              <span>Sway</span>
+              <div>
+                <strong id="inspector-sway-amplitude">N/A</strong>
+                <span> rad | </span>
+                <strong id="inspector-sway-frequency">N/A</strong>
+                <span> Hz</span>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -219,13 +575,20 @@
           <div class="row"><span>Tick</span><strong id="stat-tick">0</strong></div>
           <div class="row"><span>Seed</span><strong id="stat-seed">42</strong></div>
           <div class="row"><span>Deaths This Tick</span><strong id="stat-deaths">0</strong></div>
+          <div class="row"><span>Regularized This Tick</span><strong id="stat-regularized">0</strong></div>
           <div class="row"><span>Total Alive</span><strong id="stat-total">0</strong></div>
           <ul id="rank-list" class="rank-list"></ul>
         </section>
       </aside>
 
       <main class="stage">
-        <canvas id="world-canvas" aria-label="Flatland simulation canvas"></canvas>
+        <div class="world-stage">
+          <canvas id="world-canvas" aria-label="Flatland simulation canvas"></canvas>
+        </div>
+        <section class="timeline-panel" aria-label="Population histogram panel">
+          <h2>Population Histogram</h2>
+          <canvas id="population-histogram" aria-label="Population, kills, and new inhabitants histogram"></canvas>
+        </section>
       </main>
     </div>
     <script type="module" src="/src/main.ts"></script>

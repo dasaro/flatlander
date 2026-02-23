@@ -49,7 +49,7 @@ export function rankFromShape(shape: ShapeComponent, options: RankOptions): Rank
     };
   }
 
-  if (shape.irregularity > options.irregularityTolerance) {
+  if ((shape.irregular ?? false) || shape.irregularity > options.irregularityTolerance) {
     return { rank: Rank.Irregular, tags: [RankTag.Criminal] };
   }
 

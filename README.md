@@ -2,16 +2,18 @@
 
 Flatlandia-inspired browser simulator built with TypeScript + Vite.
 
-## MVP scope (0.1)
-- Headless ECS-lite simulation core (world/components/systems)
-- Deterministic seeded runs (same seed + spawn plan = same outcome)
-- Fixed-timestep loop (30 ticks/sec), pause/resume/step/reset
-- Shapes: segment (women), circle (priests), polygon (men regular + irregular)
-- Rank classification at spawn time
-- Spatial-hash broad phase + convex collision narrow phase
-- Lethality rules based on vertex/endpoint stabbing
-- Canvas renderer + plain DOM controls + inspector + stats
-- Vitest unit tests for rank/geometry/collision/determinism
+## Current scope (0.6)
+- Headless ECS-lite deterministic simulation core (seeded + fixed timestep).
+- Shapes/ranks: women segments, polygonal men (including irregular + regularization), priests as circles.
+- Movement/perception: south attraction, vision, hearing, feeling, peace-cry, and avoidance steering.
+- Interaction/combat: touch/handshake events, vertex-based lethality, solid collision resolution.
+- Population dynamics: pregnancy/gestation/birth with lineage and fertility controls.
+- Built environment: deterministic house generation and static obstacle interaction.
+- Rendering/UI: Canvas world view, Flatlander strip view, pan/zoom, picking/inspector, event highlights, and population histogram.
+- Tests: deterministic behavior, geometry/collision, topology, reproduction, houses, fog/sight, hearing/mimicry, and sway.
+
+## Changelog
+- See `CHANGELOG.md` for release history.
 
 ## Tech
 - TypeScript

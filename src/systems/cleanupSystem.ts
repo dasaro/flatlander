@@ -13,14 +13,40 @@ export class CleanupSystem implements System {
       world.shapes.delete(id);
       world.ranks.delete(id);
       world.southDrifts.delete(id);
+      world.staticObstacles.delete(id);
+      world.houses.delete(id);
       world.vision.delete(id);
       world.visionHits.delete(id);
+      world.perceptions.delete(id);
+      world.voices.delete(id);
+      world.hearingHits.delete(id);
+      world.peaceCry.delete(id);
+      world.feeling.delete(id);
+      world.knowledge.delete(id);
+      world.ages.delete(id);
+      world.fertility.delete(id);
+      world.pregnancies.delete(id);
+      world.lineage.delete(id);
+      world.combatStats.delete(id);
+      world.femaleStatus.delete(id);
+      world.sway.delete(id);
+      world.stillness.delete(id);
+      world.intelligence.delete(id);
+      world.irregularity.delete(id);
+      world.handshakeCounts.delete(id);
       world.geometries.delete(id);
+    }
 
-      world.events.emit('killed', {
-        entityId: id,
-        tick: world.tick,
-      });
+    if (toRemove.length > 0 && world.stabPressure.size > 0) {
+      const removed = new Set(toRemove);
+      for (const key of [...world.stabPressure.keys()]) {
+        const parts = key.split('->');
+        const attacker = Number(parts[0]);
+        const victim = Number(parts[1]);
+        if (removed.has(attacker) || removed.has(victim)) {
+          world.stabPressure.delete(key);
+        }
+      }
     }
 
     world.pendingDeaths.clear();

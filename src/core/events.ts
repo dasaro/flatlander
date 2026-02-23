@@ -1,43 +1,58 @@
-export type EventHandler<T> = (payload: T) => void;
+import type { Vec2 } from '../geometry/vector';
 
-export class EventBus<Events extends object> {
-  private handlers = new Map<keyof Events, Set<EventHandler<unknown>>>();
+export type WorldEvent =
+  | { type: 'touch'; tick: number; aId: number; bId: number; pos: Vec2 }
+  | { type: 'handshake'; tick: number; aId: number; bId: number; pos: Vec2 }
+  | { type: 'peaceCry'; tick: number; emitterId: number; pos: Vec2; radius: number }
+  | { type: 'stab'; tick: number; attackerId: number; victimId: number; pos: Vec2; sharpness: number }
+  | { type: 'death'; tick: number; entityId: number; pos: Vec2 }
+  | { type: 'birth'; tick: number; childId: number; motherId: number; pos: Vec2 }
+  | { type: 'regularized'; tick: number; entityId: number; pos: Vec2 };
 
-  on<K extends keyof Events>(event: K, handler: EventHandler<Events[K]>): () => void {
-    const existing = this.handlers.get(event);
-    const typedHandler = handler as EventHandler<unknown>;
+export class EventQueue {
+  private events: WorldEvent[] = [];
 
-    if (existing) {
-      existing.add(typedHandler);
-    } else {
-      this.handlers.set(event, new Set([typedHandler]));
-    }
-
-    return () => {
-      this.off(event, handler);
-    };
+  push(event: WorldEvent): void {
+    this.events.push(event);
   }
 
-  off<K extends keyof Events>(event: K, handler: EventHandler<Events[K]>): void {
-    const existing = this.handlers.get(event);
-    if (!existing) {
-      return;
-    }
-
-    existing.delete(handler as EventHandler<unknown>);
-    if (existing.size === 0) {
-      this.handlers.delete(event);
-    }
+  drain(): WorldEvent[] {
+    const drained = this.events;
+    this.events = [];
+    return drained;
   }
 
-  emit<K extends keyof Events>(event: K, payload: Events[K]): void {
-    const existing = this.handlers.get(event);
-    if (!existing) {
-      return;
-    }
-
-    for (const handler of existing) {
-      handler(payload);
-    }
+  clear(): void {
+    this.events.length = 0;
   }
+}
+
+export interface EntityPair {
+  a: number;
+  b: number;
+}
+
+export function orderedEntityPairs(pairs: EntityPair[]): EntityPair[] {
+  const normalized = pairs.map((pair) => ({
+    a: Math.min(pair.a, pair.b),
+    b: Math.max(pair.a, pair.b),
+  }));
+
+  normalized.sort((left, right) => {
+    if (left.a !== right.a) {
+      return left.a - right.a;
+    }
+    return left.b - right.b;
+  });
+
+  const unique: EntityPair[] = [];
+  for (const pair of normalized) {
+    const previous = unique[unique.length - 1];
+    if (previous && previous.a === pair.a && previous.b === pair.b) {
+      continue;
+    }
+    unique.push(pair);
+  }
+
+  return unique;
 }

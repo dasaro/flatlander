@@ -1,11 +1,31 @@
 import type { GeometryShape } from '../geometry/intersections';
-import { EventBus } from './events';
+import type { CollisionManifold } from '../geometry/collisionManifold';
+import { EventQueue } from './events';
 import type { WorldTopology } from './topology';
 import type {
+  AgeComponent,
+  AudiblePing,
+  CombatStatsComponent,
   EntityId,
+  FemaleStatusComponent,
+  FeelingComponent,
+  FertilityComponent,
+  HearingHitComponent,
+  HouseComponent,
+  IntelligenceComponent,
+  IrregularityComponent,
+  KnowledgeComponent,
+  LineageComponent,
   MovementComponent,
+  PerceptionComponent,
+  PeaceCryComponent,
+  PregnancyComponent,
+  StillnessComponent,
   SouthDriftComponent,
+  SwayComponent,
+  StaticObstacleComponent,
   TransformComponent,
+  VoiceComponent,
   VisionComponent,
   VisionHitComponent,
 } from './components';
@@ -17,6 +37,32 @@ export interface WorldConfig {
   width: number;
   height: number;
   topology: WorldTopology;
+  housesEnabled: boolean;
+  houseCount: number;
+  townPopulation: number;
+  allowTriangularForts: boolean;
+  allowSquareHouses: boolean;
+  houseSize: number;
+  peaceCryEnabled: boolean;
+  defaultPeaceCryCadenceTicks: number;
+  defaultPeaceCryRadius: number;
+  reproductionEnabled: boolean;
+  gestationTicks: number;
+  matingRadius: number;
+  conceptionChancePerTick: number;
+  femaleBirthProbability: number;
+  maxPopulation: number;
+  handshakeStillnessTicks: number;
+  compensationEnabled: boolean;
+  compensationRate: number;
+  intelligenceGrowthPerSecond: number;
+  handshakeIntelligenceBonus: number;
+  southStringencyEnabled: boolean;
+  southStringencyMultiplier: number;
+  feelingEnabledGlobal: boolean;
+  feelingApproachRadius: number;
+  defaultFeelingCooldownTicks: number;
+  defaultFeelingApproachSpeed: number;
   tickRate: number;
   maxPolygonSides: number;
   irregularityTolerance: number;
@@ -30,10 +76,29 @@ export interface WorldConfig {
   southAttractionZoneEndFrac: number;
   southAttractionDrag: number;
   southAttractionMaxTerminal: number;
+  southEscapeFraction: number;
+  fogDensity: number;
+  fogMinIntensity: number;
+  fogMaxDistance: number;
+  sightEnabled: boolean;
+  lineRadius: number;
+  collisionSlop: number;
+  collisionResolvePercent: number;
+  collisionResolveIterations: number;
+  supportEpsilon: number;
   vertexContactEpsilon: number;
   feelSpeedThreshold: number;
   killThreshold: number;
   woundThreshold: number;
+  killSeverityThreshold: number;
+  woundSeverityThreshold: number;
+  stabSharpnessExponent: number;
+  pressureTicksToKill: number;
+  regularizationEnabled: boolean;
+  regularizationRate: number;
+  regularityTolerance: number;
+  irregularBirthChance: number;
+  irregularInheritanceBoost: number;
   defaultVisionRange: number;
   defaultVisionAvoidDistance: number;
   defaultVisionAvoidTurnRate: number;
@@ -44,10 +109,12 @@ export interface CollisionRecord {
   b: EntityId;
 }
 
-export interface WorldEvents {
-  spawned: { entityId: EntityId; tick: number };
-  killed: { entityId: EntityId; tick: number };
-  collision: { a: EntityId; b: EntityId; tick: number };
+export interface CollisionManifoldRecord extends CollisionManifold {
+  aId: EntityId;
+  bId: EntityId;
+  featureA: NonNullable<CollisionManifold['featureA']>;
+  featureB: NonNullable<CollisionManifold['featureB']>;
+  closingSpeed: number;
 }
 
 export interface World {
@@ -62,19 +129,68 @@ export interface World {
   shapes: Map<EntityId, ShapeComponent>;
   ranks: Map<EntityId, RankComponent>;
   southDrifts: Map<EntityId, SouthDriftComponent>;
+  staticObstacles: Map<EntityId, StaticObstacleComponent>;
+  houses: Map<EntityId, HouseComponent>;
   vision: Map<EntityId, VisionComponent>;
   visionHits: Map<EntityId, VisionHitComponent>;
+  perceptions: Map<EntityId, PerceptionComponent>;
+  voices: Map<EntityId, VoiceComponent>;
+  hearingHits: Map<EntityId, HearingHitComponent>;
+  peaceCry: Map<EntityId, PeaceCryComponent>;
+  feeling: Map<EntityId, FeelingComponent>;
+  knowledge: Map<EntityId, KnowledgeComponent>;
+  ages: Map<EntityId, AgeComponent>;
+  fertility: Map<EntityId, FertilityComponent>;
+  pregnancies: Map<EntityId, PregnancyComponent>;
+  lineage: Map<EntityId, LineageComponent>;
+  combatStats: Map<EntityId, CombatStatsComponent>;
+  femaleStatus: Map<EntityId, FemaleStatusComponent>;
+  sway: Map<EntityId, SwayComponent>;
+  stillness: Map<EntityId, StillnessComponent>;
+  intelligence: Map<EntityId, IntelligenceComponent>;
+  irregularity: Map<EntityId, IrregularityComponent>;
+  handshakeCounts: Map<EntityId, number>;
+  audiblePings: AudiblePing[];
+  stabPressure: Map<string, { ticks: number }>;
   pendingDeaths: Set<EntityId>;
   collisions: CollisionRecord[];
+  manifolds: CollisionManifoldRecord[];
   deathsThisTick: number;
+  regularizedThisTick: number;
   geometries: Map<EntityId, GeometryShape>;
-  events: EventBus<WorldEvents>;
+  events: EventQueue;
 }
 
 export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   width: 1000,
   height: 700,
   topology: 'torus',
+  housesEnabled: true,
+  houseCount: 12,
+  townPopulation: 5000,
+  allowTriangularForts: false,
+  allowSquareHouses: true,
+  houseSize: 30,
+  peaceCryEnabled: true,
+  defaultPeaceCryCadenceTicks: 20,
+  defaultPeaceCryRadius: 120,
+  reproductionEnabled: true,
+  gestationTicks: 220,
+  matingRadius: 60,
+  conceptionChancePerTick: 0.0035,
+  femaleBirthProbability: 0.5,
+  maxPopulation: 500,
+  handshakeStillnessTicks: 12,
+  compensationEnabled: true,
+  compensationRate: 0.4,
+  intelligenceGrowthPerSecond: 0.003,
+  handshakeIntelligenceBonus: 0.01,
+  southStringencyEnabled: true,
+  southStringencyMultiplier: 1.9,
+  feelingEnabledGlobal: true,
+  feelingApproachRadius: 40,
+  defaultFeelingCooldownTicks: 30,
+  defaultFeelingApproachSpeed: 10,
   tickRate: 30,
   maxPolygonSides: 20,
   irregularityTolerance: 0.08,
@@ -86,12 +202,31 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   southAttractionWomenMultiplier: 2,
   southAttractionZoneStartFrac: 0.75,
   southAttractionZoneEndFrac: 0.95,
-  southAttractionDrag: 10,
-  southAttractionMaxTerminal: 2,
+  southAttractionDrag: 12,
+  southAttractionMaxTerminal: 1.8,
+  southEscapeFraction: 0.5,
+  fogDensity: 0.006,
+  fogMinIntensity: 0.08,
+  fogMaxDistance: 450,
+  sightEnabled: true,
+  lineRadius: 1,
+  collisionSlop: 0.2,
+  collisionResolvePercent: 0.8,
+  collisionResolveIterations: 3,
+  supportEpsilon: 1e-3,
   vertexContactEpsilon: 1.2,
-  feelSpeedThreshold: 6,
-  killThreshold: 18,
+  feelSpeedThreshold: 7.5,
+  killThreshold: 22,
   woundThreshold: 10,
+  killSeverityThreshold: 7.5,
+  woundSeverityThreshold: 4,
+  stabSharpnessExponent: 1.8,
+  pressureTicksToKill: 120,
+  regularizationEnabled: true,
+  regularizationRate: 0.15,
+  regularityTolerance: 0.015,
+  irregularBirthChance: 0.02,
+  irregularInheritanceBoost: 0.08,
   defaultVisionRange: 120,
   defaultVisionAvoidDistance: 40,
   defaultVisionAvoidTurnRate: 2.5,
@@ -115,13 +250,36 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     shapes: new Map(),
     ranks: new Map(),
     southDrifts: new Map(),
+    staticObstacles: new Map(),
+    houses: new Map(),
     vision: new Map(),
     visionHits: new Map(),
+    perceptions: new Map(),
+    voices: new Map(),
+    hearingHits: new Map(),
+    peaceCry: new Map(),
+    feeling: new Map(),
+    knowledge: new Map(),
+    ages: new Map(),
+    fertility: new Map(),
+    pregnancies: new Map(),
+    lineage: new Map(),
+    combatStats: new Map(),
+    femaleStatus: new Map(),
+    sway: new Map(),
+    stillness: new Map(),
+    intelligence: new Map(),
+    irregularity: new Map(),
+    handshakeCounts: new Map(),
+    audiblePings: [],
+    stabPressure: new Map(),
     pendingDeaths: new Set(),
     collisions: [],
+    manifolds: [],
     deathsThisTick: 0,
+    regularizedThisTick: 0,
     geometries: new Map(),
-    events: new EventBus<WorldEvents>(),
+    events: new EventQueue(),
   };
 }
 

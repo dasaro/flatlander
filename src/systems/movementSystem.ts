@@ -20,6 +20,14 @@ export class MovementSystem implements System {
     const ids = getSortedEntityIds(world);
 
     for (const id of ids) {
+      if (world.staticObstacles.has(id)) {
+        continue;
+      }
+
+      if (world.stillness.has(id)) {
+        continue;
+      }
+
       const movement = world.movements.get(id);
       const transform = world.transforms.get(id);
       if (!movement || !transform) {

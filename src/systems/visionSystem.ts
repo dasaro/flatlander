@@ -9,12 +9,24 @@ const HAZARD_PADDING = 1.5;
 export class VisionSystem implements System {
   update(world: World): void {
     world.visionHits.clear();
+    if (!world.config.sightEnabled || world.config.fogDensity <= 0) {
+      return;
+    }
+
     const ids = getSortedEntityIds(world);
+    const fogDensity = Math.max(0, world.config.fogDensity);
+    const fogMinIntensity = Math.max(0, world.config.fogMinIntensity);
+    const fogMaxDistance = Math.max(0, world.config.fogMaxDistance);
 
     for (const id of ids) {
       const vision = world.vision.get(id);
+      const perception = world.perceptions.get(id);
       const transform = world.transforms.get(id);
-      if (!vision || !transform || !vision.enabled || vision.range <= 0) {
+      if (!vision || !perception || !transform || !vision.enabled || vision.range <= 0) {
+        continue;
+      }
+
+      if (perception.sightSkill <= 0) {
         continue;
       }
 
@@ -44,6 +56,9 @@ export class VisionSystem implements System {
         if (aheadDistance <= 0 || aheadDistance > vision.range) {
           continue;
         }
+        if (aheadDistance > fogMaxDistance) {
+          continue;
+        }
 
         const lateralDistance = Math.abs(cross(forward, toOther));
         const otherRadius = otherShape.boundingRadius;
@@ -51,7 +66,13 @@ export class VisionSystem implements System {
           continue;
         }
 
-        if (aheadDistance < bestDistance) {
+        const intensity = Math.exp(-fogDensity * aheadDistance);
+        const effective = intensity * perception.sightSkill;
+        if (effective < fogMinIntensity) {
+          continue;
+        }
+
+        if (aheadDistance < bestDistance || (aheadDistance === bestDistance && otherId < (bestId ?? Infinity))) {
           bestDistance = aheadDistance;
           bestId = otherId;
         }

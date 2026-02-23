@@ -1,17 +1,38 @@
-import type { MovementComponent, VisionComponent } from '../core/components';
+import type {
+  AgeComponent,
+  FemaleStatusComponent,
+  FeelingComponent,
+  FertilityComponent,
+  HearingHitComponent,
+  IrregularityComponent,
+  KnowledgeComponent,
+  MovementComponent,
+  PerceptionComponent,
+  PeaceCryComponent,
+  PregnancyComponent,
+  SwayComponent,
+  VoiceComponent,
+  VoiceSignature,
+  VisionComponent,
+} from '../core/components';
 import {
   DEFAULT_ISOSCELES_BASE_RATIO,
   MAX_ISOSCELES_BASE_RATIO,
   MIN_ISOSCELES_BASE_RATIO,
+  type SpawnFemaleStatusConfig,
   type SpawnMovementConfig,
+  type SpawnPerceptionConfig,
   type SpawnRequest,
+  type SpawnVoiceConfig,
 } from '../core/factory';
+import { clampFemaleRank } from '../core/femaleStatus';
 import { Rank } from '../core/rank';
 import type { RankComponent } from '../core/rank';
 import type { ShapeComponent, TriangleKind } from '../core/shapes';
 import { boundaryFromTopology, type WorldTopology } from '../core/topology';
 import type { World } from '../core/world';
 import type { Vec2 } from '../geometry/vector';
+import type { FlatlanderViewConfig } from '../render/flatlanderScan';
 
 export interface SouthAttractionSettings {
   enabled: boolean;
@@ -21,8 +42,46 @@ export interface SouthAttractionSettings {
   zoneEndFrac: number;
   drag: number;
   maxTerminal: number;
+  escapeFraction: number;
   showSouthZoneOverlay: boolean;
   showClickDebug: boolean;
+}
+
+export interface EnvironmentSettings {
+  housesEnabled: boolean;
+  houseCount: number;
+  townPopulation: number;
+  allowTriangularForts: boolean;
+  allowSquareHouses: boolean;
+  houseSize: number;
+}
+
+export interface PeaceCrySettings {
+  enabled: boolean;
+  cadenceTicks: number;
+  radius: number;
+}
+
+export interface ReproductionSettings {
+  enabled: boolean;
+  gestationTicks: number;
+  matingRadius: number;
+  conceptionChancePerTick: number;
+  femaleBirthProbability: number;
+  maxPopulation: number;
+}
+
+export interface EventHighlightsSettings {
+  enabled: boolean;
+  intensity: number;
+  capPerTick: number;
+}
+
+export type FlatlanderViewSettings = FlatlanderViewConfig;
+
+export interface FogSightSettings {
+  sightEnabled: boolean;
+  fogDensity: number;
 }
 
 interface UiCallbacks {
@@ -31,17 +90,63 @@ interface UiCallbacks {
   onReset: (seed: number) => void;
   onSpawn: (request: SpawnRequest) => void;
   onTopologyUpdate: (topology: WorldTopology) => void;
+  onEnvironmentUpdate: (settings: EnvironmentSettings) => void;
+  onPeaceCryDefaultsUpdate: (settings: PeaceCrySettings) => void;
+  onApplyPeaceCryDefaultsToWomen: () => void;
+  onReproductionUpdate: (settings: ReproductionSettings) => void;
+  onEventHighlightsUpdate: (settings: EventHighlightsSettings) => void;
+  onClearEventHighlights: () => void;
+  onFlatlanderViewUpdate: (settings: FlatlanderViewSettings) => void;
+  onFogSightUpdate: (settings: FogSightSettings) => void;
+  onApplyNovelSafetyPreset: () => void;
   onSouthAttractionUpdate: (settings: SouthAttractionSettings) => void;
   onInspectorUpdate: (movement: SpawnMovementConfig) => void;
   onInspectorVisionUpdate: (vision: Partial<VisionComponent>) => void;
+  onInspectorPerceptionUpdate: (perception: Partial<SpawnPerceptionConfig>) => void;
+  onInspectorVoiceUpdate: (voice: Partial<SpawnVoiceConfig>) => void;
+  onInspectorPeaceCryUpdate: (peaceCry: Partial<PeaceCryComponent>) => void;
+  onInspectorFeelingUpdate: (feeling: Partial<FeelingComponent>) => void;
 }
 
 interface InputRefs {
   runButton: HTMLButtonElement;
   stepButton: HTMLButtonElement;
   resetButton: HTMLButtonElement;
+  novelSafetyPresetButton: HTMLButtonElement;
   seedInput: HTMLInputElement;
   worldTopology: HTMLSelectElement;
+  envHousesEnabled: HTMLInputElement;
+  envHouseCount: HTMLInputElement;
+  envTownPopulation: HTMLInputElement;
+  envAllowTriangularForts: HTMLInputElement;
+  envAllowSquareHouses: HTMLInputElement;
+  envHouseSize: HTMLInputElement;
+  peaceCryEnabledGlobal: HTMLInputElement;
+  peaceCryCadenceGlobal: HTMLInputElement;
+  peaceCryRadiusGlobal: HTMLInputElement;
+  peaceCryApplyAllButton: HTMLButtonElement;
+  reproductionEnabled: HTMLInputElement;
+  reproductionGestationTicks: HTMLInputElement;
+  reproductionMatingRadius: HTMLInputElement;
+  reproductionConceptionChance: HTMLInputElement;
+  reproductionFemaleBirthProbability: HTMLInputElement;
+  reproductionMaxPopulation: HTMLInputElement;
+  eventHighlightsEnabled: HTMLInputElement;
+  eventHighlightsShowLegend: HTMLInputElement;
+  eventHighlightsIntensity: HTMLInputElement;
+  eventHighlightsCap: HTMLInputElement;
+  eventHighlightsClearButton: HTMLButtonElement;
+  flatlanderEnabled: HTMLInputElement;
+  flatlanderRays: HTMLSelectElement;
+  flatlanderFov: HTMLSelectElement;
+  flatlanderLookOffset: HTMLInputElement;
+  flatlanderMaxDistance: HTMLInputElement;
+  flatlanderFogDensity: HTMLInputElement;
+  flatlanderGrayscale: HTMLInputElement;
+  flatlanderIncludeObstacles: HTMLInputElement;
+  fogSightEnabled: HTMLInputElement;
+  fogSightDensity: HTMLInputElement;
+  legendPanel: HTMLElement;
   southEnabled: HTMLInputElement;
   southStrength: HTMLInputElement;
   southWomenMultiplier: HTMLInputElement;
@@ -49,6 +154,7 @@ interface InputRefs {
   southZoneEnd: HTMLInputElement;
   southDrag: HTMLInputElement;
   southMaxTerminal: HTMLInputElement;
+  southEscapeFraction: HTMLInputElement;
   southShowZone: HTMLInputElement;
   southShowClickDebug: HTMLInputElement;
   spawnButton: HTMLButtonElement;
@@ -67,6 +173,15 @@ interface InputRefs {
   spawnVy: HTMLInputElement;
   spawnTargetX: HTMLInputElement;
   spawnTargetY: HTMLInputElement;
+  spawnFeelingEnabled: HTMLInputElement;
+  spawnFeelCooldown: HTMLInputElement;
+  spawnApproachSpeed: HTMLInputElement;
+  spawnFemaleRank: HTMLSelectElement;
+  spawnMimicryEnabled: HTMLInputElement;
+  spawnMimicrySignature: HTMLSelectElement;
+  spawnFemaleRankRow: HTMLElement;
+  spawnMimicryRow: HTMLElement;
+  spawnMimicrySignatureRow: HTMLElement;
   spawnSidesRow: HTMLElement;
   spawnIrregularRow: HTMLElement;
   spawnTriangleKindRow: HTMLElement;
@@ -80,11 +195,31 @@ interface InputRefs {
   inspectorFields: HTMLElement;
   inspectorRank: HTMLElement;
   inspectorShape: HTMLElement;
+  inspectorKills: HTMLElement;
   inspectorMovementType: HTMLSelectElement;
   inspectorBoundary: HTMLSelectElement;
   inspectorVisionEnabled: HTMLInputElement;
   inspectorVisionRange: HTMLInputElement;
   inspectorAvoidDistance: HTMLInputElement;
+  inspectorHearingSkill: HTMLInputElement;
+  inspectorHearingRadius: HTMLInputElement;
+  inspectorHeardSignature: HTMLElement;
+  inspectorPeaceCryRow: HTMLElement;
+  inspectorPeaceCryEnabled: HTMLInputElement;
+  inspectorPeaceCryCadence: HTMLInputElement;
+  inspectorPeaceCryRadius: HTMLInputElement;
+  inspectorFeelingEnabled: HTMLInputElement;
+  inspectorFeelCooldown: HTMLInputElement;
+  inspectorApproachSpeed: HTMLInputElement;
+  inspectorKnownCount: HTMLElement;
+  inspectorLastFeltTick: HTMLElement;
+  inspectorKnownList: HTMLElement;
+  inspectorReproductionRow: HTMLElement;
+  inspectorFertilityEnabled: HTMLElement;
+  inspectorFertilityMature: HTMLElement;
+  inspectorPregnant: HTMLElement;
+  inspectorPregnancyFather: HTMLElement;
+  inspectorPregnancyTicks: HTMLElement;
   inspectorSpeed: HTMLInputElement;
   inspectorTurnRate: HTMLInputElement;
   inspectorVx: HTMLInputElement;
@@ -94,6 +229,17 @@ interface InputRefs {
   inspectorTriangleInfoRow: HTMLElement;
   inspectorTriangleKind: HTMLElement;
   inspectorBaseRatio: HTMLElement;
+  inspectorIrregularRow: HTMLElement;
+  inspectorIrregularState: HTMLElement;
+  inspectorIrregularDeviation: HTMLElement;
+  inspectorVoiceRow: HTMLElement;
+  inspectorVoiceEnabled: HTMLInputElement;
+  inspectorVoiceSignature: HTMLSelectElement;
+  inspectorFemaleRankRow: HTMLElement;
+  inspectorFemaleRank: HTMLElement;
+  inspectorSwayRow: HTMLElement;
+  inspectorSwayAmplitude: HTMLElement;
+  inspectorSwayFrequency: HTMLElement;
   inspectorSpeedRow: HTMLElement;
   inspectorTurnRateRow: HTMLElement;
   inspectorDriftRow: HTMLElement;
@@ -101,6 +247,7 @@ interface InputRefs {
   tickValue: HTMLElement;
   seedValue: HTMLElement;
   deathsValue: HTMLElement;
+  regularizedValue: HTMLElement;
   totalAliveValue: HTMLElement;
   rankList: HTMLElement;
 }
@@ -111,18 +258,49 @@ export class UIController {
 
   constructor(private readonly callbacks: UiCallbacks) {
     this.refs = collectRefs();
+    this.syncLegendVisibility();
     this.syncBoundaryControlsToTopology(this.readTopology());
+    const environment = this.readEnvironmentSettings();
+    this.syncEnvironmentFieldState(environment);
+    const peaceCry = this.readPeaceCrySettings();
+    const reproduction = this.readReproductionSettings();
     this.wireControls();
     this.updateSpawnFieldVisibility();
     this.updateInspectorFieldVisibility();
+    this.callbacks.onEnvironmentUpdate(environment);
+    this.callbacks.onPeaceCryDefaultsUpdate(peaceCry);
+    this.callbacks.onReproductionUpdate(reproduction);
+    this.callbacks.onEventHighlightsUpdate(this.readEventHighlightsSettings());
+    this.callbacks.onFlatlanderViewUpdate(this.readFlatlanderViewSettings());
+    this.callbacks.onFogSightUpdate(this.readFogSightSettings());
     this.callbacks.onSouthAttractionUpdate(this.readSouthAttractionSettings());
-    this.renderSelected(null, null, null, null, null);
+    this.renderSelected(
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+    );
   }
 
   renderStats(world: World): void {
     this.refs.tickValue.textContent = String(world.tick);
     this.refs.seedValue.textContent = String(world.seed);
     this.refs.deathsValue.textContent = String(world.deathsThisTick);
+    this.refs.regularizedValue.textContent = String(world.regularizedThisTick);
     this.refs.totalAliveValue.textContent = String(world.entities.size);
 
     const counts = new Map<string, number>();
@@ -174,21 +352,63 @@ export class UIController {
     shape: ShapeComponent | null,
     rank: RankComponent | null,
     vision: VisionComponent | null,
+    perception: PerceptionComponent | null,
+    voice: VoiceComponent | null,
+    hearingHit: HearingHitComponent | null,
+    peaceCry: PeaceCryComponent | null,
+    feeling: FeelingComponent | null,
+    knowledge: KnowledgeComponent | null,
+    fertility: FertilityComponent | null,
+    pregnancy: PregnancyComponent | null,
+    age: AgeComponent | null,
+    irregularity: IrregularityComponent | null,
+    femaleStatus: FemaleStatusComponent | null,
+    sway: SwayComponent | null,
+    killCount: number | null,
   ): void {
     this.selectedEntityId = entityId;
-    if (entityId === null || movement === null || shape === null || rank === null || vision === null) {
+    if (
+      entityId === null ||
+      movement === null ||
+      shape === null ||
+      rank === null ||
+      vision === null ||
+      perception === null ||
+      voice === null ||
+      feeling === null ||
+      knowledge === null
+    ) {
       this.refs.selectedId.textContent = 'None';
       this.refs.inspectorRank.textContent = 'N/A';
       this.refs.inspectorShape.textContent = 'N/A';
+      this.refs.inspectorKills.textContent = '0';
+      this.refs.inspectorHearingSkill.value = '0.50';
+      this.refs.inspectorHearingRadius.value = '180';
+      this.refs.inspectorHeardSignature.textContent = 'None';
+      this.refs.inspectorKnownCount.textContent = '0';
+      this.refs.inspectorLastFeltTick.textContent = 'Never';
+      this.refs.inspectorKnownList.innerHTML = '';
+      this.refs.inspectorReproductionRow.hidden = true;
+      this.refs.inspectorFertilityEnabled.textContent = 'N/A';
+      this.refs.inspectorFertilityMature.textContent = 'N/A';
+      this.refs.inspectorPregnant.textContent = 'N/A';
+      this.refs.inspectorPregnancyFather.textContent = 'N/A';
+      this.refs.inspectorPregnancyTicks.textContent = 'N/A';
       this.refs.inspectorNone.hidden = false;
       this.refs.inspectorFields.hidden = true;
       this.refs.inspectorTriangleInfoRow.hidden = true;
+      this.refs.inspectorIrregularRow.hidden = true;
+      this.refs.inspectorVoiceRow.hidden = true;
+      this.refs.inspectorFemaleRankRow.hidden = true;
+      this.refs.inspectorSwayRow.hidden = true;
+      this.refs.inspectorPeaceCryRow.hidden = true;
       return;
     }
 
     this.refs.selectedId.textContent = String(entityId);
     this.refs.inspectorRank.textContent = rankLabel(rank, shape);
     this.refs.inspectorShape.textContent = shapeLabel(shape);
+    this.refs.inspectorKills.textContent = String(Math.max(0, Math.round(killCount ?? 0)));
     this.refs.inspectorNone.hidden = true;
     this.refs.inspectorFields.hidden = false;
 
@@ -197,6 +417,49 @@ export class UIController {
     this.refs.inspectorVisionEnabled.checked = vision.enabled;
     this.refs.inspectorVisionRange.value = vision.range.toFixed(1);
     this.refs.inspectorAvoidDistance.value = vision.avoidDistance.toFixed(1);
+    this.refs.inspectorHearingSkill.value = perception.hearingSkill.toFixed(2);
+    this.refs.inspectorHearingRadius.value = perception.hearingRadius.toFixed(1);
+    this.refs.inspectorHeardSignature.textContent = hearingHit ? hearingHit.signature : 'None';
+
+    if (peaceCry) {
+      this.refs.inspectorPeaceCryRow.hidden = false;
+      this.refs.inspectorPeaceCryEnabled.checked = peaceCry.enabled;
+      this.refs.inspectorPeaceCryCadence.value = String(Math.max(1, Math.round(peaceCry.cadenceTicks)));
+      this.refs.inspectorPeaceCryRadius.value = peaceCry.radius.toFixed(1);
+    } else {
+      this.refs.inspectorPeaceCryRow.hidden = true;
+      this.refs.inspectorPeaceCryEnabled.checked = false;
+      this.refs.inspectorPeaceCryCadence.value = '20';
+      this.refs.inspectorPeaceCryRadius.value = '120';
+    }
+
+    this.refs.inspectorFeelingEnabled.checked = feeling.enabled;
+    this.refs.inspectorFeelCooldown.value = String(Math.max(0, Math.round(feeling.feelCooldownTicks)));
+    this.refs.inspectorApproachSpeed.value = feeling.approachSpeed.toFixed(1);
+    this.refs.inspectorKnownCount.textContent = String(knowledge.known.size);
+    this.refs.inspectorLastFeltTick.textContent = Number.isFinite(feeling.lastFeltTick)
+      ? String(Math.round(feeling.lastFeltTick))
+      : 'Never';
+    this.renderKnownList(knowledge);
+
+    if (shape.kind === 'segment' && fertility) {
+      const mature = (age?.ticksAlive ?? 0) >= fertility.maturityTicks;
+      this.refs.inspectorReproductionRow.hidden = false;
+      this.refs.inspectorFertilityEnabled.textContent = fertility.enabled ? 'Yes' : 'No';
+      this.refs.inspectorFertilityMature.textContent = mature ? 'Yes' : 'No';
+      this.refs.inspectorPregnant.textContent = pregnancy ? 'Yes' : 'No';
+      this.refs.inspectorPregnancyFather.textContent = pregnancy ? String(pregnancy.fatherId) : 'None';
+      this.refs.inspectorPregnancyTicks.textContent = pregnancy
+        ? String(Math.max(0, Math.round(pregnancy.ticksRemaining)))
+        : '0';
+    } else {
+      this.refs.inspectorReproductionRow.hidden = true;
+      this.refs.inspectorFertilityEnabled.textContent = 'N/A';
+      this.refs.inspectorFertilityMature.textContent = 'N/A';
+      this.refs.inspectorPregnant.textContent = 'N/A';
+      this.refs.inspectorPregnancyFather.textContent = 'N/A';
+      this.refs.inspectorPregnancyTicks.textContent = 'N/A';
+    }
 
     if (movement.type === 'straightDrift') {
       this.refs.inspectorVx.value = movement.vx.toFixed(2);
@@ -237,7 +500,81 @@ export class UIController {
       this.refs.inspectorBaseRatio.textContent = 'N/A';
     }
 
+    const isIsoscelesTriangle =
+      shape.kind === 'polygon' && shape.sides === 3 && shape.triangleKind === 'Isosceles';
+    if (isIsoscelesTriangle) {
+      this.refs.inspectorVoiceRow.hidden = false;
+      this.refs.inspectorVoiceEnabled.checked = voice.mimicryEnabled;
+      this.refs.inspectorVoiceSignature.value = voice.mimicrySignature ?? 'Square';
+    } else {
+      this.refs.inspectorVoiceRow.hidden = true;
+      this.refs.inspectorVoiceEnabled.checked = false;
+      this.refs.inspectorVoiceSignature.value = 'Square';
+    }
+
+    if (shape.kind === 'segment' && femaleStatus) {
+      this.refs.inspectorFemaleRankRow.hidden = false;
+      this.refs.inspectorFemaleRank.textContent = femaleStatus.femaleRank;
+      this.refs.inspectorSwayRow.hidden = false;
+      this.refs.inspectorSwayAmplitude.textContent = sway
+        ? sway.baseAmplitudeRad.toFixed(3)
+        : 'N/A';
+      this.refs.inspectorSwayFrequency.textContent = sway
+        ? sway.baseFrequencyHz.toFixed(2)
+        : 'N/A';
+    } else {
+      this.refs.inspectorFemaleRankRow.hidden = true;
+      this.refs.inspectorFemaleRank.textContent = 'N/A';
+      this.refs.inspectorSwayRow.hidden = true;
+      this.refs.inspectorSwayAmplitude.textContent = 'N/A';
+      this.refs.inspectorSwayFrequency.textContent = 'N/A';
+    }
+
+    if (shape.kind === 'polygon' && (shape.irregular ?? false)) {
+      this.refs.inspectorIrregularRow.hidden = false;
+      this.refs.inspectorIrregularState.textContent = 'Regularizing...';
+      const deviation = irregularity?.deviation ?? shape.irregularity;
+      this.refs.inspectorIrregularDeviation.textContent = Number.isFinite(deviation)
+        ? deviation.toFixed(4)
+        : 'N/A';
+    } else if (shape.kind === 'polygon') {
+      this.refs.inspectorIrregularRow.hidden = false;
+      this.refs.inspectorIrregularState.textContent = 'No';
+      this.refs.inspectorIrregularDeviation.textContent = 'N/A';
+    } else {
+      this.refs.inspectorIrregularRow.hidden = true;
+      this.refs.inspectorIrregularState.textContent = 'N/A';
+      this.refs.inspectorIrregularDeviation.textContent = 'N/A';
+    }
+
     this.updateInspectorFieldVisibility();
+  }
+
+  private renderKnownList(knowledge: KnowledgeComponent): void {
+    this.refs.inspectorKnownList.innerHTML = '';
+
+    const knownEntries = [...knowledge.known.entries()].sort((left, right) => {
+      const leftInfo = left[1];
+      const rightInfo = right[1];
+      if (leftInfo.learnedAtTick !== rightInfo.learnedAtTick) {
+        return rightInfo.learnedAtTick - leftInfo.learnedAtTick;
+      }
+      return left[0] - right[0];
+    });
+
+    const recent = knownEntries.slice(0, 5);
+    if (recent.length === 0) {
+      const empty = document.createElement('li');
+      empty.textContent = 'No known contacts';
+      this.refs.inspectorKnownList.appendChild(empty);
+      return;
+    }
+
+    for (const [id, info] of recent) {
+      const item = document.createElement('li');
+      item.textContent = `#${id}: ${info.rank} (t${info.learnedAtTick})`;
+      this.refs.inspectorKnownList.appendChild(item);
+    }
   }
 
   private wireControls(): void {
@@ -256,6 +593,11 @@ export class UIController {
       this.callbacks.onReset(seed);
     });
 
+    this.refs.novelSafetyPresetButton.addEventListener('click', () => {
+      this.applyNovelSafetyPresetInputs();
+      this.callbacks.onApplyNovelSafetyPreset();
+    });
+
     this.refs.worldTopology.addEventListener('input', () => {
       const topology = this.readTopology();
       this.syncBoundaryControlsToTopology(topology);
@@ -265,6 +607,121 @@ export class UIController {
       const topology = this.readTopology();
       this.syncBoundaryControlsToTopology(topology);
       this.callbacks.onTopologyUpdate(topology);
+    });
+
+    const environmentInputs: Array<HTMLInputElement> = [
+      this.refs.envHousesEnabled,
+      this.refs.envHouseCount,
+      this.refs.envTownPopulation,
+      this.refs.envAllowTriangularForts,
+      this.refs.envAllowSquareHouses,
+      this.refs.envHouseSize,
+    ];
+
+    for (const input of environmentInputs) {
+      input.addEventListener('input', () => {
+        const settings = this.readEnvironmentSettings();
+        this.syncEnvironmentFieldState(settings);
+        this.callbacks.onEnvironmentUpdate(settings);
+      });
+      input.addEventListener('change', () => {
+        const settings = this.readEnvironmentSettings();
+        this.syncEnvironmentFieldState(settings);
+        this.callbacks.onEnvironmentUpdate(settings);
+      });
+    }
+
+    const peaceCryDefaultInputs: Array<HTMLInputElement> = [
+      this.refs.peaceCryEnabledGlobal,
+      this.refs.peaceCryCadenceGlobal,
+      this.refs.peaceCryRadiusGlobal,
+    ];
+
+    for (const input of peaceCryDefaultInputs) {
+      input.addEventListener('input', () => {
+        this.callbacks.onPeaceCryDefaultsUpdate(this.readPeaceCrySettings());
+      });
+      input.addEventListener('change', () => {
+        this.callbacks.onPeaceCryDefaultsUpdate(this.readPeaceCrySettings());
+      });
+    }
+
+    this.refs.peaceCryApplyAllButton.addEventListener('click', () => {
+      this.callbacks.onApplyPeaceCryDefaultsToWomen();
+    });
+
+    const reproductionInputs: Array<HTMLInputElement> = [
+      this.refs.reproductionEnabled,
+      this.refs.reproductionGestationTicks,
+      this.refs.reproductionMatingRadius,
+      this.refs.reproductionConceptionChance,
+      this.refs.reproductionFemaleBirthProbability,
+      this.refs.reproductionMaxPopulation,
+    ];
+
+    for (const input of reproductionInputs) {
+      input.addEventListener('input', () => {
+        this.callbacks.onReproductionUpdate(this.readReproductionSettings());
+      });
+      input.addEventListener('change', () => {
+        this.callbacks.onReproductionUpdate(this.readReproductionSettings());
+      });
+    }
+
+    const eventHighlightInputs: Array<HTMLInputElement> = [
+      this.refs.eventHighlightsEnabled,
+      this.refs.eventHighlightsIntensity,
+      this.refs.eventHighlightsCap,
+    ];
+
+    for (const input of eventHighlightInputs) {
+      input.addEventListener('input', () => {
+        this.callbacks.onEventHighlightsUpdate(this.readEventHighlightsSettings());
+      });
+      input.addEventListener('change', () => {
+        this.callbacks.onEventHighlightsUpdate(this.readEventHighlightsSettings());
+      });
+    }
+
+    this.refs.eventHighlightsClearButton.addEventListener('click', () => {
+      this.callbacks.onClearEventHighlights();
+    });
+
+    const flatlanderInputs: Array<HTMLInputElement | HTMLSelectElement> = [
+      this.refs.flatlanderEnabled,
+      this.refs.flatlanderRays,
+      this.refs.flatlanderFov,
+      this.refs.flatlanderLookOffset,
+      this.refs.flatlanderMaxDistance,
+      this.refs.flatlanderFogDensity,
+      this.refs.flatlanderGrayscale,
+      this.refs.flatlanderIncludeObstacles,
+    ];
+
+    for (const input of flatlanderInputs) {
+      input.addEventListener('input', () => {
+        this.callbacks.onFlatlanderViewUpdate(this.readFlatlanderViewSettings());
+      });
+      input.addEventListener('change', () => {
+        this.callbacks.onFlatlanderViewUpdate(this.readFlatlanderViewSettings());
+      });
+    }
+
+    const fogSightInputs: Array<HTMLInputElement> = [this.refs.fogSightEnabled, this.refs.fogSightDensity];
+    for (const input of fogSightInputs) {
+      input.addEventListener('input', () => {
+        this.callbacks.onFogSightUpdate(this.readFogSightSettings());
+      });
+      input.addEventListener('change', () => {
+        this.callbacks.onFogSightUpdate(this.readFogSightSettings());
+      });
+    }
+
+    this.refs.eventHighlightsShowLegend.addEventListener('input', () => {
+      this.syncLegendVisibility();
+    });
+    this.refs.eventHighlightsShowLegend.addEventListener('change', () => {
+      this.syncLegendVisibility();
     });
 
     this.refs.spawnButton.addEventListener('click', () => {
@@ -280,6 +737,7 @@ export class UIController {
       this.refs.southZoneEnd,
       this.refs.southDrag,
       this.refs.southMaxTerminal,
+      this.refs.southEscapeFraction,
       this.refs.southShowZone,
       this.refs.southShowClickDebug,
     ];
@@ -297,6 +755,8 @@ export class UIController {
     this.refs.spawnMovementType.addEventListener('change', () => this.updateSpawnFieldVisibility());
     this.refs.spawnSides.addEventListener('input', () => this.updateSpawnFieldVisibility());
     this.refs.spawnTriangleKind.addEventListener('change', () => this.updateSpawnFieldVisibility());
+    this.refs.spawnMimicryEnabled.addEventListener('input', () => this.updateSpawnFieldVisibility());
+    this.refs.spawnMimicryEnabled.addEventListener('change', () => this.updateSpawnFieldVisibility());
 
     this.refs.inspectorMovementType.addEventListener('change', () => {
       this.updateInspectorFieldVisibility();
@@ -328,6 +788,46 @@ export class UIController {
       input.addEventListener('input', () => this.emitInspectorVisionUpdate());
       input.addEventListener('change', () => this.emitInspectorVisionUpdate());
     }
+
+    const perceptionInputs: Array<HTMLInputElement> = [
+      this.refs.inspectorHearingSkill,
+      this.refs.inspectorHearingRadius,
+    ];
+    for (const input of perceptionInputs) {
+      input.addEventListener('input', () => this.emitInspectorPerceptionUpdate());
+      input.addEventListener('change', () => this.emitInspectorPerceptionUpdate());
+    }
+
+    const voiceInputs: Array<HTMLInputElement | HTMLSelectElement> = [
+      this.refs.inspectorVoiceEnabled,
+      this.refs.inspectorVoiceSignature,
+    ];
+    for (const input of voiceInputs) {
+      input.addEventListener('input', () => this.emitInspectorVoiceUpdate());
+      input.addEventListener('change', () => this.emitInspectorVoiceUpdate());
+    }
+
+    const peaceCryInputs: Array<HTMLInputElement> = [
+      this.refs.inspectorPeaceCryEnabled,
+      this.refs.inspectorPeaceCryCadence,
+      this.refs.inspectorPeaceCryRadius,
+    ];
+
+    for (const input of peaceCryInputs) {
+      input.addEventListener('input', () => this.emitInspectorPeaceCryUpdate());
+      input.addEventListener('change', () => this.emitInspectorPeaceCryUpdate());
+    }
+
+    const feelingInputs: Array<HTMLInputElement> = [
+      this.refs.inspectorFeelingEnabled,
+      this.refs.inspectorFeelCooldown,
+      this.refs.inspectorApproachSpeed,
+    ];
+
+    for (const input of feelingInputs) {
+      input.addEventListener('input', () => this.emitInspectorFeelingUpdate());
+      input.addEventListener('change', () => this.emitInspectorFeelingUpdate());
+    }
   }
 
   private readSouthAttractionSettings(): SouthAttractionSettings {
@@ -340,15 +840,140 @@ export class UIController {
       womenMultiplier: clampPositive(parseNumber(this.refs.southWomenMultiplier.value, 2)),
       zoneStartFrac: Math.min(zoneStart, zoneEnd),
       zoneEndFrac: Math.max(zoneStart, zoneEnd),
-      drag: clampPositive(parseNumber(this.refs.southDrag.value, 10)),
-      maxTerminal: clampPositive(parseNumber(this.refs.southMaxTerminal.value, 2)),
+      drag: clampPositive(parseNumber(this.refs.southDrag.value, 12)),
+      maxTerminal: clampPositive(parseNumber(this.refs.southMaxTerminal.value, 1.8)),
+      escapeFraction: clampRange(parseNumber(this.refs.southEscapeFraction.value, 0.5), 0, 1),
       showSouthZoneOverlay: this.refs.southShowZone.checked,
       showClickDebug: this.refs.southShowClickDebug.checked,
     };
   }
 
+  private applyNovelSafetyPresetInputs(): void {
+    this.refs.spawnSpeed.value = '18';
+    this.refs.spawnTurnRate.value = '1.8';
+    this.refs.spawnVx.value = '12';
+    this.refs.spawnVy.value = '0';
+    this.refs.spawnFeelingEnabled.checked = true;
+    this.refs.spawnFeelCooldown.value = '20';
+    this.refs.spawnApproachSpeed.value = '9';
+
+    this.refs.inspectorAvoidDistance.value = '55';
+
+    this.refs.peaceCryEnabledGlobal.checked = true;
+    this.refs.peaceCryCadenceGlobal.value = '16';
+    this.refs.peaceCryRadiusGlobal.value = '150';
+
+    this.refs.reproductionEnabled.checked = true;
+    this.refs.reproductionGestationTicks.value = '220';
+    this.refs.reproductionMatingRadius.value = '65';
+    this.refs.reproductionConceptionChance.value = '0.004';
+    this.refs.reproductionFemaleBirthProbability.value = '0.5';
+    this.refs.reproductionMaxPopulation.value = '550';
+
+    this.refs.southEnabled.checked = true;
+    this.refs.southStrength.value = '2';
+    this.refs.southWomenMultiplier.value = '2.2';
+    this.refs.southDrag.value = '12';
+    this.refs.southMaxTerminal.value = '1.8';
+    this.refs.southEscapeFraction.value = '0.5';
+    this.refs.fogSightEnabled.checked = true;
+    this.refs.fogSightDensity.value = '0.006';
+
+    this.callbacks.onPeaceCryDefaultsUpdate(this.readPeaceCrySettings());
+    this.callbacks.onReproductionUpdate(this.readReproductionSettings());
+    this.callbacks.onFogSightUpdate(this.readFogSightSettings());
+    this.callbacks.onSouthAttractionUpdate(this.readSouthAttractionSettings());
+  }
+
+  private readEnvironmentSettings(): EnvironmentSettings {
+    const townPopulation = Math.max(0, parseInteger(this.refs.envTownPopulation.value, 5000));
+    const allowSquareHouses =
+      townPopulation >= 10_000 ? false : this.refs.envAllowSquareHouses.checked;
+
+    return {
+      housesEnabled: this.refs.envHousesEnabled.checked,
+      houseCount: Math.max(0, parseInteger(this.refs.envHouseCount.value, 12)),
+      townPopulation,
+      allowTriangularForts: this.refs.envAllowTriangularForts.checked,
+      allowSquareHouses,
+      houseSize: Math.max(4, parseNumber(this.refs.envHouseSize.value, 30)),
+    };
+  }
+
+  private syncEnvironmentFieldState(settings: EnvironmentSettings): void {
+    const squareRestricted = settings.townPopulation >= 10_000;
+    this.refs.envAllowSquareHouses.disabled = squareRestricted;
+    this.refs.envAllowSquareHouses.checked = squareRestricted ? false : settings.allowSquareHouses;
+  }
+
+  private readPeaceCrySettings(): PeaceCrySettings {
+    return {
+      enabled: this.refs.peaceCryEnabledGlobal.checked,
+      cadenceTicks: Math.max(1, parseInteger(this.refs.peaceCryCadenceGlobal.value, 20)),
+      radius: Math.max(0, parseNumber(this.refs.peaceCryRadiusGlobal.value, 120)),
+    };
+  }
+
+  private readReproductionSettings(): ReproductionSettings {
+    return {
+      enabled: this.refs.reproductionEnabled.checked,
+      gestationTicks: Math.max(1, parseInteger(this.refs.reproductionGestationTicks.value, 300)),
+      matingRadius: Math.max(0, parseNumber(this.refs.reproductionMatingRadius.value, 60)),
+      conceptionChancePerTick: clampRange(
+        parseNumber(this.refs.reproductionConceptionChance.value, 0.002),
+        0,
+        1,
+      ),
+      femaleBirthProbability: clampRange(
+        parseNumber(this.refs.reproductionFemaleBirthProbability.value, 0.5),
+        0,
+        1,
+      ),
+      maxPopulation: Math.max(1, parseInteger(this.refs.reproductionMaxPopulation.value, 400)),
+    };
+  }
+
+  private readEventHighlightsSettings(): EventHighlightsSettings {
+    return {
+      enabled: this.refs.eventHighlightsEnabled.checked,
+      intensity: Math.max(0, parseNumber(this.refs.eventHighlightsIntensity.value, 1)),
+      capPerTick: Math.max(1, parseInteger(this.refs.eventHighlightsCap.value, 120)),
+    };
+  }
+
+  private readFlatlanderViewSettings(): FlatlanderViewSettings {
+    const rays = Math.max(16, parseInteger(this.refs.flatlanderRays.value, 720));
+    const fovDeg = clampRange(parseNumber(this.refs.flatlanderFov.value, 360), 30, 360);
+    const lookOffsetDeg = clampRange(parseNumber(this.refs.flatlanderLookOffset.value, 0), -180, 180);
+
+    return {
+      enabled: this.refs.flatlanderEnabled.checked,
+      rays,
+      fovRad: (fovDeg * Math.PI) / 180,
+      lookOffsetRad: (lookOffsetDeg * Math.PI) / 180,
+      maxDistance: Math.max(1, parseNumber(this.refs.flatlanderMaxDistance.value, 400)),
+      fogDensity: Math.max(0, parseNumber(this.refs.flatlanderFogDensity.value, 0.006)),
+      minVisibleIntensity: 0.06,
+      grayscaleMode: this.refs.flatlanderGrayscale.checked,
+      includeObstacles: this.refs.flatlanderIncludeObstacles.checked,
+      inanimateDimMultiplier: 0.65,
+    };
+  }
+
+  private readFogSightSettings(): FogSightSettings {
+    return {
+      sightEnabled: this.refs.fogSightEnabled.checked,
+      fogDensity: Math.max(0, parseNumber(this.refs.fogSightDensity.value, 0.006)),
+    };
+  }
+
+  private syncLegendVisibility(): void {
+    this.refs.legendPanel.hidden = !this.refs.eventHighlightsShowLegend.checked;
+  }
+
   private readSpawnRequest(): SpawnRequest {
     const shapeType = this.refs.spawnShape.value;
+    const femaleRank = clampFemaleRank(this.refs.spawnFemaleRank.value);
 
     let shape: SpawnRequest['shape'];
     if (shapeType === 'segment') {
@@ -387,6 +1012,21 @@ export class UIController {
       shape = base;
     }
 
+    const isIsoscelesTriangle =
+      shape.kind === 'polygon' && shape.sides === 3 && shape.triangleKind === 'Isosceles';
+    const voice: SpawnRequest['voice'] = isIsoscelesTriangle
+      ? {
+          mimicryEnabled: this.refs.spawnMimicryEnabled.checked,
+          mimicrySignature: parseVoiceSignature(this.refs.spawnMimicrySignature.value),
+        }
+      : undefined;
+    const femaleStatus: SpawnFemaleStatusConfig | undefined =
+      shape.kind === 'segment'
+        ? {
+            femaleRank,
+          }
+        : undefined;
+
     const movement = this.readSpawnMovement(
       this.refs.spawnMovementType.value,
       boundaryFromTopology(this.readTopology()),
@@ -402,6 +1042,13 @@ export class UIController {
       shape,
       movement,
       count: Math.max(1, parseInteger(this.refs.spawnCount.value, 1)),
+      ...(voice ? { voice } : {}),
+      ...(femaleStatus ? { femaleStatus } : {}),
+      feeling: {
+        enabled: this.refs.spawnFeelingEnabled.checked,
+        feelCooldownTicks: Math.max(0, parseInteger(this.refs.spawnFeelCooldown.value, 30)),
+        approachSpeed: Math.max(0, parseNumber(this.refs.spawnApproachSpeed.value, 10)),
+      },
     };
   }
 
@@ -436,18 +1083,67 @@ export class UIController {
     });
   }
 
+  private emitInspectorPerceptionUpdate(): void {
+    if (this.selectedEntityId === null) {
+      return;
+    }
+
+    this.callbacks.onInspectorPerceptionUpdate({
+      hearingSkill: clampRange(parseNumber(this.refs.inspectorHearingSkill.value, 0.5), 0, 1),
+      hearingRadius: Math.max(0, parseNumber(this.refs.inspectorHearingRadius.value, 180)),
+    });
+  }
+
+  private emitInspectorVoiceUpdate(): void {
+    if (this.selectedEntityId === null || this.refs.inspectorVoiceRow.hidden) {
+      return;
+    }
+
+    this.callbacks.onInspectorVoiceUpdate({
+      mimicryEnabled: this.refs.inspectorVoiceEnabled.checked,
+      mimicrySignature: parseVoiceSignature(this.refs.inspectorVoiceSignature.value),
+    });
+  }
+
+  private emitInspectorPeaceCryUpdate(): void {
+    if (this.selectedEntityId === null || this.refs.inspectorPeaceCryRow.hidden) {
+      return;
+    }
+
+    this.callbacks.onInspectorPeaceCryUpdate({
+      enabled: this.refs.inspectorPeaceCryEnabled.checked,
+      cadenceTicks: Math.max(1, parseInteger(this.refs.inspectorPeaceCryCadence.value, 20)),
+      radius: Math.max(0, parseNumber(this.refs.inspectorPeaceCryRadius.value, 120)),
+    });
+  }
+
+  private emitInspectorFeelingUpdate(): void {
+    if (this.selectedEntityId === null) {
+      return;
+    }
+
+    this.callbacks.onInspectorFeelingUpdate({
+      enabled: this.refs.inspectorFeelingEnabled.checked,
+      feelCooldownTicks: Math.max(0, parseInteger(this.refs.inspectorFeelCooldown.value, 30)),
+      approachSpeed: Math.max(0, parseNumber(this.refs.inspectorApproachSpeed.value, 10)),
+    });
+  }
+
   private updateSpawnFieldVisibility(): void {
     const shapeType = this.refs.spawnShape.value;
     const movementType = this.refs.spawnMovementType.value;
     const sides = parseInteger(this.refs.spawnSides.value, 6);
     const isTrianglePolygon = shapeType === 'polygon' && sides === 3;
+    const triangleKind = parseTriangleKind(this.refs.spawnTriangleKind.value);
+    const isIsosceles = isTrianglePolygon && triangleKind === 'Isosceles';
 
     this.refs.spawnSidesRow.hidden = shapeType !== 'polygon';
     this.refs.spawnIrregularRow.hidden = shapeType !== 'polygon' || isTrianglePolygon;
     this.refs.spawnTriangleKindRow.hidden = !isTrianglePolygon;
-
-    const triangleKind = parseTriangleKind(this.refs.spawnTriangleKind.value);
-    this.refs.spawnBaseRatioRow.hidden = !isTrianglePolygon || triangleKind !== 'Isosceles';
+    this.refs.spawnBaseRatioRow.hidden = !isIsosceles;
+    this.refs.spawnMimicryRow.hidden = !isIsosceles;
+    this.refs.spawnMimicrySignatureRow.hidden = !isIsosceles || !this.refs.spawnMimicryEnabled.checked;
+    this.refs.spawnFemaleRankRow.hidden = shapeType !== 'segment';
 
     this.refs.spawnSpeedRow.hidden = movementType === 'straightDrift';
     this.refs.spawnTurnRateRow.hidden = movementType === 'straightDrift';
@@ -538,6 +1234,13 @@ function parseTriangleKind(value: string): TriangleKind {
   return value === 'Isosceles' ? 'Isosceles' : 'Equilateral';
 }
 
+function parseVoiceSignature(value: string): VoiceSignature {
+  if (value === 'Square' || value === 'Pentagon' || value === 'HighOrder' || value === 'Equilateral') {
+    return value;
+  }
+  return 'Square';
+}
+
 function clampRange(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
@@ -561,8 +1264,41 @@ function collectRefs(): InputRefs {
     runButton: required<HTMLButtonElement>('run-btn'),
     stepButton: required<HTMLButtonElement>('step-btn'),
     resetButton: required<HTMLButtonElement>('reset-btn'),
+    novelSafetyPresetButton: required<HTMLButtonElement>('novel-safety-preset-btn'),
     seedInput: required<HTMLInputElement>('seed-input'),
     worldTopology: required<HTMLSelectElement>('world-topology'),
+    envHousesEnabled: required<HTMLInputElement>('env-houses-enabled'),
+    envHouseCount: required<HTMLInputElement>('env-house-count'),
+    envTownPopulation: required<HTMLInputElement>('env-town-population'),
+    envAllowTriangularForts: required<HTMLInputElement>('env-allow-triangular-forts'),
+    envAllowSquareHouses: required<HTMLInputElement>('env-allow-square-houses'),
+    envHouseSize: required<HTMLInputElement>('env-house-size'),
+    peaceCryEnabledGlobal: required<HTMLInputElement>('peace-cry-enabled'),
+    peaceCryCadenceGlobal: required<HTMLInputElement>('peace-cry-cadence'),
+    peaceCryRadiusGlobal: required<HTMLInputElement>('peace-cry-radius'),
+    peaceCryApplyAllButton: required<HTMLButtonElement>('peace-cry-apply-all'),
+    reproductionEnabled: required<HTMLInputElement>('reproduction-enabled'),
+    reproductionGestationTicks: required<HTMLInputElement>('reproduction-gestation-ticks'),
+    reproductionMatingRadius: required<HTMLInputElement>('reproduction-mating-radius'),
+    reproductionConceptionChance: required<HTMLInputElement>('reproduction-conception-chance'),
+    reproductionFemaleBirthProbability: required<HTMLInputElement>('reproduction-female-birth-probability'),
+    reproductionMaxPopulation: required<HTMLInputElement>('reproduction-max-population'),
+    eventHighlightsEnabled: required<HTMLInputElement>('event-highlights-enabled'),
+    eventHighlightsShowLegend: required<HTMLInputElement>('event-highlights-show-legend'),
+    eventHighlightsIntensity: required<HTMLInputElement>('event-highlights-intensity'),
+    eventHighlightsCap: required<HTMLInputElement>('event-highlights-cap'),
+    eventHighlightsClearButton: required<HTMLButtonElement>('event-highlights-clear'),
+    flatlanderEnabled: required<HTMLInputElement>('flatlander-enabled'),
+    flatlanderRays: required<HTMLSelectElement>('flatlander-rays'),
+    flatlanderFov: required<HTMLSelectElement>('flatlander-fov'),
+    flatlanderLookOffset: required<HTMLInputElement>('flatlander-look-offset'),
+    flatlanderMaxDistance: required<HTMLInputElement>('flatlander-max-distance'),
+    flatlanderFogDensity: required<HTMLInputElement>('flatlander-fog-density'),
+    flatlanderGrayscale: required<HTMLInputElement>('flatlander-grayscale'),
+    flatlanderIncludeObstacles: required<HTMLInputElement>('flatlander-include-obstacles'),
+    fogSightEnabled: required<HTMLInputElement>('fog-sight-enabled'),
+    fogSightDensity: required<HTMLInputElement>('fog-sight-density'),
+    legendPanel: required<HTMLElement>('legend-panel'),
     southEnabled: required<HTMLInputElement>('south-enabled'),
     southStrength: required<HTMLInputElement>('south-strength'),
     southWomenMultiplier: required<HTMLInputElement>('south-women-multiplier'),
@@ -570,6 +1306,7 @@ function collectRefs(): InputRefs {
     southZoneEnd: required<HTMLInputElement>('south-zone-end'),
     southDrag: required<HTMLInputElement>('south-drag'),
     southMaxTerminal: required<HTMLInputElement>('south-max-terminal'),
+    southEscapeFraction: required<HTMLInputElement>('south-escape-fraction'),
     southShowZone: required<HTMLInputElement>('south-show-zone'),
     southShowClickDebug: required<HTMLInputElement>('south-show-click-debug'),
     spawnButton: required<HTMLButtonElement>('spawn-btn'),
@@ -588,6 +1325,15 @@ function collectRefs(): InputRefs {
     spawnVy: required<HTMLInputElement>('spawn-vy'),
     spawnTargetX: required<HTMLInputElement>('spawn-target-x'),
     spawnTargetY: required<HTMLInputElement>('spawn-target-y'),
+    spawnFeelingEnabled: required<HTMLInputElement>('spawn-feeling-enabled'),
+    spawnFeelCooldown: required<HTMLInputElement>('spawn-feel-cooldown'),
+    spawnApproachSpeed: required<HTMLInputElement>('spawn-approach-speed'),
+    spawnFemaleRank: required<HTMLSelectElement>('spawn-female-rank'),
+    spawnMimicryEnabled: required<HTMLInputElement>('spawn-mimicry-enabled'),
+    spawnMimicrySignature: required<HTMLSelectElement>('spawn-mimicry-signature'),
+    spawnFemaleRankRow: required<HTMLElement>('spawn-female-rank-row'),
+    spawnMimicryRow: required<HTMLElement>('spawn-mimicry-row'),
+    spawnMimicrySignatureRow: required<HTMLElement>('spawn-mimicry-signature-row'),
     spawnSidesRow: required<HTMLElement>('spawn-sides-row'),
     spawnIrregularRow: required<HTMLElement>('spawn-irregular-row'),
     spawnTriangleKindRow: required<HTMLElement>('spawn-triangle-kind-row'),
@@ -601,11 +1347,31 @@ function collectRefs(): InputRefs {
     inspectorFields: required<HTMLElement>('inspector-fields'),
     inspectorRank: required<HTMLElement>('inspector-rank'),
     inspectorShape: required<HTMLElement>('inspector-shape'),
+    inspectorKills: required<HTMLElement>('inspector-kills'),
     inspectorMovementType: required<HTMLSelectElement>('inspector-movement-type'),
     inspectorBoundary: required<HTMLSelectElement>('inspector-boundary'),
     inspectorVisionEnabled: required<HTMLInputElement>('inspector-vision-enabled'),
     inspectorVisionRange: required<HTMLInputElement>('inspector-vision-range'),
     inspectorAvoidDistance: required<HTMLInputElement>('inspector-avoid-distance'),
+    inspectorHearingSkill: required<HTMLInputElement>('inspector-hearing-skill'),
+    inspectorHearingRadius: required<HTMLInputElement>('inspector-hearing-radius'),
+    inspectorHeardSignature: required<HTMLElement>('inspector-heard-signature'),
+    inspectorPeaceCryRow: required<HTMLElement>('inspector-peace-cry-row'),
+    inspectorPeaceCryEnabled: required<HTMLInputElement>('inspector-peace-cry-enabled'),
+    inspectorPeaceCryCadence: required<HTMLInputElement>('inspector-peace-cry-cadence'),
+    inspectorPeaceCryRadius: required<HTMLInputElement>('inspector-peace-cry-radius'),
+    inspectorFeelingEnabled: required<HTMLInputElement>('inspector-feeling-enabled'),
+    inspectorFeelCooldown: required<HTMLInputElement>('inspector-feel-cooldown'),
+    inspectorApproachSpeed: required<HTMLInputElement>('inspector-approach-speed'),
+    inspectorKnownCount: required<HTMLElement>('inspector-known-count'),
+    inspectorLastFeltTick: required<HTMLElement>('inspector-last-felt-tick'),
+    inspectorKnownList: required<HTMLElement>('inspector-known-list'),
+    inspectorReproductionRow: required<HTMLElement>('inspector-reproduction-row'),
+    inspectorFertilityEnabled: required<HTMLElement>('inspector-fertility-enabled'),
+    inspectorFertilityMature: required<HTMLElement>('inspector-fertility-mature'),
+    inspectorPregnant: required<HTMLElement>('inspector-pregnant'),
+    inspectorPregnancyFather: required<HTMLElement>('inspector-pregnancy-father'),
+    inspectorPregnancyTicks: required<HTMLElement>('inspector-pregnancy-ticks'),
     inspectorSpeed: required<HTMLInputElement>('inspector-speed'),
     inspectorTurnRate: required<HTMLInputElement>('inspector-turn-rate'),
     inspectorVx: required<HTMLInputElement>('inspector-vx'),
@@ -615,6 +1381,17 @@ function collectRefs(): InputRefs {
     inspectorTriangleInfoRow: required<HTMLElement>('inspector-triangle-row'),
     inspectorTriangleKind: required<HTMLElement>('inspector-triangle-kind'),
     inspectorBaseRatio: required<HTMLElement>('inspector-triangle-base-ratio'),
+    inspectorIrregularRow: required<HTMLElement>('inspector-irregular-row'),
+    inspectorIrregularState: required<HTMLElement>('inspector-irregular-state'),
+    inspectorIrregularDeviation: required<HTMLElement>('inspector-irregular-deviation'),
+    inspectorVoiceRow: required<HTMLElement>('inspector-voice-row'),
+    inspectorVoiceEnabled: required<HTMLInputElement>('inspector-voice-enabled'),
+    inspectorVoiceSignature: required<HTMLSelectElement>('inspector-voice-signature'),
+    inspectorFemaleRankRow: required<HTMLElement>('inspector-female-rank-row'),
+    inspectorFemaleRank: required<HTMLElement>('inspector-female-rank'),
+    inspectorSwayRow: required<HTMLElement>('inspector-sway-row'),
+    inspectorSwayAmplitude: required<HTMLElement>('inspector-sway-amplitude'),
+    inspectorSwayFrequency: required<HTMLElement>('inspector-sway-frequency'),
     inspectorSpeedRow: required<HTMLElement>('inspector-speed-row'),
     inspectorTurnRateRow: required<HTMLElement>('inspector-turn-rate-row'),
     inspectorDriftRow: required<HTMLElement>('inspector-drift-row'),
@@ -622,6 +1399,7 @@ function collectRefs(): InputRefs {
     tickValue: required<HTMLElement>('stat-tick'),
     seedValue: required<HTMLElement>('stat-seed'),
     deathsValue: required<HTMLElement>('stat-deaths'),
+    regularizedValue: required<HTMLElement>('stat-regularized'),
     totalAliveValue: required<HTMLElement>('stat-total'),
     rankList: required<HTMLElement>('rank-list'),
   };

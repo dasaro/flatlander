@@ -22,6 +22,9 @@ export interface PolygonShape {
   irregularity: number;
   regular: boolean;
   boundingRadius: number;
+  irregular?: boolean;
+  baseRadius?: number;
+  radial?: number[];
   triangleKind?: TriangleKind;
   isoscelesBaseRatio?: number;
 }

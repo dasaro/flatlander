@@ -40,7 +40,34 @@ export function aabbIntersects(a: Aabb, b: Aabb): boolean {
   return a.minX <= b.maxX && a.maxX >= b.minX && a.minY <= b.maxY && a.maxY >= b.minY;
 }
 
-export function aabbFromGeometry(shape: GeometryShape): Aabb {
+function closestPointOnSegment(point: Vec2, segment: SegmentGeometry): Vec2 {
+  const ab = sub(segment.b, segment.a);
+  const ap = sub(point, segment.a);
+  const denominator = dot(ab, ab);
+  if (denominator <= EPSILON) {
+    return segment.a;
+  }
+  const t = clamp(dot(ap, ab) / denominator, 0, 1);
+  return vec(segment.a.x + ab.x * t, segment.a.y + ab.y * t);
+}
+
+function distanceSegmentToSegment(a: SegmentGeometry, b: SegmentGeometry): number {
+  if (segmentSegmentIntersect(a, b)) {
+    return 0;
+  }
+
+  const candidates = [
+    distance(a.a, closestPointOnSegment(a.a, b)),
+    distance(a.b, closestPointOnSegment(a.b, b)),
+    distance(b.a, closestPointOnSegment(b.a, a)),
+    distance(b.b, closestPointOnSegment(b.b, a)),
+  ];
+
+  return candidates.reduce((best, value) => Math.min(best, value), Number.POSITIVE_INFINITY);
+}
+
+export function aabbFromGeometry(shape: GeometryShape, segmentRadius = 0): Aabb {
+  const lineRadius = Math.max(0, segmentRadius);
   switch (shape.kind) {
     case 'circle':
       return {
@@ -51,10 +78,10 @@ export function aabbFromGeometry(shape: GeometryShape): Aabb {
       };
     case 'segment':
       return {
-        minX: Math.min(shape.a.x, shape.b.x),
-        minY: Math.min(shape.a.y, shape.b.y),
-        maxX: Math.max(shape.a.x, shape.b.x),
-        maxY: Math.max(shape.a.y, shape.b.y),
+        minX: Math.min(shape.a.x, shape.b.x) - lineRadius,
+        minY: Math.min(shape.a.y, shape.b.y) - lineRadius,
+        maxX: Math.max(shape.a.x, shape.b.x) + lineRadius,
+        maxY: Math.max(shape.a.y, shape.b.y) + lineRadius,
       };
     case 'polygon': {
       let minX = Number.POSITIVE_INFINITY;
@@ -88,8 +115,13 @@ export function distancePointToSegment(point: Vec2, segment: SegmentGeometry): n
   return distance(point, closest);
 }
 
-export function segmentCircleIntersect(segment: SegmentGeometry, circle: CircleGeometry): boolean {
-  return distancePointToSegment(circle.center, segment) <= circle.radius + EPSILON;
+export function segmentCircleIntersect(
+  segment: SegmentGeometry,
+  circle: CircleGeometry,
+  lineRadius = 0,
+): boolean {
+  const radius = Math.max(0, lineRadius);
+  return distancePointToSegment(circle.center, segment) <= circle.radius + radius + EPSILON;
 }
 
 function orientation(a: Vec2, b: Vec2, c: Vec2): number {
@@ -200,7 +232,11 @@ export function pointInConvexPolygon(point: Vec2, polygon: PolygonGeometry): boo
   return true;
 }
 
-export function segmentPolygonIntersect(segment: SegmentGeometry, polygon: PolygonGeometry): boolean {
+export function segmentPolygonIntersect(
+  segment: SegmentGeometry,
+  polygon: PolygonGeometry,
+  lineRadius = 0,
+): boolean {
   for (let i = 0; i < polygon.vertices.length; i += 1) {
     const edge: SegmentGeometry = {
       kind: 'segment',
@@ -212,7 +248,28 @@ export function segmentPolygonIntersect(segment: SegmentGeometry, polygon: Polyg
     }
   }
 
-  return pointInConvexPolygon(segment.a, polygon) || pointInConvexPolygon(segment.b, polygon);
+  const endpointInside = pointInConvexPolygon(segment.a, polygon) || pointInConvexPolygon(segment.b, polygon);
+  if (endpointInside) {
+    return true;
+  }
+
+  const radius = Math.max(0, lineRadius);
+  if (radius <= 0) {
+    return false;
+  }
+
+  for (let i = 0; i < polygon.vertices.length; i += 1) {
+    const edge: SegmentGeometry = {
+      kind: 'segment',
+      a: polygonVertex(polygon.vertices, i),
+      b: polygonVertex(polygon.vertices, i + 1),
+    };
+    if (distanceSegmentToSegment(segment, edge) <= radius + EPSILON) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export function circlePolygonIntersect(circle: CircleGeometry, polygon: PolygonGeometry): boolean {
@@ -234,7 +291,8 @@ export function circlePolygonIntersect(circle: CircleGeometry, polygon: PolygonG
   return false;
 }
 
-export function geometriesIntersect(a: GeometryShape, b: GeometryShape): boolean {
+export function geometriesIntersect(a: GeometryShape, b: GeometryShape, lineRadius = 0): boolean {
+  const segmentRadius = Math.max(0, lineRadius);
   if (a.kind === 'circle' && b.kind === 'circle') {
     return circleCircleIntersect(a, b);
   }
@@ -244,19 +302,19 @@ export function geometriesIntersect(a: GeometryShape, b: GeometryShape): boolean
   }
 
   if (a.kind === 'segment' && b.kind === 'circle') {
-    return segmentCircleIntersect(a, b);
+    return segmentCircleIntersect(a, b, segmentRadius);
   }
 
   if (a.kind === 'circle' && b.kind === 'segment') {
-    return segmentCircleIntersect(b, a);
+    return segmentCircleIntersect(b, a, segmentRadius);
   }
 
   if (a.kind === 'segment' && b.kind === 'polygon') {
-    return segmentPolygonIntersect(a, b);
+    return segmentPolygonIntersect(a, b, segmentRadius);
   }
 
   if (a.kind === 'polygon' && b.kind === 'segment') {
-    return segmentPolygonIntersect(b, a);
+    return segmentPolygonIntersect(b, a, segmentRadius);
   }
 
   if (a.kind === 'circle' && b.kind === 'polygon') {
@@ -268,7 +326,10 @@ export function geometriesIntersect(a: GeometryShape, b: GeometryShape): boolean
   }
 
   if (a.kind === 'segment' && b.kind === 'segment') {
-    return segmentSegmentIntersect(a, b);
+    if (segmentSegmentIntersect(a, b)) {
+      return true;
+    }
+    return distanceSegmentToSegment(a, b) <= segmentRadius * 2 + EPSILON;
   }
 
   return false;

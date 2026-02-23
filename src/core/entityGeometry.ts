@@ -5,6 +5,7 @@ import {
   type SegmentGeometry,
 } from '../geometry/intersections';
 import { minimumInternalAngle } from '../geometry/polygon';
+import { radialPolygonVertices } from '../geometry/polygon';
 import { add, angleToVector, mul, rotate } from '../geometry/vector';
 import type { Vec2 } from '../geometry/vector';
 import type { ShapeComponent } from './shapes';
@@ -32,7 +33,11 @@ export function geometryFromComponents(
     };
   }
 
-  const vertices = shape.vertices.map((vertex) => add(transform.position, rotate(vertex, transform.rotation)));
+  const localVertices =
+    shape.radial && shape.baseRadius !== undefined && shape.radial.length === shape.sides
+      ? radialPolygonVertices(shape.sides, shape.baseRadius, shape.radial)
+      : shape.vertices;
+  const vertices = localVertices.map((vertex) => add(transform.position, rotate(vertex, transform.rotation)));
   return {
     kind: 'polygon',
     vertices,

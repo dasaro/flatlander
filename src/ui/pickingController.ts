@@ -158,6 +158,10 @@ export function pickEntityAtWorldPoint(
   let bestCentroidDistance = Number.POSITIVE_INFINITY;
 
   for (const id of ids) {
+    if (world.staticObstacles.has(id)) {
+      continue;
+    }
+
     const shape = world.shapes.get(id);
     const transform = world.transforms.get(id);
     if (!shape || !transform) {

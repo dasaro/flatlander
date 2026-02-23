@@ -5,10 +5,12 @@ import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
 import type { Vec2 } from '../geometry/vector';
 import type { Camera } from './camera';
+import type { EffectsManager } from './effects';
 
 export interface RenderOptions {
   showSouthZoneOverlay?: boolean;
   debugClickPoint?: Vec2 | null;
+  effectsManager?: EffectsManager;
 }
 
 export class CanvasRenderer {
@@ -56,12 +58,22 @@ export class CanvasRenderer {
     for (const id of ids) {
       const shape = world.shapes.get(id);
       const transform = world.transforms.get(id);
-      const rank = world.ranks.get(id);
-      if (!shape || !transform || !rank) {
+      if (!shape || !transform) {
         continue;
       }
 
       const geometry = world.geometries.get(id) ?? geometryFromComponents(shape, transform);
+      const house = world.houses.get(id);
+      if (house && geometry.kind === 'polygon') {
+        this.drawHouse(geometry.vertices, house.doorEastWorld, house.doorWestWorld, camera);
+        continue;
+      }
+
+      const rank = world.ranks.get(id);
+      if (!rank) {
+        continue;
+      }
+
       const isSelected = selectedEntityId === id;
       const fillColor = colorForRank(rank.rank);
       const triangleStroke =
@@ -126,6 +138,8 @@ export class CanvasRenderer {
       }
     }
 
+    options.effectsManager?.render(this.ctx, camera);
+
     this.ctx.restore();
 
     this.ctx.strokeStyle = '#8d8778';
@@ -176,6 +190,46 @@ export class CanvasRenderer {
 
     this.ctx.fillStyle = gradient;
     this.ctx.fillRect(0, startY, world.config.width, world.config.height - startY);
+    this.ctx.restore();
+  }
+
+  private drawHouse(vertices: Vec2[], eastDoor: Vec2, westDoor: Vec2, camera: Camera): void {
+    const first = vertices[0];
+    if (!first) {
+      return;
+    }
+
+    this.ctx.save();
+    this.ctx.fillStyle = 'rgba(95, 89, 79, 0.18)';
+    this.ctx.strokeStyle = 'rgba(86, 80, 71, 0.7)';
+    this.ctx.lineWidth = 1.2 / camera.zoom;
+    this.ctx.beginPath();
+    this.ctx.moveTo(first.x, first.y);
+    for (let i = 1; i < vertices.length; i += 1) {
+      const vertex = vertices[i];
+      if (!vertex) {
+        continue;
+      }
+      this.ctx.lineTo(vertex.x, vertex.y);
+    }
+    this.ctx.closePath();
+    this.ctx.fill();
+    this.ctx.stroke();
+
+    this.drawDoorMarker(eastDoor, '#c67a32', camera);
+    this.drawDoorMarker(westDoor, '#396887', camera);
+    this.ctx.restore();
+  }
+
+  private drawDoorMarker(position: Vec2, color: string, camera: Camera): void {
+    this.ctx.save();
+    this.ctx.fillStyle = color;
+    this.ctx.strokeStyle = '#1f1d1a';
+    this.ctx.lineWidth = 0.8 / camera.zoom;
+    this.ctx.beginPath();
+    this.ctx.arc(position.x, position.y, 2.4 / camera.zoom, 0, Math.PI * 2);
+    this.ctx.fill();
+    this.ctx.stroke();
     this.ctx.restore();
   }
 

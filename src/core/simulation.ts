@@ -63,7 +63,9 @@ export class FixedTimestepSimulation {
     const tickDuration = 1 / this.world.config.tickRate;
     this.world.tick += 1;
     this.world.collisions = [];
+    this.world.manifolds = [];
     this.world.deathsThisTick = 0;
+    this.world.regularizedThisTick = 0;
 
     for (const system of this.systems) {
       system.update(this.world, tickDuration);

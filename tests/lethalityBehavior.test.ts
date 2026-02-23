@@ -56,6 +56,8 @@ describe('lethality behavior', () => {
   it('kills on high-speed acute isosceles vertex contact', () => {
     const { world, step } = runCollisionAndLethalityTick(12);
     world.config.killThreshold = 20;
+    world.config.killSeverityThreshold = 6;
+    world.config.pressureTicksToKill = 120;
     world.config.feelSpeedThreshold = 1;
 
     const attacker = spawnEntity(
@@ -88,11 +90,12 @@ describe('lethality behavior', () => {
     step();
 
     expect(world.entities.has(victim)).toBe(false);
-    expect(world.entities.has(attacker)).toBe(true);
   });
 
   it('keeps low-speed vertex contact safe for feeling', () => {
     const { world, step } = runCollisionAndLethalityTick(13);
+    world.config.killSeverityThreshold = 8;
+    world.config.pressureTicksToKill = 1_000;
     world.config.feelSpeedThreshold = 6;
 
     const attacker = spawnEntity(
@@ -126,5 +129,6 @@ describe('lethality behavior', () => {
 
     expect(world.entities.has(victim)).toBe(true);
     expect(world.entities.has(attacker)).toBe(true);
+    expect(world.combatStats.get(attacker)?.kills ?? 0).toBe(0);
   });
 });

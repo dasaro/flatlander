@@ -5,11 +5,22 @@ import { FixedTimestepSimulation } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { CleanupSystem } from '../src/systems/cleanupSystem';
 import { CollisionSystem } from '../src/systems/collisionSystem';
+import { CompensationSystem } from '../src/systems/compensationSystem';
+import { FeelingApproachSystem } from '../src/systems/feelingApproachSystem';
+import { FeelingSystem } from '../src/systems/feelingSystem';
+import { HearingSystem } from '../src/systems/hearingSystem';
+import { IntelligenceGrowthSystem } from '../src/systems/intelligenceGrowthSystem';
 import { LethalitySystem } from '../src/systems/lethalitySystem';
+import { CollisionResolutionSystem } from '../src/systems/collisionResolutionSystem';
 import { AvoidanceSteeringSystem } from '../src/systems/avoidanceSteeringSystem';
 import { MovementSystem } from '../src/systems/movementSystem';
+import { PeaceCrySystem } from '../src/systems/peaceCrySystem';
+import { ReproductionSystem } from '../src/systems/reproductionSystem';
 import { SouthAttractionSystem } from '../src/systems/southAttractionSystem';
+import { StillnessSystem } from '../src/systems/stillnessSystem';
+import { SwaySystem } from '../src/systems/swaySystem';
 import { VisionSystem } from '../src/systems/visionSystem';
+import { RegularizationSystem } from '../src/systems/regularizationSystem';
 
 function buildSnapshot(seed: number, plan: SpawnRequest[], ticks: number): string {
   const world = createWorld(seed);
@@ -19,12 +30,23 @@ function buildSnapshot(seed: number, plan: SpawnRequest[], ticks: number): strin
 
   const systems = [
     new SouthAttractionSystem(),
+    new IntelligenceGrowthSystem(),
+    new StillnessSystem(),
+    new PeaceCrySystem(),
+    new HearingSystem(),
     new VisionSystem(),
     new AvoidanceSteeringSystem(),
+    new FeelingApproachSystem(),
     new MovementSystem(),
+    new SwaySystem(),
+    new CompensationSystem(),
+    new RegularizationSystem(),
     new CollisionSystem(),
+    new FeelingSystem(),
+    new CollisionResolutionSystem(),
     new LethalitySystem(),
     new CleanupSystem(),
+    new ReproductionSystem(),
   ];
   const simulation = new FixedTimestepSimulation(world, systems);
 
