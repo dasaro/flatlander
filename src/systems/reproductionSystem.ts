@@ -1,5 +1,6 @@
 import { spawnEntity, type SpawnMovementConfig, type SpawnShapeConfig } from '../core/factory';
 import { getLineagePathToRoot } from '../core/genealogy';
+import { rankKeyForEntity } from '../core/rankKey';
 import { boundaryFromTopology } from '../core/topology';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
@@ -251,6 +252,8 @@ export class ReproductionSystem implements System {
           childId,
           motherId,
           pos: childTransform.position,
+          childRankKey: rankKeyForEntity(world, childId),
+          motherRankKey: rankKeyForEntity(world, motherId),
         });
       }
 

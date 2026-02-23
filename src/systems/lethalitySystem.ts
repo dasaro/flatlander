@@ -1,5 +1,6 @@
 import type { SupportFeature } from '../geometry/collisionManifold';
 import type { GeometryShape } from '../geometry/intersections';
+import { rankKeyForEntity } from '../core/rankKey';
 import { clamp, normalize, sub } from '../geometry/vector';
 import type { World } from '../core/world';
 import type { System } from './system';
@@ -73,6 +74,8 @@ function registerKill(world: World, killerId: number, victimId: number): void {
     tick: world.tick,
     entityId: victimId,
     pos: victimTransform.position,
+    rankKey: rankKeyForEntity(world, victimId),
+    killerId,
   });
 }
 
@@ -121,6 +124,8 @@ function evaluateDirectionalStab(
     victimId,
     pos: contactPoint,
     sharpness: adjustedSharpness,
+    attackerRankKey: rankKeyForEntity(world, attackerId),
+    victimRankKey: rankKeyForEntity(world, victimId),
   });
 
   const exponent = Math.max(0.1, world.config.stabSharpnessExponent);

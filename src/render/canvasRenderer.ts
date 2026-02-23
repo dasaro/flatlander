@@ -6,11 +6,15 @@ import type { World } from '../core/world';
 import type { Vec2 } from '../geometry/vector';
 import type { Camera } from './camera';
 import type { EffectsManager } from './effects';
+import { APP_VERSION } from '../version';
 
 export interface RenderOptions {
   showSouthZoneOverlay?: boolean;
   debugClickPoint?: Vec2 | null;
   effectsManager?: EffectsManager;
+  strokeByKills?: boolean;
+  showHearingOverlay?: boolean;
+  showTalkingOverlay?: boolean;
 }
 
 export class CanvasRenderer {
@@ -76,12 +80,18 @@ export class CanvasRenderer {
 
       const isSelected = selectedEntityId === id;
       const fillColor = colorForRank(rank.rank);
-      const triangleStroke =
+      const kills = world.combatStats.get(id)?.kills ?? 0;
+      const killStrokeColor = colorForKillCount(kills);
+      const defaultStroke =
         shape.kind === 'polygon' && shape.sides === 3 && !isSelected ? fillColor : '#232323';
 
       this.ctx.save();
       this.ctx.fillStyle = fillColor;
-      this.ctx.strokeStyle = isSelected ? '#111111' : triangleStroke;
+      this.ctx.strokeStyle = isSelected
+        ? '#111111'
+        : options.strokeByKills
+          ? killStrokeColor
+          : defaultStroke;
       this.ctx.lineWidth = (isSelected ? 3 : 1.5) / camera.zoom;
 
       if (geometry.kind === 'circle') {
@@ -138,7 +148,11 @@ export class CanvasRenderer {
       }
     }
 
-    options.effectsManager?.render(this.ctx, camera);
+    if (options.showHearingOverlay && selectedEntityId !== null) {
+      this.drawSelectedHearingOverlay(world, selectedEntityId, camera, options.showTalkingOverlay ?? false);
+    }
+
+    options.effectsManager?.render(this.ctx, camera, selectedEntityId);
 
     this.ctx.restore();
 
@@ -159,6 +173,9 @@ export class CanvasRenderer {
     this.ctx.font = '12px Trebuchet MS, sans-serif';
     this.ctx.fillStyle = '#2e2b25';
     this.ctx.fillText('SOUTH', x, y);
+    const versionText = `v${APP_VERSION}`;
+    const versionWidth = this.ctx.measureText(versionText).width;
+    this.ctx.fillText(versionText, this.canvas.width - versionWidth - 10, 12);
 
     this.ctx.strokeStyle = '#2e2b25';
     this.ctx.lineWidth = 1.5;
@@ -172,6 +189,62 @@ export class CanvasRenderer {
     this.ctx.lineTo(x + 26, y + 22);
     this.ctx.lineTo(x + 32, y + 15);
     this.ctx.stroke();
+    this.ctx.restore();
+  }
+
+  private drawSelectedHearingOverlay(
+    world: World,
+    selectedEntityId: number,
+    camera: Camera,
+    showTalkingOverlay: boolean,
+  ): void {
+    const hearingHit = world.hearingHits.get(selectedEntityId);
+    if (!hearingHit) {
+      return;
+    }
+
+    const listenerTransform = world.transforms.get(selectedEntityId);
+    const speakerTransform = world.transforms.get(hearingHit.otherId);
+    if (!listenerTransform || !speakerTransform) {
+      return;
+    }
+
+    const listenerEye = getEyeWorldPosition(world, selectedEntityId) ?? listenerTransform.position;
+    const speakerGeometry =
+      world.geometries.get(hearingHit.otherId) ??
+      (() => {
+        const shape = world.shapes.get(hearingHit.otherId);
+        if (!shape) {
+          return null;
+        }
+        return geometryFromComponents(shape, speakerTransform);
+      })();
+    if (!speakerGeometry) {
+      return;
+    }
+
+    const speakerCenter = geometryCenter(speakerGeometry);
+    this.ctx.save();
+    this.ctx.strokeStyle = 'rgba(58, 103, 140, 0.35)';
+    this.ctx.lineWidth = 1.2 / camera.zoom;
+    this.ctx.setLineDash([6 / camera.zoom, 5 / camera.zoom]);
+    this.ctx.beginPath();
+    this.ctx.moveTo(listenerEye.x, listenerEye.y);
+    this.ctx.lineTo(speakerCenter.x, speakerCenter.y);
+    this.ctx.stroke();
+    this.ctx.setLineDash([]);
+
+    if (showTalkingOverlay) {
+      this.ctx.strokeStyle = 'rgba(58, 103, 140, 0.32)';
+      this.ctx.lineWidth = 1 / camera.zoom;
+      for (let i = 0; i < 2; i += 1) {
+        const radius = (5 + i * 4) / camera.zoom;
+        this.ctx.beginPath();
+        this.ctx.arc(speakerCenter.x, speakerCenter.y, radius, -0.8, 0.8);
+        this.ctx.stroke();
+      }
+    }
+
     this.ctx.restore();
   }
 
@@ -281,4 +354,32 @@ function colorForRank(rank: Rank): string {
     default:
       return '#777777';
   }
+}
+
+function colorForKillCount(kills: number): string {
+  if (kills <= 0) {
+    return '#232323';
+  }
+  if (kills <= 2) {
+    return '#6c4a2c';
+  }
+  if (kills <= 5) {
+    return '#7b2f24';
+  }
+  return '#4e0f0f';
+}
+
+function geometryCenter(
+  geometry: ReturnType<typeof geometryFromComponents>,
+): Vec2 {
+  if (geometry.kind === 'circle') {
+    return geometry.center;
+  }
+  if (geometry.kind === 'segment') {
+    return {
+      x: (geometry.a.x + geometry.b.x) / 2,
+      y: (geometry.a.y + geometry.b.y) / 2,
+    };
+  }
+  return polygonCentroid(geometry.vertices);
 }

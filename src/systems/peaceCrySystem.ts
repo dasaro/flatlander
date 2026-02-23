@@ -1,5 +1,6 @@
 import { getEyeWorldPosition } from '../core/eye';
 import { southAttractionMultiplier } from '../core/fields/southAttractionField';
+import { rankKeyForEntity } from '../core/rankKey';
 import { Rank } from '../core/rank';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
@@ -71,6 +72,7 @@ export class PeaceCrySystem implements System {
         emitterId: id,
         pos: eye ?? transform.position,
         radius: effectiveRadius,
+        emitterRankKey: rankKeyForEntity(world, id),
       });
       peaceCry.lastEmitTick = world.tick;
     }

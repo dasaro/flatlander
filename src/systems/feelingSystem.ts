@@ -1,4 +1,5 @@
 import { orderedEntityPairs } from '../core/events';
+import { rankKeyForEntity } from '../core/rankKey';
 import { angleToVector } from '../geometry/vector';
 import type { Vec2 } from '../geometry/vector';
 import type { EntityId } from '../core/components';
@@ -113,6 +114,8 @@ export class FeelingSystem implements System {
           aId: pair.a,
           bId: pair.b,
           pos: eventPos,
+          aRankKey: rankKeyForEntity(world, pair.a),
+          bRankKey: rankKeyForEntity(world, pair.b),
         });
         touchEventsEmitted += 1;
       }
@@ -144,6 +147,8 @@ export class FeelingSystem implements System {
           aId: pair.a,
           bId: pair.b,
           pos: eventPos,
+          aRankKey: rankKeyForEntity(world, pair.a),
+          bRankKey: rankKeyForEntity(world, pair.b),
         });
         applyHandshakeStillness(world, pair.a);
         applyHandshakeStillness(world, pair.b);

@@ -2,6 +2,8 @@ import './styles.css';
 
 import type { BoundaryMode, MovementComponent } from './core/components';
 import { countLivingDescendants, getAncestors } from './core/genealogy';
+import type { EventType } from './ui/eventAnalytics';
+import { EventAnalytics } from './ui/eventAnalytics';
 import { spawnFromRequest, type SpawnMovementConfig, type SpawnRequest } from './core/factory';
 import { FixedTimestepSimulation } from './core/simulation';
 import { boundaryFromTopology, type WorldTopology } from './core/topology';
@@ -10,6 +12,7 @@ import type { Vec2 } from './geometry/vector';
 import { Camera } from './render/camera';
 import { CanvasRenderer } from './render/canvasRenderer';
 import { EffectsManager } from './render/effects';
+import { EventTimelineRenderer } from './render/eventTimelineRenderer';
 import { computeFlatlanderScan, type FlatlanderScanResult } from './render/flatlanderScan';
 import { FlatlanderViewRenderer } from './render/flatlanderViewRenderer';
 import { PopulationHistogram } from './render/populationHistogram';
@@ -45,6 +48,8 @@ import {
   type SouthAttractionSettings,
   UIController,
 } from './ui/uiController';
+import { EventDrainPipeline } from './ui/eventDrainPipeline';
+import { APP_VERSION } from './version';
 
 const canvas = document.getElementById('world-canvas');
 if (!(canvas instanceof HTMLCanvasElement)) {
@@ -53,6 +58,18 @@ if (!(canvas instanceof HTMLCanvasElement)) {
 const histogramCanvas = document.getElementById('population-histogram');
 if (!(histogramCanvas instanceof HTMLCanvasElement)) {
   throw new Error('Missing #population-histogram canvas element.');
+}
+const eventTimelineCanvas = document.getElementById('event-timeline-canvas');
+if (!(eventTimelineCanvas instanceof HTMLCanvasElement)) {
+  throw new Error('Missing #event-timeline-canvas canvas element.');
+}
+const eventTimelineTooltip = document.getElementById('event-timeline-tooltip');
+if (!(eventTimelineTooltip instanceof HTMLElement)) {
+  throw new Error('Missing #event-timeline-tooltip element.');
+}
+const eventTimelineLegend = document.getElementById('event-timeline-legend');
+if (!(eventTimelineLegend instanceof HTMLElement)) {
+  throw new Error('Missing #event-timeline-legend element.');
 }
 const flatlanderCanvas = document.getElementById('flatlander-canvas');
 if (!(flatlanderCanvas instanceof HTMLCanvasElement)) {
@@ -66,6 +83,18 @@ if (!(initialSeedInput instanceof HTMLInputElement)) {
 const topologyInput = document.getElementById('world-topology');
 if (!(topologyInput instanceof HTMLSelectElement)) {
   throw new Error('Missing #world-topology select element.');
+}
+const versionBadge = document.getElementById('app-version-badge');
+if (!(versionBadge instanceof HTMLElement)) {
+  throw new Error('Missing #app-version-badge element.');
+}
+const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+if (!(sidebarToggleBtn instanceof HTMLButtonElement)) {
+  throw new Error('Missing #sidebar-toggle-btn button.');
+}
+const appShell = document.getElementById('app-shell');
+if (!(appShell instanceof HTMLElement)) {
+  throw new Error('Missing #app-shell element.');
 }
 
 const systems = [
@@ -112,6 +141,11 @@ let eventHighlightsSettings: EventHighlightsSettings = {
   enabled: true,
   intensity: 1,
   capPerTick: 120,
+  showFeeling: true,
+  focusOnSelected: false,
+  showHearingOverlay: false,
+  showTalkingOverlay: false,
+  strokeByKills: false,
 };
 let flatlanderViewSettings: FlatlanderViewSettings = {
   enabled: true,
@@ -159,6 +193,8 @@ const effectsManager = new EffectsManager();
 effectsManager.setSettings(eventHighlightsSettings);
 const flatlanderViewRenderer = new FlatlanderViewRenderer(flatlanderCanvas);
 const populationHistogram = new PopulationHistogram(histogramCanvas);
+const eventAnalytics = new EventAnalytics(1500);
+const eventTimelineRenderer = new EventTimelineRenderer(eventTimelineCanvas, eventTimelineTooltip);
 populationHistogram.reset(world);
 const camera = new Camera(world.config.width, world.config.height);
 const selectionState = new SelectionState();
@@ -169,11 +205,28 @@ let lastFlatlanderScanViewerId: number | null = null;
 let lastFlatlanderScanConfigKey = '';
 let cachedFlatlanderScan: FlatlanderScanResult | null = null;
 let flatlanderScanDirty = true;
+const eventDrainPipeline = new EventDrainPipeline(
+  world.tick,
+  () => world.events.drain(),
+  [(events) => effectsManager.ingest(events), (events) => eventAnalytics.ingest(events)],
+);
+
+const selectedTimelineTypes = readSelectedTimelineTypes();
+const selectedTimelineRanks = readSelectedTimelineRankKeys();
+let timelineSplitByRank = readCheckbox('timeline-split-by-rank');
+let timelineShowLegend = readCheckbox('timeline-show-legend');
+
+document.title = `Flatlander ${APP_VERSION}`;
+versionBadge.textContent = `v${APP_VERSION}`;
+initializeResponsiveUi(appShell, sidebarToggleBtn);
+initializePanelCollapsers();
+wireTimelineControls();
 
 const ui = new UIController({
   onToggleRun: () => simulation.toggleRunning(),
   onStep: () => {
     simulation.stepOneTick();
+    processTickEvents();
     ensureSelectionStillAlive();
   },
   onReset: (seed) => {
@@ -191,7 +244,9 @@ const ui = new UIController({
     populateWorld(world, spawnPlan);
     simulation.setWorld(world);
     effectsManager.clear();
+    eventAnalytics.clear();
     populationHistogram.reset(world);
+    eventDrainPipeline.reset(world.tick);
     selectionState.setSelected(null);
     camera.reset(world.config.width, world.config.height);
     cachedFlatlanderScan = null;
@@ -417,8 +472,7 @@ function frame(now: number): void {
   lastRenderTimeMs = now;
 
   simulation.frame(now);
-  const drainedEvents = world.events.drain();
-  effectsManager.ingest(drainedEvents);
+  processTickEvents();
   effectsManager.update(dtVisualSeconds);
   populationHistogram.record(world);
   ensureSelectionStillAlive();
@@ -430,9 +484,13 @@ function frame(now: number): void {
     showSouthZoneOverlay: southAttractionSettings.showSouthZoneOverlay,
     debugClickPoint: southAttractionSettings.showClickDebug ? clickPoint : null,
     effectsManager,
+    strokeByKills: eventHighlightsSettings.strokeByKills,
+    showHearingOverlay: eventHighlightsSettings.showHearingOverlay,
+    showTalkingOverlay: eventHighlightsSettings.showTalkingOverlay,
   });
   renderFlatlanderView();
   populationHistogram.render();
+  renderEventTimeline();
   ui.renderStats(world);
   requestAnimationFrame(frame);
 }
@@ -639,6 +697,36 @@ function renderFlatlanderView(): void {
     flatlanderViewSettings,
     transform.rotation + flatlanderViewSettings.lookOffsetRad,
   );
+}
+
+function processTickEvents(): void {
+  eventDrainPipeline.processForTick(world.tick);
+}
+
+function renderEventTimeline(): void {
+  syncDynamicRankFilters();
+  const selectedTypes = readSelectedTimelineTypes();
+  const selectedRanks = readSelectedTimelineRankKeys();
+  const focusId =
+    eventHighlightsSettings.focusOnSelected && selectionState.selectedId !== null
+      ? selectionState.selectedId
+      : null;
+  const summaries = eventAnalytics.getFilteredSummaries({
+    selectedTypes,
+    selectedRankKeys: selectedRanks,
+    splitByRank: timelineSplitByRank,
+    focusEntityId: focusId,
+  });
+
+  eventTimelineRenderer.render(summaries, {
+    splitByRank: timelineSplitByRank,
+    selectedTypes: [...selectedTypes],
+    selectedRankKeys: [...selectedRanks],
+    showLegend: timelineShowLegend,
+  });
+  if (eventTimelineLegend) {
+    eventTimelineLegend.hidden = !timelineShowLegend;
+  }
 }
 
 function readInitialSeed(raw: string): number {
@@ -1129,5 +1217,161 @@ function applyHarmonicMotionPresetToPlan(plan: SpawnRequest[]): SpawnRequest[] {
         intentionMinTicks: Math.max(88, request.movement.intentionMinTicks),
       },
     };
+  });
+}
+
+const TIMELINE_TYPE_CONTROL_IDS: Record<EventType, string> = {
+  touch: 'timeline-type-touch',
+  handshake: 'timeline-type-handshake',
+  peaceCry: 'timeline-type-peaceCry',
+  stab: 'timeline-type-stab',
+  death: 'timeline-type-death',
+  birth: 'timeline-type-birth',
+  regularized: 'timeline-type-regularized',
+};
+
+function readCheckbox(id: string): boolean {
+  const element = document.getElementById(id);
+  return element instanceof HTMLInputElement ? element.checked : false;
+}
+
+function readSelectedTimelineTypes(): Set<EventType> {
+  const selected = new Set<EventType>();
+  for (const [eventType, id] of Object.entries(TIMELINE_TYPE_CONTROL_IDS) as Array<[EventType, string]>) {
+    if (readCheckbox(id)) {
+      selected.add(eventType);
+    }
+  }
+  return selected;
+}
+
+function readSelectedTimelineRankKeys(): Set<string> {
+  const container = document.getElementById('timeline-rank-filters');
+  if (!(container instanceof HTMLElement)) {
+    return new Set<string>();
+  }
+
+  const selected = new Set<string>();
+  const checkboxes = container.querySelectorAll<HTMLInputElement>('input[data-rank-filter]');
+  for (const checkbox of checkboxes) {
+    const rankKey = checkbox.dataset.rankFilter;
+    if (!rankKey || !checkbox.checked) {
+      continue;
+    }
+    selected.add(rankKey);
+  }
+
+  return selected;
+}
+
+function wireTimelineControls(): void {
+  const typeIds = Object.values(TIMELINE_TYPE_CONTROL_IDS);
+  for (const id of typeIds) {
+    const element = document.getElementById(id);
+    if (!(element instanceof HTMLInputElement)) {
+      continue;
+    }
+    element.addEventListener('change', () => {
+      const next = readSelectedTimelineTypes();
+      selectedTimelineTypes.clear();
+      for (const type of next) {
+        selectedTimelineTypes.add(type);
+      }
+    });
+  }
+
+  const splitInput = document.getElementById('timeline-split-by-rank');
+  if (splitInput instanceof HTMLInputElement) {
+    splitInput.addEventListener('change', () => {
+      timelineSplitByRank = splitInput.checked;
+    });
+  }
+
+  const showLegendInput = document.getElementById('timeline-show-legend');
+  if (showLegendInput instanceof HTMLInputElement) {
+    showLegendInput.addEventListener('change', () => {
+      timelineShowLegend = showLegendInput.checked;
+    });
+  }
+
+  const rankContainer = document.getElementById('timeline-rank-filters');
+  if (rankContainer instanceof HTMLElement) {
+    rankContainer.addEventListener('change', () => {
+      const next = readSelectedTimelineRankKeys();
+      selectedTimelineRanks.clear();
+      for (const rankKey of next) {
+        selectedTimelineRanks.add(rankKey);
+      }
+    });
+  }
+}
+
+function syncDynamicRankFilters(): void {
+  const container = document.getElementById('timeline-rank-filters');
+  if (!(container instanceof HTMLElement)) {
+    return;
+  }
+
+  const observed = eventAnalytics.getObservedRankKeys();
+  for (const rankKey of observed) {
+    const existing = container.querySelector<HTMLInputElement>(`input[data-rank-filter="${CSS.escape(rankKey)}"]`);
+    if (existing) {
+      continue;
+    }
+
+    const label = document.createElement('label');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = true;
+    checkbox.dataset.rankFilter = rankKey;
+    label.appendChild(checkbox);
+    label.append(` ${rankKey}`);
+    container.appendChild(label);
+  }
+}
+
+function initializeResponsiveUi(shell: HTMLElement, toggleButton: HTMLButtonElement): void {
+  const collapsedClass = 'sidebar-collapsed';
+  if (window.matchMedia('(max-width: 900px)').matches) {
+    shell.classList.add(collapsedClass);
+  }
+
+  toggleButton.addEventListener('click', () => {
+    shell.classList.toggle(collapsedClass);
+  });
+}
+
+function initializePanelCollapsers(): void {
+  const storagePrefix = 'flatlander.panel.';
+  const panels = document.querySelectorAll<HTMLElement>('.sidebar .panel');
+  panels.forEach((panel, index) => {
+    const header = panel.querySelector('h2');
+    if (!(header instanceof HTMLHeadingElement)) {
+      return;
+    }
+
+    const panelId = panel.id || `panel-${index}`;
+    const storageKey = `${storagePrefix}${panelId}`;
+    const collapseButton = document.createElement('button');
+    collapseButton.type = 'button';
+    collapseButton.className = 'panel-collapse-btn';
+    collapseButton.textContent = '▾';
+    collapseButton.setAttribute('aria-label', 'Collapse panel');
+    header.appendChild(collapseButton);
+
+    const savedState = localStorage.getItem(storageKey);
+    const collapsed = savedState === 'collapsed';
+    if (collapsed) {
+      panel.classList.add('collapsed');
+      collapseButton.textContent = '▸';
+    }
+
+    collapseButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const isCollapsed = panel.classList.toggle('collapsed');
+      collapseButton.textContent = isCollapsed ? '▸' : '▾';
+      localStorage.setItem(storageKey, isCollapsed ? 'collapsed' : 'open');
+    });
   });
 }

@@ -2,6 +2,7 @@ import type { SupportFeature } from '../geometry/collisionManifold';
 import type { GeometryShape } from '../geometry/intersections';
 import { clamp, dot, normalize, sub } from '../geometry/vector';
 import type { Vec2 } from '../geometry/vector';
+import { rankKeyForEntity } from '../core/rankKey';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
 import type { System } from './system';
@@ -112,6 +113,7 @@ function markDeath(world: World, entityId: number): void {
     tick: world.tick,
     entityId,
     pos: transform.position,
+    rankKey: rankKeyForEntity(world, entityId),
   });
 }
 

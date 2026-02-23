@@ -24,6 +24,41 @@ body {
   min-height: 100vh;
 }
 
+.app-bar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #b9b19a;
+  background: rgba(255, 252, 245, 0.9);
+  backdrop-filter: blur(4px);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.sidebar-toggle {
+  width: 38px;
+  height: 32px;
+  padding: 0;
+  font-size: 1.1rem;
+}
+
+.app-bar-title {
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.app-version-badge {
+  font-size: 0.85rem;
+  color: #4e4638;
+  border: 1px solid #b4aa90;
+  border-radius: 12px;
+  padding: 2px 8px;
+  background: #fffaf0;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: minmax(320px, 400px) minmax(0, 1fr);
@@ -51,6 +86,26 @@ h2 {
   font-size: 1rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.panel h2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.panel-collapse-btn {
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #6f6554;
+  padding: 0 4px;
+  min-width: 20px;
+}
+
+.panel.collapsed > :not(h2) {
+  display: none;
 }
 
 .panel {
@@ -182,6 +237,20 @@ button:active {
   padding: 8px;
 }
 
+.timeline-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin: 0 0 8px;
+  font-size: 0.86rem;
+}
+
+.timeline-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .timeline-panel h2 {
   margin-bottom: 6px;
 }
@@ -193,6 +262,16 @@ button:active {
   border: 1px solid #c5bca5;
   border-radius: 6px;
   background: #fffdf8;
+}
+
+#event-timeline-canvas {
+  display: block;
+  width: 100%;
+  height: 160px;
+  border: 1px solid #c5bca5;
+  border-radius: 6px;
+  background: #fffdf8;
+  margin-top: 6px;
 }
 
 #flatlander-canvas {
@@ -223,5 +302,33 @@ button:active {
 
   #population-histogram {
     height: 130px;
+  }
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    padding: 8px;
+  }
+
+  .app-shell.sidebar-collapsed .sidebar {
+    display: none;
+  }
+
+  .sidebar {
+    max-height: 45vh;
+    overflow-y: auto;
+  }
+
+  .button-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .row {
+    grid-template-columns: 110px 1fr;
+  }
+
+  #world-canvas {
+    max-height: 56vh;
   }
 }

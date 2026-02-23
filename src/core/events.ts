@@ -1,13 +1,53 @@
 import type { Vec2 } from '../geometry/vector';
 
 export type WorldEvent =
-  | { type: 'touch'; tick: number; aId: number; bId: number; pos: Vec2 }
-  | { type: 'handshake'; tick: number; aId: number; bId: number; pos: Vec2 }
-  | { type: 'peaceCry'; tick: number; emitterId: number; pos: Vec2; radius: number }
-  | { type: 'stab'; tick: number; attackerId: number; victimId: number; pos: Vec2; sharpness: number }
-  | { type: 'death'; tick: number; entityId: number; pos: Vec2 }
-  | { type: 'birth'; tick: number; childId: number; motherId: number; pos: Vec2 }
-  | { type: 'regularized'; tick: number; entityId: number; pos: Vec2 };
+  | {
+      type: 'touch';
+      tick: number;
+      aId: number;
+      bId: number;
+      pos: Vec2;
+      aRankKey?: string;
+      bRankKey?: string;
+    }
+  | {
+      type: 'handshake';
+      tick: number;
+      aId: number;
+      bId: number;
+      pos: Vec2;
+      aRankKey?: string;
+      bRankKey?: string;
+    }
+  | {
+      type: 'peaceCry';
+      tick: number;
+      emitterId: number;
+      pos: Vec2;
+      radius: number;
+      emitterRankKey?: string;
+    }
+  | {
+      type: 'stab';
+      tick: number;
+      attackerId: number;
+      victimId: number;
+      pos: Vec2;
+      sharpness: number;
+      attackerRankKey?: string;
+      victimRankKey?: string;
+    }
+  | { type: 'death'; tick: number; entityId: number; pos: Vec2; rankKey?: string; killerId?: number }
+  | {
+      type: 'birth';
+      tick: number;
+      childId: number;
+      motherId: number;
+      pos: Vec2;
+      childRankKey?: string;
+      motherRankKey?: string;
+    }
+  | { type: 'regularized'; tick: number; entityId: number; pos: Vec2; rankKey?: string };
 
 export class EventQueue {
   private events: WorldEvent[] = [];
@@ -30,6 +70,26 @@ export class EventQueue {
 export interface EntityPair {
   a: number;
   b: number;
+}
+
+export function eventInvolvedIds(event: WorldEvent): number[] {
+  switch (event.type) {
+    case 'touch':
+    case 'handshake':
+      return [event.aId, event.bId];
+    case 'stab':
+      return [event.attackerId, event.victimId];
+    case 'peaceCry':
+      return [event.emitterId];
+    case 'death':
+      return event.killerId !== undefined ? [event.entityId, event.killerId] : [event.entityId];
+    case 'birth':
+      return [event.childId, event.motherId];
+    case 'regularized':
+      return [event.entityId];
+    default:
+      return [];
+  }
 }
 
 export function orderedEntityPairs(pairs: EntityPair[]): EntityPair[] {

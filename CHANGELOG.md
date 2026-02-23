@@ -2,6 +2,37 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.7.1] - 2026-02-23
+
+### Added
+- Event timeline analytics + renderer:
+  - sparse, eventful-tick histogram (empty periods skipped)
+  - filters by event type and rank/subclass tracks
+  - focus filtering for selected entity involvement.
+- `rankKey` helper (`src/core/rankKey.ts`) for consistent subclass-aware labeling in event analytics.
+- Single-drain event fanout utility (`src/ui/eventDrainPipeline.ts`) with tests to guard against double-drain regressions.
+- Build-time app version constant (`__APP_VERSION__`) exposed via `src/version.ts`.
+- New tests for:
+  - event drain pipeline behavior
+  - rank key mapping
+  - deterministic kill-counter increments
+  - event analytics filtering
+  - version constant.
+
+### Changed
+- Interaction overlays now use distinct, low-clutter glyphs by event type:
+  - touch pulse, handshake pair mark, peace-cry ring, stab spark, death X, birth pulse, regularization plus.
+- Core events now include rank-key metadata where relevant so timeline breakdown survives cleanup/death.
+- Main loop now drains `world.events` once per tick and fans out the same event array to effects + analytics.
+- Added focus-aware feeling overlays and optional hearing/talking overlays (off by default).
+- Added toggleable stroke-by-kills rendering while preserving fill-by-rank.
+- UI layout updated for responsive/mobile usage:
+  - top app bar with hamburger + version badge
+  - collapsible sidebar panels
+  - improved stage/timeline layout on narrow screens.
+- Event timeline panel added below the main world view with legend and tooltip support.
+- App title and on-screen HUD now display the current package version automatically.
+
 ## [0.7.0] - 2026-02-23
 
 ### Added

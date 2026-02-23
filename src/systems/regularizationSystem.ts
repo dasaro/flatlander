@@ -1,4 +1,5 @@
 import { rankFromShape, Rank } from '../core/rank';
+import { rankKeyForEntity } from '../core/rankKey';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
 import { radialDeviation, radialPolygonVertices, regularPolygonVertices } from '../geometry/polygon';
@@ -84,6 +85,7 @@ export class RegularizationSystem implements System {
             tick: world.tick,
             entityId: id,
             pos: transform.position,
+            rankKey: rankKeyForEntity(world, id),
           });
         }
       }

@@ -6,9 +6,14 @@
     <title>Flatlander Simulator</title>
   </head>
   <body>
-    <div class="app-shell">
-      <aside class="sidebar">
-        <h1>Flatlander 0.1</h1>
+    <header class="app-bar">
+      <button id="sidebar-toggle-btn" type="button" class="sidebar-toggle" aria-label="Toggle menu">☰</button>
+      <div class="app-bar-title">Flatlander</div>
+      <div id="app-version-badge" class="app-version-badge">v0.0.0</div>
+    </header>
+    <div class="app-shell" id="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <h1>Flatlander</h1>
 
         <section class="panel">
           <h2>Simulation</h2>
@@ -92,6 +97,27 @@
             <label for="event-highlights-cap">Cap / Tick</label>
             <input id="event-highlights-cap" type="number" min="1" step="1" value="120" />
           </div>
+          <div class="row">
+            <label for="event-show-feeling">Show Feeling</label>
+            <input id="event-show-feeling" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="event-focus-selected">Focus On Selected</label>
+            <input id="event-focus-selected" type="checkbox" />
+          </div>
+          <div class="row">
+            <label for="event-show-hearing">Show Hearing Overlay</label>
+            <input id="event-show-hearing" type="checkbox" />
+          </div>
+          <div class="row">
+            <label for="event-show-talking">Show Talking Overlay</label>
+            <input id="event-show-talking" type="checkbox" />
+          </div>
+          <div class="row">
+            <label for="event-stroke-kills">Stroke By Kills</label>
+            <input id="event-stroke-kills" type="checkbox" />
+          </div>
+          <p class="hint">Kill stroke legend: 0 / 1-2 / 3-5 / 6+</p>
           <div class="button-row">
             <button id="event-highlights-clear" type="button">Clear Effects</button>
           </div>
@@ -663,6 +689,40 @@
         <section class="timeline-panel" aria-label="Population histogram panel">
           <h2>Population Histogram</h2>
           <canvas id="population-histogram" aria-label="Population, kills, and new inhabitants histogram"></canvas>
+        </section>
+        <section class="timeline-panel" aria-label="Event timeline panel">
+          <h2>Event Timeline</h2>
+          <div class="timeline-controls">
+            <label><input id="timeline-split-by-rank" type="checkbox" /> Split by rank/subclass</label>
+            <label><input id="timeline-show-legend" type="checkbox" checked /> Show timeline legend</label>
+          </div>
+          <div class="timeline-controls timeline-type-controls">
+            <label><input id="timeline-type-touch" type="checkbox" checked /> touch</label>
+            <label><input id="timeline-type-handshake" type="checkbox" checked /> handshake</label>
+            <label><input id="timeline-type-peaceCry" type="checkbox" checked /> peace-cry</label>
+            <label><input id="timeline-type-stab" type="checkbox" checked /> stab</label>
+            <label><input id="timeline-type-death" type="checkbox" checked /> death</label>
+            <label><input id="timeline-type-birth" type="checkbox" checked /> birth</label>
+            <label><input id="timeline-type-regularized" type="checkbox" checked /> regularized</label>
+          </div>
+          <details id="timeline-rank-filters-wrap">
+            <summary>Rank/Subclass Tracks</summary>
+            <div class="timeline-controls timeline-rank-controls" id="timeline-rank-filters">
+              <label><input data-rank-filter="Woman:Low" type="checkbox" checked /> Woman:Low</label>
+              <label><input data-rank-filter="Woman:Middle" type="checkbox" checked /> Woman:Middle</label>
+              <label><input data-rank-filter="Woman:High" type="checkbox" checked /> Woman:High</label>
+              <label><input data-rank-filter="Triangle:Isosceles" type="checkbox" checked /> Triangle:Isosceles</label>
+              <label><input data-rank-filter="Triangle:Equilateral" type="checkbox" checked /> Triangle:Equilateral</label>
+              <label><input data-rank-filter="Gentleman" type="checkbox" checked /> Gentleman</label>
+              <label><input data-rank-filter="Noble" type="checkbox" checked /> Noble</label>
+              <label><input data-rank-filter="NearCircle" type="checkbox" checked /> NearCircle</label>
+              <label><input data-rank-filter="Priest" type="checkbox" checked /> Priest</label>
+              <label><input data-rank-filter="Irregular" type="checkbox" checked /> Irregular</label>
+            </div>
+          </details>
+          <canvas id="event-timeline-canvas" aria-label="Event timeline"></canvas>
+          <div id="event-timeline-legend" class="hint">Touch / Handshake / Peace-Cry / Stab / Death / Birth / Regularized</div>
+          <div id="event-timeline-tooltip" class="hint">Hover bars for tick details.</div>
         </section>
       </main>
     </div>

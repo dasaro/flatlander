@@ -1,24 +1,63 @@
 import type { WorldEvent } from '../core/events';
+import { eventInvolvedIds } from '../core/events';
 import type { Vec2 } from '../geometry/vector';
 import { clamp } from '../geometry/vector';
 import type { Camera } from './camera';
 
 export type Effect =
-  | { kind: 'pulse'; pos: Vec2; ttl: number; age: number; strength: number; style: 'touch' | 'birth' }
-  | { kind: 'ring'; pos: Vec2; ttl: number; age: number; radius: number; subtle?: boolean }
-  | { kind: 'spark'; pos: Vec2; ttl: number; age: number; intensity: number }
-  | { kind: 'marker'; pos: Vec2; ttl: number; age: number; shape: 'x' | 'dot' | 'pair' | 'plus' };
+  | {
+      kind: 'pulse';
+      pos: Vec2;
+      ttl: number;
+      age: number;
+      strength: number;
+      style: 'touch' | 'birth';
+      eventType: WorldEvent['type'];
+      involvedIds: number[];
+    }
+  | {
+      kind: 'ring';
+      pos: Vec2;
+      ttl: number;
+      age: number;
+      radius: number;
+      subtle?: boolean;
+      eventType: WorldEvent['type'];
+      involvedIds: number[];
+    }
+  | {
+      kind: 'spark';
+      pos: Vec2;
+      ttl: number;
+      age: number;
+      intensity: number;
+      eventType: WorldEvent['type'];
+      involvedIds: number[];
+    }
+  | {
+      kind: 'marker';
+      pos: Vec2;
+      ttl: number;
+      age: number;
+      shape: 'x' | 'dot' | 'pair' | 'plus';
+      eventType: WorldEvent['type'];
+      involvedIds: number[];
+    };
 
 export interface EventHighlightSettings {
   enabled: boolean;
   intensity: number;
   capPerTick: number;
+  showFeeling: boolean;
+  focusOnSelected: boolean;
 }
 
 const DEFAULT_SETTINGS: EventHighlightSettings = {
   enabled: true,
   intensity: 1,
   capPerTick: 120,
+  showFeeling: true,
+  focusOnSelected: false,
 };
 
 const PEACE_CRY_TTL_SECONDS = 0.38;
@@ -27,6 +66,7 @@ const PEACE_CRY_MIN_RADIUS = 3;
 const PEACE_CRY_MAX_RADIUS = 90;
 
 export function effectFromEvent(event: WorldEvent): Effect | null {
+  const involvedIds = eventInvolvedIds(event);
   switch (event.type) {
     case 'touch':
       return {
@@ -36,6 +76,8 @@ export function effectFromEvent(event: WorldEvent): Effect | null {
         age: 0,
         strength: 0.8,
         style: 'touch',
+        eventType: event.type,
+        involvedIds,
       };
     case 'handshake':
       return {
@@ -44,6 +86,8 @@ export function effectFromEvent(event: WorldEvent): Effect | null {
         ttl: 0.35,
         age: 0,
         shape: 'pair',
+        eventType: event.type,
+        involvedIds,
       };
     case 'peaceCry':
       return {
@@ -53,6 +97,8 @@ export function effectFromEvent(event: WorldEvent): Effect | null {
         age: 0,
         radius: clamp(event.radius * PEACE_CRY_RADIUS_FACTOR, PEACE_CRY_MIN_RADIUS, PEACE_CRY_MAX_RADIUS),
         subtle: true,
+        eventType: event.type,
+        involvedIds,
       };
     case 'stab':
       return {
@@ -61,6 +107,8 @@ export function effectFromEvent(event: WorldEvent): Effect | null {
         ttl: 0.2,
         age: 0,
         intensity: clamp(event.sharpness, 0, 1),
+        eventType: event.type,
+        involvedIds,
       };
     case 'death':
       return {
@@ -69,6 +117,8 @@ export function effectFromEvent(event: WorldEvent): Effect | null {
         ttl: 0.8,
         age: 0,
         shape: 'x',
+        eventType: event.type,
+        involvedIds,
       };
     case 'birth':
       return {
@@ -78,6 +128,8 @@ export function effectFromEvent(event: WorldEvent): Effect | null {
         age: 0,
         strength: 0.7,
         style: 'birth',
+        eventType: event.type,
+        involvedIds,
       };
     case 'regularized':
       return {
@@ -86,6 +138,8 @@ export function effectFromEvent(event: WorldEvent): Effect | null {
         ttl: 0.75,
         age: 0,
         shape: 'plus',
+        eventType: event.type,
+        involvedIds,
       };
     default:
       return null;
@@ -107,6 +161,12 @@ export class EffectsManager {
 
     if (settings.capPerTick !== undefined) {
       this.settings.capPerTick = Math.max(1, Math.round(settings.capPerTick));
+    }
+    if (settings.showFeeling !== undefined) {
+      this.settings.showFeeling = settings.showFeeling;
+    }
+    if (settings.focusOnSelected !== undefined) {
+      this.settings.focusOnSelected = settings.focusOnSelected;
     }
   }
 
@@ -144,12 +204,27 @@ export class EffectsManager {
     this.effects = this.effects.filter((effect) => effect.age < effect.ttl);
   }
 
-  render(ctx: CanvasRenderingContext2D, camera: Camera): void {
+  render(ctx: CanvasRenderingContext2D, camera: Camera, selectedEntityId: number | null): void {
     if (!this.settings.enabled || this.effects.length === 0) {
       return;
     }
 
     for (const effect of this.effects) {
+      if (
+        !this.settings.showFeeling &&
+        (effect.eventType === 'touch' || effect.eventType === 'handshake')
+      ) {
+        continue;
+      }
+
+      if (
+        this.settings.focusOnSelected &&
+        selectedEntityId !== null &&
+        !effect.involvedIds.includes(selectedEntityId)
+      ) {
+        continue;
+      }
+
       const progress = clamp(effect.age / effect.ttl, 0, 1);
       const alpha = clamp((1 - progress) * this.settings.intensity, 0, 1);
       if (alpha <= 0) {

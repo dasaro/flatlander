@@ -78,6 +78,11 @@ export interface EventHighlightsSettings {
   enabled: boolean;
   intensity: number;
   capPerTick: number;
+  showFeeling: boolean;
+  focusOnSelected: boolean;
+  showHearingOverlay: boolean;
+  showTalkingOverlay: boolean;
+  strokeByKills: boolean;
 }
 
 export type FlatlanderViewSettings = FlatlanderViewConfig;
@@ -140,6 +145,11 @@ interface InputRefs {
   eventHighlightsShowLegend: HTMLInputElement;
   eventHighlightsIntensity: HTMLInputElement;
   eventHighlightsCap: HTMLInputElement;
+  eventShowFeeling: HTMLInputElement;
+  eventFocusSelected: HTMLInputElement;
+  eventShowHearing: HTMLInputElement;
+  eventShowTalking: HTMLInputElement;
+  eventStrokeKills: HTMLInputElement;
   eventHighlightsClearButton: HTMLButtonElement;
   flatlanderEnabled: HTMLInputElement;
   flatlanderRays: HTMLSelectElement;
@@ -764,6 +774,11 @@ export class UIController {
       this.refs.eventHighlightsEnabled,
       this.refs.eventHighlightsIntensity,
       this.refs.eventHighlightsCap,
+      this.refs.eventShowFeeling,
+      this.refs.eventFocusSelected,
+      this.refs.eventShowHearing,
+      this.refs.eventShowTalking,
+      this.refs.eventStrokeKills,
     ];
 
     for (const input of eventHighlightInputs) {
@@ -1051,6 +1066,11 @@ export class UIController {
       enabled: this.refs.eventHighlightsEnabled.checked,
       intensity: Math.max(0, parseNumber(this.refs.eventHighlightsIntensity.value, 1)),
       capPerTick: Math.max(1, parseInteger(this.refs.eventHighlightsCap.value, 120)),
+      showFeeling: this.refs.eventShowFeeling.checked,
+      focusOnSelected: this.refs.eventFocusSelected.checked,
+      showHearingOverlay: this.refs.eventShowHearing.checked,
+      showTalkingOverlay: this.refs.eventShowTalking.checked,
+      strokeByKills: this.refs.eventStrokeKills.checked,
     };
   }
 
@@ -1421,6 +1441,11 @@ function collectRefs(): InputRefs {
     eventHighlightsShowLegend: required<HTMLInputElement>('event-highlights-show-legend'),
     eventHighlightsIntensity: required<HTMLInputElement>('event-highlights-intensity'),
     eventHighlightsCap: required<HTMLInputElement>('event-highlights-cap'),
+    eventShowFeeling: required<HTMLInputElement>('event-show-feeling'),
+    eventFocusSelected: required<HTMLInputElement>('event-focus-selected'),
+    eventShowHearing: required<HTMLInputElement>('event-show-hearing'),
+    eventShowTalking: required<HTMLInputElement>('event-show-talking'),
+    eventStrokeKills: required<HTMLInputElement>('event-stroke-kills'),
     eventHighlightsClearButton: required<HTMLButtonElement>('event-highlights-clear'),
     flatlanderEnabled: required<HTMLInputElement>('flatlander-enabled'),
     flatlanderRays: required<HTMLSelectElement>('flatlander-rays'),
