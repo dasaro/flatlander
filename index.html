@@ -110,7 +110,7 @@
           </div>
           <div class="row">
             <label for="event-show-hearing">Show Hearing Overlay</label>
-            <input id="event-show-hearing" type="checkbox" />
+            <input id="event-show-hearing" type="checkbox" checked />
           </div>
           <div class="row">
             <label for="event-show-talking">Show Talking Overlay</label>
@@ -122,7 +122,7 @@
           </div>
           <div class="row">
             <label for="overlay-contact-network">Contact Network</label>
-            <input id="overlay-contact-network" type="checkbox" />
+            <input id="overlay-contact-network" type="checkbox" checked />
           </div>
           <div class="row">
             <label for="overlay-network-parents">Network Parents</label>
@@ -150,7 +150,7 @@
           </div>
           <div class="row">
             <label for="overlay-dim-deterioration">Dim By Deterioration</label>
-            <input id="overlay-dim-deterioration" type="checkbox" />
+            <input id="overlay-dim-deterioration" type="checkbox" checked />
           </div>
           <div class="row">
             <label for="overlay-dim-strength">Dimming Strength</label>
@@ -220,8 +220,7 @@
             <label for="flatlander-include-obstacles">Include Obstacles</label>
             <input id="flatlander-include-obstacles" type="checkbox" checked />
           </div>
-          <canvas id="flatlander-canvas" aria-label="Flatlander retina strip"></canvas>
-          <p class="hint">Select an entity to view one-dimensional sight.</p>
+          <p class="hint">Display appears in the stage below the world view.</p>
         </section>
 
         <section class="panel">
@@ -761,6 +760,11 @@
         <div class="world-stage">
           <canvas id="world-canvas" aria-label="Flatland simulation canvas"></canvas>
         </div>
+        <section class="timeline-panel" id="flatlander-stage-panel" aria-label="Flatlander view panel">
+          <h2>Flatlander View (Selected)</h2>
+          <canvas id="flatlander-canvas" aria-label="Flatlander retina strip"></canvas>
+          <p class="hint">Select an entity to view one-dimensional sight.</p>
+        </section>
         <section class="timeline-panel" aria-label="Population histogram panel">
           <h2>Population Histogram</h2>
           <canvas id="population-histogram" aria-label="Population, kills, and new inhabitants histogram"></canvas>

@@ -145,6 +145,43 @@ describe('recognition by feeling', () => {
     expect(world.knowledge.get(b)?.known.size ?? 0).toBe(0);
   });
 
+  it('emits touch events for safe contact even when cooldown blocks handshake', () => {
+    const { world, step } = runCollisionAndFeeling(503);
+    world.config.feelSpeedThreshold = 6;
+    world.tick = 10;
+
+    const a = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 4, size: 14, irregular: false },
+      { type: 'straightDrift', vx: 1, vy: 0, boundary: 'wrap' },
+      { x: 240, y: 220 },
+    );
+    const b = spawnEntity(
+      world,
+      { kind: 'circle', size: 16 },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 240, y: 220 },
+    );
+
+    const aFeeling = world.feeling.get(a);
+    const bFeeling = world.feeling.get(b);
+    if (!aFeeling || !bFeeling) {
+      throw new Error('Missing feeling components for touch emission test.');
+    }
+    aFeeling.lastFeltTick = world.tick;
+    bFeeling.lastFeltTick = world.tick;
+    aFeeling.feelCooldownTicks = 999;
+    bFeeling.feelCooldownTicks = 999;
+
+    step();
+
+    const events = world.events.drain();
+    expect(events.some((event) => event.type === 'touch')).toBe(true);
+    expect(events.some((event) => event.type === 'handshake')).toBe(false);
+    expect(world.knowledge.get(a)?.known.size ?? 0).toBe(0);
+    expect(world.knowledge.get(b)?.known.size ?? 0).toBe(0);
+  });
+
   it('produces deterministic known sets for same seed and setup', () => {
     const a = knowledgeSnapshot(1337, 10);
     const b = knowledgeSnapshot(1337, 10);

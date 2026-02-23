@@ -145,17 +145,17 @@ let eventHighlightsSettings: EventHighlightsSettings = {
   capPerTick: 120,
   showFeeling: true,
   focusOnSelected: false,
-  showHearingOverlay: false,
+  showHearingOverlay: true,
   showTalkingOverlay: false,
   strokeByKills: false,
-  showContactNetwork: false,
+  showContactNetwork: true,
   networkShowParents: true,
   networkShowKnown: true,
   networkMaxKnownEdges: 25,
   networkShowOnlyOnScreen: true,
   networkFocusRadius: 400,
   dimByAge: false,
-  dimByDeterioration: false,
+  dimByDeterioration: true,
   dimStrength: 0.25,
   fogPreviewEnabled: false,
   fogPreviewStrength: 0.2,
@@ -1390,9 +1390,11 @@ function initializeResponsiveUi(shell: HTMLElement, toggleButton: HTMLButtonElem
   if (window.matchMedia('(max-width: 900px)').matches) {
     shell.classList.add(collapsedClass);
   }
+  toggleButton.setAttribute('aria-expanded', shell.classList.contains(collapsedClass) ? 'false' : 'true');
 
   toggleButton.addEventListener('click', () => {
     shell.classList.toggle(collapsedClass);
+    toggleButton.setAttribute('aria-expanded', shell.classList.contains(collapsedClass) ? 'false' : 'true');
   });
 }
 
@@ -1405,7 +1407,6 @@ function syncQuickRunButton(quickButton: HTMLButtonElement, primaryButton: HTMLB
 }
 
 function initializePanelCollapsers(): void {
-  const storagePrefix = 'flatlander.panel.';
   const panels = document.querySelectorAll<HTMLElement>('.sidebar .panel');
   panels.forEach((panel, index) => {
     const header = panel.querySelector('h2');
@@ -1413,8 +1414,6 @@ function initializePanelCollapsers(): void {
       return;
     }
 
-    const panelId = panel.id || `panel-${index}`;
-    const storageKey = `${storagePrefix}${panelId}`;
     const collapseButton = document.createElement('button');
     collapseButton.type = 'button';
     collapseButton.className = 'panel-collapse-btn';
@@ -1422,12 +1421,7 @@ function initializePanelCollapsers(): void {
     collapseButton.setAttribute('aria-label', 'Collapse panel');
     header.appendChild(collapseButton);
 
-    let collapsed = false;
-    try {
-      collapsed = localStorage.getItem(storageKey) === 'collapsed';
-    } catch {
-      collapsed = false;
-    }
+    const collapsed = index > 0;
     if (collapsed) {
       panel.classList.add('collapsed');
       collapseButton.textContent = '▸';
@@ -1438,11 +1432,6 @@ function initializePanelCollapsers(): void {
       event.stopPropagation();
       const isCollapsed = panel.classList.toggle('collapsed');
       collapseButton.textContent = isCollapsed ? '▸' : '▾';
-      try {
-        localStorage.setItem(storageKey, isCollapsed ? 'collapsed' : 'open');
-      } catch {
-        // Ignore storage failures (private mode / restricted storage).
-      }
     });
   });
 }

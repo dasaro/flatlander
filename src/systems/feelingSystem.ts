@@ -12,6 +12,10 @@ function relativeSpeed(a: Vec2, b: Vec2): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
+function speedMagnitude(v: Vec2): number {
+  return Math.hypot(v.x, v.y);
+}
+
 function velocityForEntity(world: World, entityId: EntityId): Vec2 {
   const movement = world.movements.get(entityId);
   const southDrift = world.southDrifts.get(entityId)?.vy ?? 0;
@@ -81,15 +85,15 @@ export class FeelingSystem implements System {
     void _dt;
     const pairs = orderedCollisionPairs(world);
     let touchEventsEmitted = 0;
+    const stillnessSpeedThreshold = Math.max(
+      0.05,
+      Math.min(world.config.feelSpeedThreshold * 0.25, 2),
+    );
 
     for (const pair of pairs) {
       const aRank = world.ranks.get(pair.a);
       const bRank = world.ranks.get(pair.b);
       if (!aRank || !bRank) {
-        continue;
-      }
-
-      if (!canFeel(world, pair.a) || !canFeel(world, pair.b)) {
         continue;
       }
 
@@ -106,6 +110,7 @@ export class FeelingSystem implements System {
       if (!aGeometry || !bGeometry) {
         continue;
       }
+
       const eventPos = midpointForPair(world, pair.a, pair.b);
       if (eventPos && touchEventsEmitted < TOUCH_EVENTS_PER_TICK_CAP) {
         world.events.push({
@@ -118,6 +123,16 @@ export class FeelingSystem implements System {
           bRankKey: rankKeyForEntity(world, pair.b),
         });
         touchEventsEmitted += 1;
+      }
+
+      if (!canFeel(world, pair.a) || !canFeel(world, pair.b)) {
+        continue;
+      }
+
+      const aSpeed = speedMagnitude(velocityForEntity(world, pair.a));
+      const bSpeed = speedMagnitude(velocityForEntity(world, pair.b));
+      if (aSpeed > stillnessSpeedThreshold || bSpeed > stillnessSpeedThreshold) {
+        continue;
       }
 
       const aKnowledge = world.knowledge.get(pair.a);

@@ -2,6 +2,34 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.7.4] - 2026-02-23
+
+### Fixed
+- Contact/inspection overlays are now effective by default:
+  - contact network overlay enabled by default,
+  - hearing overlay enabled by default for selected-entity debugging,
+  - deterioration dimming enabled by default.
+- Contact network rendering visibility improved (stronger parent/known edge styling and node rings).
+- Feeling/touch visualization reliability:
+  - safe low-speed contact now emits `touch` events even when handshake cooldown blocks recognition.
+- Handshake behavior aligned to the “stand still while feeling” rule:
+  - rank learning/handshake now requires both participants to be in low absolute-speed contact.
+- Reduced long-run visual trembling:
+  - sleep detection no longer treats south drift as self-propulsion speed,
+  - collision velocity deadband suppresses tiny post-resolution jitter,
+  - movement orientation updates ignore micro-speed noise.
+
+### Changed
+- Stage layout now places the Flatlander 1D strip directly below the 2D world view and above histograms/timelines.
+- Sidebar panel boot behavior changed: on startup, all panels are collapsed except the main Simulation panel.
+- Desktop sidebar toggle now keeps `aria-expanded` in sync with visible state.
+
+### Tests
+- Added/updated feeling tests for:
+  - touch emission under cooldown,
+  - deterministic low-speed handshake behavior.
+- Updated stillness handshake test for the new low-speed novel rule setup.
+
 ## [0.7.3] - 2026-02-23
 
 ### Added

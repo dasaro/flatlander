@@ -392,14 +392,14 @@ export class CanvasRenderer {
 
     this.ctx.save();
     this.ctx.lineCap = 'round';
-    this.ctx.strokeStyle = 'rgba(34, 49, 71, 0.42)';
-    this.ctx.lineWidth = 1.4 / camera.zoom;
+    this.ctx.strokeStyle = 'rgba(34, 49, 71, 0.62)';
+    this.ctx.lineWidth = 1.7 / camera.zoom;
     for (const parentId of parentIds) {
       drawEdge(parentId, false);
     }
 
-    this.ctx.strokeStyle = 'rgba(45, 45, 45, 0.28)';
-    this.ctx.lineWidth = 1 / camera.zoom;
+    this.ctx.strokeStyle = 'rgba(45, 45, 45, 0.42)';
+    this.ctx.lineWidth = 1.2 / camera.zoom;
     for (const knownId of knownIds) {
       drawEdge(knownId, true);
     }
@@ -419,12 +419,12 @@ export class CanvasRenderer {
       this.ctx.restore();
     };
 
-    drawNodeRing(selectedEntityId, 'rgba(17, 17, 17, 0.85)', 9, 2.4);
+    drawNodeRing(selectedEntityId, 'rgba(17, 17, 17, 0.9)', 9.8, 2.8);
     for (const parentId of parentIds) {
-      drawNodeRing(parentId, 'rgba(56, 73, 115, 0.7)', 7.5, 1.7);
+      drawNodeRing(parentId, 'rgba(56, 73, 115, 0.82)', 8, 2);
     }
     for (const knownId of knownIds) {
-      drawNodeRing(knownId, 'rgba(52, 52, 52, 0.38)', 6.6, 1.3);
+      drawNodeRing(knownId, 'rgba(52, 52, 52, 0.56)', 6.8, 1.5);
     }
   }
 

@@ -5,9 +5,12 @@ import { EPSILON, clamp, dot, length, mul, sub, wrap } from '../geometry/vector'
 import type { Vec2 } from '../geometry/vector';
 import type { System } from './system';
 
+const COLLISION_VELOCITY_DEADBAND = 0.05;
+const NORMAL_COMPONENT_EPS = 1e-4;
+
 function removeIntoNormal(velocity: Vec2, normal: Vec2): Vec2 {
   const component = dot(velocity, normal);
-  if (component <= 0) {
+  if (component <= NORMAL_COMPONENT_EPS) {
     return velocity;
   }
   return sub(velocity, mul(normal, component));
@@ -28,6 +31,18 @@ function movementVelocity(movement: MovementComponent): Vec2 {
 }
 
 function applyVelocity(movement: MovementComponent, transform: TransformComponent, velocity: Vec2): void {
+  const nextSpeed = length(velocity);
+  if (nextSpeed <= COLLISION_VELOCITY_DEADBAND) {
+    if (movement.type === 'straightDrift') {
+      movement.vx = 0;
+      movement.vy = 0;
+      return;
+    }
+
+    movement.speed = 0;
+    return;
+  }
+
   if (movement.type === 'straightDrift') {
     movement.vx = velocity.x;
     movement.vy = velocity.y;
@@ -35,7 +50,6 @@ function applyVelocity(movement: MovementComponent, transform: TransformComponen
     return;
   }
 
-  const nextSpeed = length(velocity);
   movement.speed = Math.max(0, nextSpeed);
   if (nextSpeed > EPSILON) {
     movement.heading = Math.atan2(velocity.y, velocity.x);

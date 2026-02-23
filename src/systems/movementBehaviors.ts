@@ -7,7 +7,7 @@ import type {
   TransformComponent,
 } from '../core/components';
 import type { World } from '../core/world';
-import { EPSILON, angleToVector, clamp, normalize, sub, vec, wrap } from '../geometry/vector';
+import { angleToVector, clamp, normalize, sub, vec, wrap } from '../geometry/vector';
 import type { Vec2 } from '../geometry/vector';
 
 export interface MovementBehaviorStrategy<T extends MovementComponent = MovementComponent> {
@@ -42,6 +42,8 @@ function stepTransform(transform: TransformComponent, velocity: Vec2, dt: number
 function speedOf(velocity: Vec2): number {
   return Math.hypot(velocity.x, velocity.y);
 }
+
+const ORIENTATION_SPEED_EPS = 0.05;
 
 function velocityWithSouthDrift(world: World, entityId: number, intendedVelocity: Vec2): Vec2 {
   const driftVy = world.southDrifts.get(entityId)?.vy ?? 0;
@@ -108,7 +110,7 @@ export class RandomWalkBehavior implements MovementBehaviorStrategy<RandomWalkMo
     velocity = applyBoundary(world, movement, velocity, transform);
 
     const speed = speedOf(velocity);
-    if (speed > EPSILON) {
+    if (speed > ORIENTATION_SPEED_EPS) {
       movement.heading = normalizeAngle(Math.atan2(velocity.y, velocity.x));
       transform.rotation = movement.heading;
     }
@@ -134,7 +136,7 @@ export class StraightDriftBehavior implements MovementBehaviorStrategy<StraightD
 
     movement.vx = velocity.x;
     movement.vy = velocity.y - driftVy;
-    if (speedOf(velocity) > EPSILON) {
+    if (speedOf(velocity) > ORIENTATION_SPEED_EPS) {
       transform.rotation = normalizeAngle(Math.atan2(velocity.y, velocity.x));
     }
   }
@@ -169,7 +171,7 @@ export class SeekPointBehavior implements MovementBehaviorStrategy<SeekPointMove
     velocity = applyBoundary(world, movement, velocity, transform);
 
     const speed = speedOf(velocity);
-    if (speed > EPSILON) {
+    if (speed > ORIENTATION_SPEED_EPS) {
       movement.heading = normalizeAngle(Math.atan2(velocity.y, velocity.x));
       transform.rotation = movement.heading;
     }
@@ -197,7 +199,7 @@ export class SocialNavBehavior implements MovementBehaviorStrategy<SocialNavMove
     velocity = applyBoundary(world, movement, velocity, transform);
 
     const nextSpeed = Math.max(0, speedOf(velocity));
-    if (nextSpeed > EPSILON) {
+    if (nextSpeed > ORIENTATION_SPEED_EPS) {
       movement.heading = normalizeAngle(Math.atan2(velocity.y, velocity.x));
       movement.smoothHeading = movement.heading;
       transform.rotation = movement.heading;

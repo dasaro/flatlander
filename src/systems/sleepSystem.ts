@@ -4,11 +4,12 @@ import type { World } from '../core/world';
 import type { System } from './system';
 
 function movementSpeed(world: World, id: number, movement: MovementComponent): number {
-  const southVy = world.southDrifts.get(id)?.vy ?? 0;
+  void world;
+  void id;
   if (movement.type === 'straightDrift') {
-    return Math.hypot(movement.vx, movement.vy + southVy);
+    return Math.hypot(movement.vx, movement.vy);
   }
-  return Math.hypot(movement.speed, southVy);
+  return Math.abs(movement.speed);
 }
 
 export class SleepSystem implements System {

@@ -18,7 +18,7 @@ describe('handshake stillness protocol', () => {
     const womanId = spawnEntity(
       world,
       { kind: 'segment', size: 22 },
-      { type: 'straightDrift', vx: 7, vy: 0, boundary: 'wrap' },
+      { type: 'straightDrift', vx: 1.5, vy: 0, boundary: 'wrap' },
       { x: 200, y: 200 },
     );
     const manId = spawnEntity(
