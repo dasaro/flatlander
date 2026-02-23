@@ -141,43 +141,58 @@ export class EventTimelineRenderer {
       tickEnd,
     );
     this.bins = bins;
-
+    const entriesByBin = bins.map((bin) =>
+      this.stackedEntriesFromBin(
+        bin,
+        config.splitByRank,
+        config.selectedTypes,
+        config.selectedRankKeys,
+      ),
+    );
     const maxTotal = Math.max(1, ...bins.map((bin) => bin.total));
+    const maxDepth = Math.max(1, ...entriesByBin.map((entries) => entries.length));
     const barPitch = contentWidth / bins.length;
-    const barWidth = Math.max(1, Math.floor(barPitch));
+    const laneGap = Math.max(9, Math.min(18, contentHeight / (maxDepth + 1)));
+    const maxDiamondRadius = Math.max(3, Math.min(8, barPitch * 0.35));
+
+    this.ctx.strokeStyle = 'rgba(117, 106, 85, 0.2)';
+    this.ctx.lineWidth = 1;
+    for (let row = 1; row <= maxDepth; row += 1) {
+      const y = bottom - row * laneGap + 0.5;
+      this.ctx.beginPath();
+      this.ctx.moveTo(left, y);
+      this.ctx.lineTo(right, y);
+      this.ctx.stroke();
+    }
 
     for (let i = 0; i < bins.length; i += 1) {
       const bin = bins[i];
       if (!bin) {
         continue;
       }
-      const x = left + i * barPitch;
+      const xCenter = left + i * barPitch + barPitch * 0.5;
+      const entries = entriesByBin[i] ?? [];
 
-      // Draw slot background so empty bins remain visible and aligned with the full tick range.
-      this.ctx.fillStyle = 'rgba(84, 74, 54, 0.06)';
-      this.ctx.fillRect(x, top, barWidth, contentHeight);
-
-      if (bin.total > 0) {
-        let y = bottom;
-        const entries = this.stackedEntriesFromBin(
-          bin,
-          config.splitByRank,
-          config.selectedTypes,
-          config.selectedRankKeys,
-        );
-        for (const entry of entries) {
-          const ratio = entry.value / maxTotal;
-          const h = ratio * contentHeight;
-          y -= h;
-          this.ctx.fillStyle = entry.color;
-          this.ctx.fillRect(x, y, barWidth, h);
+      if (bin.total <= 0 || entries.length === 0) {
+        this.drawDiamond(xCenter, bottom - laneGap, 2.5, 'rgba(112, 101, 83, 0.16)', false);
+      } else {
+        for (let layer = 0; layer < entries.length; layer += 1) {
+          const entry = entries[layer];
+          if (!entry) {
+            continue;
+          }
+          const yCenter = bottom - (layer + 1) * laneGap;
+          const valueRatio = Math.max(0, Math.min(1, entry.value / maxTotal));
+          const radius = Math.max(2.5, maxDiamondRadius * (0.45 + 0.55 * Math.sqrt(valueRatio)));
+          this.drawDiamond(xCenter, yCenter, radius, entry.color, true);
         }
       }
 
       if (this.hoverIndex === i) {
+        const highlightWidth = Math.max(2, barPitch);
         this.ctx.strokeStyle = '#2f2b24';
-        this.ctx.lineWidth = 1.2;
-        this.ctx.strokeRect(x - 0.5, top - 0.5, barWidth + 1, contentHeight + 1);
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(xCenter - highlightWidth * 0.5, top, highlightWidth, contentHeight);
       }
     }
 
@@ -194,6 +209,32 @@ export class EventTimelineRenderer {
     }
 
     this.updateTooltip();
+  }
+
+  private drawDiamond(
+    x: number,
+    y: number,
+    radius: number,
+    color: string,
+    filled: boolean,
+  ): void {
+    this.ctx.beginPath();
+    this.ctx.moveTo(x, y - radius);
+    this.ctx.lineTo(x + radius, y);
+    this.ctx.lineTo(x, y + radius);
+    this.ctx.lineTo(x - radius, y);
+    this.ctx.closePath();
+    if (filled) {
+      this.ctx.fillStyle = color;
+      this.ctx.fill();
+      this.ctx.strokeStyle = 'rgba(36, 32, 28, 0.35)';
+      this.ctx.lineWidth = 0.7;
+      this.ctx.stroke();
+      return;
+    }
+    this.ctx.strokeStyle = color;
+    this.ctx.lineWidth = 1;
+    this.ctx.stroke();
   }
 
   private buildBins(

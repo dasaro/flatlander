@@ -175,13 +175,15 @@ export class PopulationHistogram {
     this.ctx.fillStyle = '#2b2721';
     this.ctx.font = '11px Trebuchet MS, sans-serif';
     if (latest) {
-      this.ctx.fillText(`Tick 0..${lastTick}`, left, height - 8);
       const peakPopulation = this.samples.reduce(
         (max, sample) => Math.max(max, sample.population),
         latest.population,
       );
       this.ctx.fillText(`Pop ${latest.population}`, right - 74, top + 10);
       this.ctx.fillText(`Peak ${peakPopulation}`, right - 74, top + 22);
+      const ticksLabel = `Tick 0..${lastTick}`;
+      const ticksWidth = this.ctx.measureText(ticksLabel).width;
+      this.ctx.fillText(ticksLabel, right - ticksWidth, height - 8);
     }
 
     this.drawLegend(left, height - 20, right);
