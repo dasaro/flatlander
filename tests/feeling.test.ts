@@ -58,6 +58,36 @@ function knowledgeSnapshot(seed: number, ticks: number): string {
     { x: 260, y: 200 },
   );
 
+  const ids = [...world.entities].sort((a, b) => a - b);
+  const firstA = ids[0];
+  const firstB = ids[1];
+  const secondA = ids[2];
+  const secondB = ids[3];
+  if (
+    firstA === undefined ||
+    firstB === undefined ||
+    secondA === undefined ||
+    secondB === undefined
+  ) {
+    throw new Error('Missing entities in deterministic knowledge snapshot.');
+  }
+
+  const firstFeelingA = world.feeling.get(firstA);
+  const firstFeelingB = world.feeling.get(firstB);
+  const secondFeelingA = world.feeling.get(secondA);
+  const secondFeelingB = world.feeling.get(secondB);
+  if (!firstFeelingA || !firstFeelingB || !secondFeelingA || !secondFeelingB) {
+    throw new Error('Missing feeling components in deterministic knowledge snapshot.');
+  }
+  firstFeelingA.state = 'approaching';
+  firstFeelingA.partnerId = firstB;
+  firstFeelingB.state = 'approaching';
+  firstFeelingB.partnerId = firstA;
+  secondFeelingA.state = 'approaching';
+  secondFeelingA.partnerId = secondB;
+  secondFeelingB.state = 'approaching';
+  secondFeelingB.partnerId = secondA;
+
   const systems = [
     new SouthAttractionSystem(),
     new StillnessSystem(),
@@ -111,6 +141,15 @@ describe('recognition by feeling', () => {
       { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
       { x: 220, y: 210 },
     );
+    const aFeeling = world.feeling.get(a);
+    const bFeeling = world.feeling.get(b);
+    if (!aFeeling || !bFeeling) {
+      throw new Error('Missing feeling components in low-speed deliberate test.');
+    }
+    aFeeling.state = 'approaching';
+    aFeeling.partnerId = b;
+    bFeeling.state = 'approaching';
+    bFeeling.partnerId = a;
 
     const dt = 1 / world.config.tickRate;
     for (let i = 0; i < 8; i += 1) {

@@ -32,6 +32,7 @@ export interface RenderOptions {
   fogPreviewRings?: boolean;
   showEyes?: boolean;
   showPovCone?: boolean;
+  showStillnessCues?: boolean;
   flatlanderHoverEntityId?: number | null;
 }
 
@@ -94,6 +95,7 @@ export class CanvasRenderer {
     const ids = getSortedEntityIds(world);
     const ageHalfLifeTicks = 6_000;
     const showEyes = options.showEyes ?? true;
+    const showStillnessCues = options.showStillnessCues ?? true;
     for (const id of ids) {
       const shape = world.shapes.get(id);
       const transform = world.transforms.get(id);
@@ -233,6 +235,17 @@ export class CanvasRenderer {
         this.ctx.stroke();
         this.ctx.restore();
       }
+
+      if (showStillnessCues) {
+        const stillness = world.stillness.get(id);
+        if (stillness) {
+          this.drawStillnessCue(geometry, stillness.reason, camera);
+        }
+      }
+    }
+
+    if (showStillnessCues) {
+      this.drawHandshakeLinks(world, camera);
     }
 
     if ((options.showPovCone ?? false) && selectedEntityId !== null) {
@@ -257,6 +270,80 @@ export class CanvasRenderer {
     this.drawSouthIndicator();
     if (options.debugClickPoint) {
       this.drawDebugClick(options.debugClickPoint, camera);
+    }
+  }
+
+  private drawStillnessCue(
+    geometry: ReturnType<typeof geometryFromComponents>,
+    reason: 'beingFelt' | 'feeling' | 'yieldToLady' | 'waitForBearing' | 'manual',
+    camera: Camera,
+  ): void {
+    const center = geometryCenter(geometry);
+    const radius =
+      geometry.kind === 'circle'
+        ? geometry.radius + 4 / camera.zoom
+        : geometry.kind === 'segment'
+          ? Math.max(6 / camera.zoom, Math.hypot(geometry.b.x - geometry.a.x, geometry.b.y - geometry.a.y) * 0.55)
+          : Math.max(
+              8 / camera.zoom,
+              ...geometry.vertices.map((vertex) => Math.hypot(vertex.x - center.x, vertex.y - center.y)),
+            ) +
+            3 / camera.zoom;
+
+    const color =
+      reason === 'beingFelt'
+        ? 'rgba(43, 119, 96, 0.85)'
+        : reason === 'feeling'
+          ? 'rgba(95, 154, 162, 0.78)'
+          : reason === 'manual'
+            ? 'rgba(128, 103, 66, 0.78)'
+            : 'rgba(88, 80, 66, 0.72)';
+
+    this.ctx.save();
+    this.ctx.strokeStyle = color;
+    this.ctx.lineWidth = 1.4 / camera.zoom;
+    this.ctx.setLineDash([4 / camera.zoom, 3 / camera.zoom]);
+    this.ctx.beginPath();
+    this.ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+    this.ctx.stroke();
+    this.ctx.restore();
+  }
+
+  private drawHandshakeLinks(world: World, camera: Camera): void {
+    const drawnPairs = new Set<string>();
+    for (const [id, feeling] of world.feeling) {
+      if (feeling.state !== 'feeling' || feeling.partnerId === null) {
+        continue;
+      }
+      const partnerId = feeling.partnerId;
+      const partner = world.feeling.get(partnerId);
+      if (!partner || partner.state !== 'beingFelt' || partner.partnerId !== id) {
+        continue;
+      }
+
+      const lo = Math.min(id, partnerId);
+      const hi = Math.max(id, partnerId);
+      const key = `${lo}:${hi}`;
+      if (drawnPairs.has(key)) {
+        continue;
+      }
+      drawnPairs.add(key);
+
+      const aTransform = world.transforms.get(id);
+      const bTransform = world.transforms.get(partnerId);
+      if (!aTransform || !bTransform) {
+        continue;
+      }
+
+      this.ctx.save();
+      this.ctx.strokeStyle = 'rgba(43, 119, 96, 0.38)';
+      this.ctx.lineWidth = 1.1 / camera.zoom;
+      this.ctx.setLineDash([3 / camera.zoom, 4 / camera.zoom]);
+      this.ctx.beginPath();
+      this.ctx.moveTo(aTransform.position.x, aTransform.position.y);
+      this.ctx.lineTo(bTransform.position.x, bTransform.position.y);
+      this.ctx.stroke();
+      this.ctx.restore();
     }
   }
 

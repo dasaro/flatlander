@@ -31,6 +31,7 @@ export interface TimelineFilter {
 }
 
 const EVENT_TYPES: EventType[] = [
+  'handshakeStart',
   'handshake',
   'death',
   'birth',
@@ -39,6 +40,7 @@ const EVENT_TYPES: EventType[] = [
 
 function emptyCountsByType(): Record<EventType, number> {
   return {
+    handshakeStart: 0,
     touch: 0,
     handshake: 0,
     peaceCry: 0,
@@ -51,6 +53,7 @@ function emptyCountsByType(): Record<EventType, number> {
 
 function emptyByTypeByRank(): Record<EventType, Record<string, number>> {
   return {
+    handshakeStart: {},
     touch: {},
     handshake: {},
     peaceCry: {},
@@ -63,6 +66,7 @@ function emptyByTypeByRank(): Record<EventType, Record<string, number>> {
 
 function rankKeysForEvent(event: WorldEvent): string[] {
   switch (event.type) {
+    case 'handshakeStart':
     case 'touch':
     case 'handshake':
       return [event.aRankKey ?? 'Unknown', event.bRankKey ?? 'Unknown'];

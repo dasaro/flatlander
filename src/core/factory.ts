@@ -344,7 +344,10 @@ function feelingFromConfig(world: World, config?: SpawnFeelingConfig): FeelingCo
     approachSpeed: Math.max(0, config?.approachSpeed ?? world.config.defaultFeelingApproachSpeed),
     feelCooldownTicks: Math.max(
       0,
-      Math.round(config?.feelCooldownTicks ?? world.config.defaultFeelingCooldownTicks),
+      Math.round(
+        config?.feelCooldownTicks ??
+          Math.max(world.config.defaultFeelingCooldownTicks, world.config.handshakeCooldownTicks),
+      ),
     ),
     lastFeltTick: Number.NEGATIVE_INFINITY,
     state: 'idle',

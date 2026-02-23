@@ -67,6 +67,13 @@ export class SocialNavSteeringSystem implements System {
         movement.intentionTicksLeft = Math.max(1, stillness.ticksRemaining);
         continue;
       }
+      if (stillness) {
+        movement.speed = 0;
+        movement.smoothSpeed = 0;
+        movement.intention = 'holdStill';
+        movement.intentionTicksLeft = Math.max(1, stillness.ticksRemaining);
+        continue;
+      }
 
       let targetHeading = movement.smoothHeading;
       if (movement.goal?.type === 'direction' && movement.goal.heading !== undefined) {
@@ -95,6 +102,9 @@ export class SocialNavSteeringSystem implements System {
       const targetSpeed = targetSpeedForIntention(world, id);
       movement.smoothSpeed += (targetSpeed - movement.smoothSpeed) * speedAlpha;
       movement.smoothSpeed = clamp(movement.smoothSpeed, 0, movement.maxSpeed);
+      if (Math.abs(movement.smoothSpeed) < 0.05) {
+        movement.smoothSpeed = 0;
+      }
 
       movement.heading = movement.smoothHeading;
       movement.speed = movement.smoothSpeed;

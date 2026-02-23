@@ -141,6 +141,10 @@ function unknownFromPerception(world: World, entityId: EntityId, seenId: EntityI
     return null;
   }
 
+  if (sightCandidate.distance > Math.max(0, world.config.introductionRadius)) {
+    return null;
+  }
+
   return sightCandidate;
 }
 
@@ -270,8 +274,8 @@ export class SocialNavMindSystem implements System {
           ? 0
           : Math.max(
               0,
-              (world.config.feelingApproachRadius - unknown.distance) /
-                Math.max(1, world.config.feelingApproachRadius),
+              (world.config.introductionRadius - unknown.distance) /
+                Math.max(1, world.config.introductionRadius),
             );
 
       movement.intention = chooseIntention(movement, desireAvoid, desireYield, desireMate, desireFeel);

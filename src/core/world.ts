@@ -61,6 +61,9 @@ export interface WorldConfig {
   conceptionHighRankPenaltyPerSide: number;
   maxPopulation: number;
   handshakeStillnessTicks: number;
+  handshakeCooldownTicks: number;
+  introductionRadius: number;
+  preContactRadius: number;
   compensationEnabled: boolean;
   compensationRate: number;
   intelligenceGrowthPerSecond: number;
@@ -187,6 +190,9 @@ export interface World {
   manifolds: CollisionManifoldRecord[];
   deathsThisTick: number;
   regularizedThisTick: number;
+  handshakeStartedThisTick: number;
+  handshakeCompletedThisTick: number;
+  handshakeCompletedTotal: number;
   geometries: Map<EntityId, GeometryShape>;
   lastCorrections: Map<EntityId, number>;
   events: EventQueue;
@@ -214,6 +220,9 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   conceptionHighRankPenaltyPerSide: 0.13,
   maxPopulation: 500,
   handshakeStillnessTicks: 12,
+  handshakeCooldownTicks: 40,
+  introductionRadius: 150,
+  preContactRadius: 22,
   compensationEnabled: false,
   compensationRate: 0.4,
   intelligenceGrowthPerSecond: 0.003,
@@ -333,6 +342,9 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     manifolds: [],
     deathsThisTick: 0,
     regularizedThisTick: 0,
+    handshakeStartedThisTick: 0,
+    handshakeCompletedThisTick: 0,
+    handshakeCompletedTotal: 0,
     geometries: new Map(),
     lastCorrections: new Map(),
     events: new EventQueue(),

@@ -644,6 +644,7 @@
               <strong id="inspector-stillness-requested-by">N/A</strong>
             </div>
             <div class="button-row" style="margin-top: 6px">
+              <button id="inspector-introduction-btn" type="button">Request Introduction</button>
               <button id="inspector-manual-halt" type="button">Toggle Halt (manual)</button>
             </div>
             <div id="inspector-peace-cry-row">
@@ -802,6 +803,12 @@
           <div class="row"><span>Seed</span><strong id="stat-seed">42</strong></div>
           <div class="row"><span>Deaths This Tick</span><strong id="stat-deaths">0</strong></div>
           <div class="row"><span>Regularized This Tick</span><strong id="stat-regularized">0</strong></div>
+          <div class="row"><span>Stillness Active</span><strong id="stat-stillness-active">0</strong></div>
+          <div class="row"><span>Handshake Pairs Active</span><strong id="stat-handshake-active">0</strong></div>
+          <div class="row"><span>Handshake Started (tick)</span><strong id="stat-handshake-started">0</strong></div>
+          <div class="row"><span>Handshake Completed (tick)</span><strong id="stat-handshake-completed">0</strong></div>
+          <div class="row"><span>Avg Stillness Ticks</span><strong id="stat-stillness-avg">0.0</strong></div>
+          <div class="row"><span>Handshakes / 1000 ticks</span><strong id="stat-handshake-rate">0.00</strong></div>
           <div class="row"><span>Total Alive</span><strong id="stat-total">0</strong></div>
           <ul id="rank-list" class="rank-list"></ul>
         </section>
@@ -831,6 +838,7 @@
             <label><input id="timeline-show-legend" type="checkbox" checked /> Show timeline legend</label>
           </div>
           <div class="timeline-controls timeline-type-controls">
+            <label><input id="timeline-type-handshake-start" type="checkbox" checked /> handshake start</label>
             <label><input id="timeline-type-handshake" type="checkbox" checked /> handshake</label>
             <label><input id="timeline-type-death" type="checkbox" checked /> death</label>
             <label><input id="timeline-type-birth" type="checkbox" checked /> birth</label>
@@ -852,7 +860,7 @@
             </div>
           </details>
           <canvas id="event-timeline-canvas" aria-label="Event timeline"></canvas>
-          <div id="event-timeline-legend" class="hint">Handshake / Death / Birth / Regularized</div>
+          <div id="event-timeline-legend" class="hint">HandshakeStart / Handshake / Death / Birth / Regularized</div>
           <div id="event-timeline-tooltip" class="hint">Hover bars for tick details.</div>
         </section>
       </main>

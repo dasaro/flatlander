@@ -2,6 +2,15 @@ import type { Vec2 } from '../geometry/vector';
 
 export type WorldEvent =
   | {
+      type: 'handshakeStart';
+      tick: number;
+      aId: number;
+      bId: number;
+      pos: Vec2;
+      aRankKey?: string;
+      bRankKey?: string;
+    }
+  | {
       type: 'touch';
       tick: number;
       aId: number;
@@ -74,6 +83,7 @@ export interface EntityPair {
 
 export function eventInvolvedIds(event: WorldEvent): number[] {
   switch (event.type) {
+    case 'handshakeStart':
     case 'touch':
     case 'handshake':
       return [event.aId, event.bId];

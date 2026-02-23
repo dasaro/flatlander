@@ -102,6 +102,15 @@ function isActiveHandshakePair(world: World, aId: EntityId, bId: EntityId): bool
   return (aFeelsB && bBeingFeltByA) || (bFeelsA && aBeingFeltByB);
 }
 
+function isHandshakeImmovable(world: World, entityId: EntityId): boolean {
+  const stillness = world.stillness.get(entityId);
+  if (!stillness) {
+    return false;
+  }
+
+  return stillness.mode === 'full' && stillness.reason === 'beingFelt';
+}
+
 export class CollisionResolutionSystem implements System {
   update(world: World, _dt: number): void {
     void _dt;
@@ -133,8 +142,8 @@ export class CollisionResolutionSystem implements System {
           continue;
         }
 
-        const aStatic = world.staticObstacles.has(aId);
-        const bStatic = world.staticObstacles.has(bId);
+        const aStatic = world.staticObstacles.has(aId) || isHandshakeImmovable(world, aId);
+        const bStatic = world.staticObstacles.has(bId) || isHandshakeImmovable(world, bId);
         if (aStatic && bStatic) {
           continue;
         }

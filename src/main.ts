@@ -30,6 +30,10 @@ import { ErosionSystem } from './systems/erosionSystem';
 import { FeelingApproachSystem } from './systems/feelingApproachSystem';
 import { FeelingSystem } from './systems/feelingSystem';
 import { IntelligenceGrowthSystem } from './systems/intelligenceGrowthSystem';
+import {
+  IntroductionIntentSystem,
+  requestIntroductionWithNearestUnknown,
+} from './systems/introductionIntentSystem';
 import { LethalitySystem } from './systems/lethalitySystem';
 import { CollisionResolutionSystem } from './systems/collisionResolutionSystem';
 import { AvoidanceSteeringSystem } from './systems/avoidanceSteeringSystem';
@@ -59,6 +63,7 @@ import { EventDrainPipeline } from './ui/eventDrainPipeline';
 import { APP_VERSION } from './version';
 
 const TIMELINE_TYPE_CONTROL_IDS: Partial<Record<EventType, string>> = {
+  handshakeStart: 'timeline-type-handshake-start',
   handshake: 'timeline-type-handshake',
   death: 'timeline-type-death',
   birth: 'timeline-type-birth',
@@ -101,18 +106,19 @@ const appShell = document.getElementById('app-shell');
 const primaryRunBtn = document.getElementById('run-btn');
 
 const systems = [
-  // Keep stillness first so every downstream force/steering/movement stage sees the same lock state.
-  new StillnessControllerSystem(),
-  new SouthAttractionSystem(),
-  new IntelligenceGrowthSystem(),
-  new SleepSystem(),
   new PeaceCrySystem(),
   new HearingSystem(),
   new VisionSystem(),
   new SocialNavMindSystem(),
+  new FeelingApproachSystem(),
+  new IntroductionIntentSystem(),
+  // Consume stillness requests after intent systems and before force/steering/movement.
+  new StillnessControllerSystem(),
+  new SouthAttractionSystem(),
+  new IntelligenceGrowthSystem(),
+  new SleepSystem(),
   new SocialNavSteeringSystem(),
   new AvoidanceSteeringSystem(),
-  new FeelingApproachSystem(),
   new MovementSystem(),
   new SwaySystem(),
   new CompensationSystem(),
@@ -526,6 +532,14 @@ const ui = new UIController({
     }
     renderSelection();
   },
+  onInspectorRequestIntroduction: () => {
+    const selectedId = selectionState.selectedId;
+    if (selectedId === null || !world.entities.has(selectedId)) {
+      return;
+    }
+    requestIntroductionWithNearestUnknown(world, selectedId);
+    renderSelection();
+  },
 });
 
 selectionState.subscribe(() => {
@@ -595,6 +609,7 @@ function frame(now: number): void {
     fogPreviewRings: eventHighlightsSettings.fogPreviewRings,
     showEyes: eventHighlightsSettings.showEyes,
     showPovCone: eventHighlightsSettings.showPovCone,
+    showStillnessCues: eventHighlightsSettings.showFeeling,
     flatlanderHoverEntityId,
   });
   populationHistogram.render();

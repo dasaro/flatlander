@@ -68,6 +68,16 @@ const PEACE_CRY_MAX_RADIUS = 90;
 export function effectFromEvent(event: WorldEvent): Effect | null {
   const involvedIds = eventInvolvedIds(event);
   switch (event.type) {
+    case 'handshakeStart':
+      return {
+        kind: 'marker',
+        pos: event.pos,
+        ttl: 0.3,
+        age: 0,
+        shape: 'dot',
+        eventType: event.type,
+        involvedIds,
+      };
     case 'touch':
       return {
         kind: 'pulse',
@@ -212,7 +222,9 @@ export class EffectsManager {
     for (const effect of this.effects) {
       if (
         !this.settings.showFeeling &&
-        (effect.eventType === 'touch' || effect.eventType === 'handshake')
+        (effect.eventType === 'touch' ||
+          effect.eventType === 'handshakeStart' ||
+          effect.eventType === 'handshake')
       ) {
         continue;
       }

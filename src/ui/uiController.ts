@@ -134,6 +134,7 @@ interface UiCallbacks {
   onInspectorVoiceUpdate: (voice: Partial<SpawnVoiceConfig>) => void;
   onInspectorPeaceCryUpdate: (peaceCry: Partial<PeaceCryComponent>) => void;
   onInspectorFeelingUpdate: (feeling: Partial<FeelingComponent>) => void;
+  onInspectorRequestIntroduction: () => void;
   onInspectorToggleManualStillness: () => void;
 }
 
@@ -271,6 +272,7 @@ interface InputRefs {
   inspectorFeelingEnabled: HTMLInputElement;
   inspectorFeelCooldown: HTMLInputElement;
   inspectorApproachSpeed: HTMLInputElement;
+  inspectorIntroductionButton: HTMLButtonElement;
   inspectorManualHaltButton: HTMLButtonElement;
   inspectorStillnessActive: HTMLElement;
   inspectorStillnessMode: HTMLElement;
@@ -335,6 +337,12 @@ interface InputRefs {
   seedValue: HTMLElement;
   deathsValue: HTMLElement;
   regularizedValue: HTMLElement;
+  stillnessActiveValue: HTMLElement;
+  handshakeActiveValue: HTMLElement;
+  handshakeStartedValue: HTMLElement;
+  handshakeCompletedValue: HTMLElement;
+  stillnessAvgTicksValue: HTMLElement;
+  handshakesPerThousandValue: HTMLElement;
   totalAliveValue: HTMLElement;
   rankList: HTMLElement;
 }
@@ -396,6 +404,36 @@ export class UIController {
     this.refs.seedValue.textContent = String(world.seed);
     this.refs.deathsValue.textContent = String(world.deathsThisTick);
     this.refs.regularizedValue.textContent = String(world.regularizedThisTick);
+    this.refs.stillnessActiveValue.textContent = String(world.stillness.size);
+    this.refs.handshakeStartedValue.textContent = String(world.handshakeStartedThisTick);
+    this.refs.handshakeCompletedValue.textContent = String(world.handshakeCompletedThisTick);
+    const stillnessAvg =
+      world.stillness.size > 0
+        ? [...world.stillness.values()].reduce((sum, stillness) => sum + stillness.ticksRemaining, 0) /
+          world.stillness.size
+        : 0;
+    this.refs.stillnessAvgTicksValue.textContent = stillnessAvg.toFixed(1);
+    const handshakePairs = new Set<string>();
+    for (const [id, feeling] of world.feeling) {
+      if (feeling.state !== 'feeling' || feeling.partnerId === null) {
+        continue;
+      }
+      const partner = world.feeling.get(feeling.partnerId);
+      if (!partner) {
+        continue;
+      }
+      const reciprocal = partner.state === 'beingFelt' && partner.partnerId === id;
+      if (!reciprocal) {
+        continue;
+      }
+      const lo = Math.min(id, feeling.partnerId);
+      const hi = Math.max(id, feeling.partnerId);
+      handshakePairs.add(`${lo}:${hi}`);
+    }
+    this.refs.handshakeActiveValue.textContent = String(handshakePairs.size);
+    const handshakesPerThousand =
+      world.tick > 0 ? (world.handshakeCompletedTotal * 1000) / world.tick : 0;
+    this.refs.handshakesPerThousandValue.textContent = handshakesPerThousand.toFixed(2);
     this.refs.totalAliveValue.textContent = String(world.entities.size);
 
     const counts = new Map<string, number>();
@@ -1063,6 +1101,13 @@ export class UIController {
       }
       this.callbacks.onInspectorToggleManualStillness();
     });
+
+    this.refs.inspectorIntroductionButton.addEventListener('click', () => {
+      if (this.selectedEntityId === null) {
+        return;
+      }
+      this.callbacks.onInspectorRequestIntroduction();
+    });
   }
 
   private readSouthAttractionSettings(): SouthAttractionSettings {
@@ -1708,6 +1753,7 @@ function collectRefs(): InputRefs {
     inspectorFeelingEnabled: required<HTMLInputElement>('inspector-feeling-enabled'),
     inspectorFeelCooldown: required<HTMLInputElement>('inspector-feel-cooldown'),
     inspectorApproachSpeed: required<HTMLInputElement>('inspector-approach-speed'),
+    inspectorIntroductionButton: required<HTMLButtonElement>('inspector-introduction-btn'),
     inspectorManualHaltButton: required<HTMLButtonElement>('inspector-manual-halt'),
     inspectorStillnessActive: required<HTMLElement>('inspector-stillness-active'),
     inspectorStillnessMode: required<HTMLElement>('inspector-stillness-mode'),
@@ -1772,6 +1818,12 @@ function collectRefs(): InputRefs {
     seedValue: required<HTMLElement>('stat-seed'),
     deathsValue: required<HTMLElement>('stat-deaths'),
     regularizedValue: required<HTMLElement>('stat-regularized'),
+    stillnessActiveValue: required<HTMLElement>('stat-stillness-active'),
+    handshakeActiveValue: required<HTMLElement>('stat-handshake-active'),
+    handshakeStartedValue: required<HTMLElement>('stat-handshake-started'),
+    handshakeCompletedValue: required<HTMLElement>('stat-handshake-completed'),
+    stillnessAvgTicksValue: required<HTMLElement>('stat-stillness-avg'),
+    handshakesPerThousandValue: required<HTMLElement>('stat-handshake-rate'),
     totalAliveValue: required<HTMLElement>('stat-total'),
     rankList: required<HTMLElement>('rank-list'),
   };

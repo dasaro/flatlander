@@ -1,13 +1,19 @@
 import { orderedEntityPairs } from '../core/events';
+import type { EntityId } from '../core/components';
 import { rankKeyForEntity } from '../core/rankKey';
 import { requestStillness } from '../core/stillness';
 import { angleToVector } from '../geometry/vector';
 import type { Vec2 } from '../geometry/vector';
-import type { EntityId } from '../core/components';
 import type { World } from '../core/world';
 import type { System } from './system';
 
 const TOUCH_EVENTS_PER_TICK_CAP = 100;
+
+function pairKey(a: EntityId, b: EntityId): string {
+  const lo = Math.min(a, b);
+  const hi = Math.max(a, b);
+  return `${lo}:${hi}`;
+}
 
 function relativeSpeed(a: Vec2, b: Vec2): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
@@ -38,6 +44,24 @@ function orderedCollisionPairs(world: World): Array<{ a: EntityId; b: EntityId }
   return orderedEntityPairs(world.collisions);
 }
 
+function isIntentionalApproach(world: World, entityId: EntityId, partnerId: EntityId): boolean {
+  const feeling = world.feeling.get(entityId);
+  if (!feeling || feeling.state !== 'approaching' || feeling.partnerId !== partnerId) {
+    return false;
+  }
+
+  const movement = world.movements.get(entityId);
+  if (!movement || movement.type !== 'socialNav') {
+    return true;
+  }
+
+  if (movement.intention !== 'approachForFeeling') {
+    return false;
+  }
+
+  return movement.goal?.targetId === partnerId || movement.goal?.type === 'point';
+}
+
 function canInitiateFeeling(world: World, entityId: EntityId, partnerId: EntityId): boolean {
   if (
     !world.config.feelingEnabledGlobal ||
@@ -47,16 +71,28 @@ function canInitiateFeeling(world: World, entityId: EntityId, partnerId: EntityI
     return false;
   }
 
+  if (!isIntentionalApproach(world, entityId, partnerId)) {
+    return false;
+  }
+
   const feeling = world.feeling.get(entityId);
-  if (!feeling || !feeling.enabled) {
+  const partnerFeeling = world.feeling.get(partnerId);
+  if (!feeling || !partnerFeeling || !feeling.enabled || !partnerFeeling.enabled) {
     return false;
   }
 
-  if (feeling.state !== 'idle' && !(feeling.state === 'approaching' && feeling.partnerId === partnerId)) {
-    return false;
-  }
-
-  return world.tick - feeling.lastFeltTick >= feeling.feelCooldownTicks;
+  const cooldownTicks = Math.max(
+    0,
+    Math.round(Math.max(feeling.feelCooldownTicks, world.config.handshakeCooldownTicks)),
+  );
+  const partnerCooldownTicks = Math.max(
+    0,
+    Math.round(Math.max(partnerFeeling.feelCooldownTicks, world.config.handshakeCooldownTicks)),
+  );
+  return (
+    world.tick - feeling.lastFeltTick >= cooldownTicks &&
+    world.tick - partnerFeeling.lastFeltTick >= partnerCooldownTicks
+  );
 }
 
 function midpointForPair(world: World, aId: EntityId, bId: EntityId): Vec2 | null {
@@ -107,7 +143,10 @@ function tickFeelingStates(world: World): void {
 
     feeling.state = 'cooldown';
     feeling.partnerId = null;
-    feeling.ticksLeft = Math.max(0, Math.round(feeling.feelCooldownTicks));
+    feeling.ticksLeft = Math.max(
+      0,
+      Math.round(Math.max(feeling.feelCooldownTicks, world.config.handshakeCooldownTicks)),
+    );
     if (feeling.ticksLeft <= 0) {
       feeling.state = 'idle';
       feeling.ticksLeft = 0;
@@ -123,6 +162,8 @@ function setHoldStillIntention(world: World, entityId: EntityId, ticks: number):
 
   movement.intention = 'holdStill';
   movement.intentionTicksLeft = Math.max(movement.intentionTicksLeft, Math.max(1, Math.round(ticks)));
+  movement.speed = 0;
+  movement.smoothSpeed = 0;
 }
 
 function requestHandshakeStillness(
@@ -208,21 +249,111 @@ function canLearnFromFeeling(world: World, feelerId: EntityId, feltId: EntityId)
   );
 }
 
+function startHandshake(world: World, feelerId: EntityId, feltId: EntityId, eventPos: Vec2 | null): void {
+  const handshakeTicks = Math.max(1, Math.round(world.config.handshakeStillnessTicks));
+  setFeelingPair(world, feelerId, feltId, handshakeTicks);
+  requestHandshakeStillness(world, feelerId, feltId, handshakeTicks);
+  world.handshakeStartedThisTick += 1;
+  if (!eventPos) {
+    return;
+  }
+
+  world.events.push({
+    type: 'handshakeStart',
+    tick: world.tick,
+    aId: feelerId,
+    bId: feltId,
+    pos: eventPos,
+    aRankKey: rankKeyForEntity(world, feelerId),
+    bRankKey: rankKeyForEntity(world, feltId),
+  });
+}
+
+function processActiveHandshakePair(
+  world: World,
+  aId: EntityId,
+  bId: EntityId,
+  eventPos: Vec2 | null,
+): void {
+  const aRank = world.ranks.get(aId);
+  const bRank = world.ranks.get(bId);
+  const aKnowledge = world.knowledge.get(aId);
+  const bKnowledge = world.knowledge.get(bId);
+  const aFeeling = world.feeling.get(aId);
+  const bFeeling = world.feeling.get(bId);
+  if (!aRank || !bRank || !aKnowledge || !bKnowledge || !aFeeling || !bFeeling) {
+    return;
+  }
+
+  const roles = activeHandshakeRoles(world, aId, bId);
+  if (!roles) {
+    return;
+  }
+
+  const holdTicks = Math.max(1, Math.max(aFeeling.ticksLeft, bFeeling.ticksLeft, world.config.handshakeStillnessTicks));
+  requestHandshakeStillness(world, roles.feelerId, roles.feltId, holdTicks);
+
+  const aLearns = !aKnowledge.known.has(bId);
+  const bLearns = !bKnowledge.known.has(aId);
+  const feltStillnessSatisfied = canLearnFromFeeling(world, roles.feelerId, roles.feltId);
+  const aCanLearn = aLearns && feltStillnessSatisfied;
+  const bCanLearn = bLearns && feltStillnessSatisfied;
+  if (!aCanLearn && !bCanLearn) {
+    return;
+  }
+
+  if (aCanLearn) {
+    aKnowledge.known.set(bId, {
+      rank: bRank.rank,
+      learnedBy: 'feeling',
+      learnedAtTick: world.tick,
+    });
+  }
+  if (bCanLearn) {
+    bKnowledge.known.set(aId, {
+      rank: aRank.rank,
+      learnedBy: 'feeling',
+      learnedAtTick: world.tick,
+    });
+  }
+
+  if (eventPos) {
+    world.events.push({
+      type: 'handshake',
+      tick: world.tick,
+      aId,
+      bId,
+      pos: eventPos,
+      aRankKey: rankKeyForEntity(world, aId),
+      bRankKey: rankKeyForEntity(world, bId),
+    });
+  }
+  world.handshakeCompletedThisTick += 1;
+  world.handshakeCompletedTotal += 1;
+  world.handshakeCounts.set(aId, (world.handshakeCounts.get(aId) ?? 0) + 1);
+  world.handshakeCounts.set(bId, (world.handshakeCounts.get(bId) ?? 0) + 1);
+  const aLegacy = world.legacy.get(aId);
+  if (aLegacy) {
+    aLegacy.handshakes += 1;
+  }
+  const bLegacy = world.legacy.get(bId);
+  if (bLegacy) {
+    bLegacy.handshakes += 1;
+  }
+
+  aFeeling.lastFeltTick = world.tick;
+  bFeeling.lastFeltTick = world.tick;
+}
+
 export class FeelingSystem implements System {
   update(world: World, _dt: number): void {
     void _dt;
     tickFeelingStates(world);
     const pairs = orderedCollisionPairs(world);
     let touchEventsEmitted = 0;
-    const handshakeTicks = Math.max(1, Math.round(world.config.handshakeStillnessTicks));
+    const learnedPairs = new Set<string>();
 
     for (const pair of pairs) {
-      const aRank = world.ranks.get(pair.a);
-      const bRank = world.ranks.get(pair.b);
-      if (!aRank || !bRank) {
-        continue;
-      }
-
       const speed = relativeSpeed(
         velocityForEntity(world, pair.a),
         velocityForEntity(world, pair.b),
@@ -251,19 +382,15 @@ export class FeelingSystem implements System {
         touchEventsEmitted += 1;
       }
 
-      const aKnowledge = world.knowledge.get(pair.a);
-      const bKnowledge = world.knowledge.get(pair.b);
-      const aFeeling = world.feeling.get(pair.a);
-      const bFeeling = world.feeling.get(pair.b);
-      if (!aKnowledge || !bKnowledge || !aFeeling || !bFeeling) {
-        continue;
-      }
+      if (!activeHandshakeRoles(world, pair.a, pair.b)) {
+        const aKnowledge = world.knowledge.get(pair.a);
+        const bKnowledge = world.knowledge.get(pair.b);
+        if (!aKnowledge || !bKnowledge) {
+          continue;
+        }
 
-      const activeRoles = activeHandshakeRoles(world, pair.a, pair.b);
-      if (!activeRoles) {
         const aLearns = !aKnowledge.known.has(pair.b);
         const bLearns = !bKnowledge.known.has(pair.a);
-
         if (aLearns || bLearns) {
           const canAInitiate = canInitiateFeeling(world, pair.a, pair.b);
           const canBInitiate = canInitiateFeeling(world, pair.b, pair.a);
@@ -284,79 +411,36 @@ export class FeelingSystem implements System {
               feltId = pair.a;
             }
 
-            const canInitiateChosen =
+            const canChosenInitiate =
               (feelerId === pair.a && canAInitiate) || (feelerId === pair.b && canBInitiate);
-            if (canInitiateChosen) {
-              setFeelingPair(world, feelerId, feltId, handshakeTicks);
-              requestHandshakeStillness(world, feelerId, feltId, handshakeTicks);
+            if (canChosenInitiate) {
+              startHandshake(world, feelerId, feltId, eventPos);
             }
           }
         }
       }
 
-      const currentRoles = activeHandshakeRoles(world, pair.a, pair.b);
-      if (!currentRoles) {
+      processActiveHandshakePair(world, pair.a, pair.b, eventPos);
+      learnedPairs.add(pairKey(pair.a, pair.b));
+    }
+
+    const feelingIds = [...world.feeling.keys()].sort((a, b) => a - b);
+    for (const feelerId of feelingIds) {
+      const feeling = world.feeling.get(feelerId);
+      if (!feeling || feeling.state !== 'feeling' || feeling.partnerId === null) {
+        continue;
+      }
+      const partnerId = feeling.partnerId;
+      const key = pairKey(feelerId, partnerId);
+      if (learnedPairs.has(key)) {
+        continue;
+      }
+      if (!world.entities.has(partnerId)) {
         continue;
       }
 
-      const holdTicks = Math.max(
-        1,
-        Math.max(aFeeling.ticksLeft, bFeeling.ticksLeft, handshakeTicks),
-      );
-      requestHandshakeStillness(world, currentRoles.feelerId, currentRoles.feltId, holdTicks);
-
-      const aLearns = !aKnowledge.known.has(pair.b);
-      const bLearns = !bKnowledge.known.has(pair.a);
-      const feltStillnessSatisfied = canLearnFromFeeling(
-        world,
-        currentRoles.feelerId,
-        currentRoles.feltId,
-      );
-      const aCanLearn = aLearns && feltStillnessSatisfied;
-      const bCanLearn = bLearns && feltStillnessSatisfied;
-      if (!aCanLearn && !bCanLearn) {
-        continue;
-      }
-
-      if (aCanLearn) {
-        aKnowledge.known.set(pair.b, {
-          rank: bRank.rank,
-          learnedBy: 'feeling',
-          learnedAtTick: world.tick,
-        });
-      }
-      if (bCanLearn) {
-        bKnowledge.known.set(pair.a, {
-          rank: aRank.rank,
-          learnedBy: 'feeling',
-          learnedAtTick: world.tick,
-        });
-      }
-
-      if (eventPos && (aCanLearn || bCanLearn)) {
-        world.events.push({
-          type: 'handshake',
-          tick: world.tick,
-          aId: pair.a,
-          bId: pair.b,
-          pos: eventPos,
-          aRankKey: rankKeyForEntity(world, pair.a),
-          bRankKey: rankKeyForEntity(world, pair.b),
-        });
-        world.handshakeCounts.set(pair.a, (world.handshakeCounts.get(pair.a) ?? 0) + 1);
-        world.handshakeCounts.set(pair.b, (world.handshakeCounts.get(pair.b) ?? 0) + 1);
-        const aLegacy = world.legacy.get(pair.a);
-        if (aLegacy) {
-          aLegacy.handshakes += 1;
-        }
-        const bLegacy = world.legacy.get(pair.b);
-        if (bLegacy) {
-          bLegacy.handshakes += 1;
-        }
-      }
-
-      aFeeling.lastFeltTick = world.tick;
-      bFeeling.lastFeltTick = world.tick;
+      processActiveHandshakePair(world, feelerId, partnerId, midpointForPair(world, feelerId, partnerId));
+      learnedPairs.add(key);
     }
   }
 }

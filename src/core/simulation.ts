@@ -66,6 +66,8 @@ export class FixedTimestepSimulation {
     this.world.manifolds = [];
     this.world.deathsThisTick = 0;
     this.world.regularizedThisTick = 0;
+    this.world.handshakeStartedThisTick = 0;
+    this.world.handshakeCompletedThisTick = 0;
 
     for (const system of this.systems) {
       system.update(this.world, tickDuration);

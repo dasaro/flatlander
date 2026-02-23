@@ -21,7 +21,7 @@ function rotateTowards(current: number, target: number, maxDelta: number): numbe
 
 export class FeelingApproachSystem implements System {
   update(world: World, dt: number): void {
-    if (!world.config.feelingEnabledGlobal || world.config.feelingApproachRadius <= 0) {
+    if (!world.config.feelingEnabledGlobal || world.config.introductionRadius <= 0) {
       return;
     }
 
@@ -73,7 +73,7 @@ export class FeelingApproachSystem implements System {
         const dx = otherTransform.position.x - transform.position.x;
         const dy = otherTransform.position.y - transform.position.y;
         const dist = Math.hypot(dx, dy);
-        if (dist > world.config.feelingApproachRadius) {
+        if (dist > world.config.introductionRadius) {
           continue;
         }
 

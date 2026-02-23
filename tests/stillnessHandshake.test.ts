@@ -33,6 +33,16 @@ describe('handshake stillness protocol', () => {
     const stillness = new StillnessSystem();
     const movement = new MovementSystem();
 
+    const womanFeeling = world.feeling.get(womanId);
+    const manFeeling = world.feeling.get(manId);
+    if (!womanFeeling || !manFeeling) {
+      throw new Error('Missing feeling components in handshake stillness test.');
+    }
+    womanFeeling.state = 'approaching';
+    womanFeeling.partnerId = manId;
+    manFeeling.state = 'approaching';
+    manFeeling.partnerId = womanId;
+
     world.tick = 1;
     collision.update(world);
     feeling.update(world, 1 / world.config.tickRate);

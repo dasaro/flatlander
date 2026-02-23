@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "stability": "tsx src/tools/stabilityHarness.ts",
+    "handshake": "tsx src/tools/handshakeHarness.ts",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write ."
   },

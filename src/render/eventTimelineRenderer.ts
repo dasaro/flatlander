@@ -21,6 +21,7 @@ const CONTENT_LEFT = 38;
 const CONTENT_RIGHT_PADDING = 12;
 
 const TYPE_COLORS: Record<EventType, string> = {
+  handshakeStart: '#5f9aa2',
   touch: '#c99d4c',
   handshake: '#2b7760',
   peaceCry: '#3a678c',
@@ -38,6 +39,7 @@ function colorFromRankKey(rankKey: string): string {
 
 function emptyCountsByType(): Record<EventType, number> {
   return {
+    handshakeStart: 0,
     touch: 0,
     handshake: 0,
     peaceCry: 0,
@@ -50,6 +52,7 @@ function emptyCountsByType(): Record<EventType, number> {
 
 function emptyByTypeByRank(): Record<EventType, Record<string, number>> {
   return {
+    handshakeStart: {},
     touch: {},
     handshake: {},
     peaceCry: {},
