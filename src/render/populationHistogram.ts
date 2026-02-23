@@ -28,6 +28,62 @@ const COMPOSITION_GROUPS: CompositionGroup[] = [
   { label: 'Other', color: '#8a8a8a' },
 ];
 
+export function resamplePopulationSamples(
+  samples: ReadonlyArray<PopulationSample>,
+  columns: number,
+  groupCount = MAX_GROUPS,
+): PopulationSample[] {
+  if (samples.length === 0 || columns <= 0) {
+    return [];
+  }
+
+  const normalizedColumns = Math.max(1, Math.floor(columns));
+  if (samples.length === 1 || normalizedColumns === 1) {
+    const sample = samples[0];
+    if (!sample) {
+      return [];
+    }
+    return [
+      {
+        tick: sample.tick,
+        population: sample.population,
+        groups: sample.groups.slice(0, groupCount),
+      },
+    ];
+  }
+
+  const lastIndex = samples.length - 1;
+  const firstTick = samples[0]?.tick ?? 0;
+  const lastTick = samples[lastIndex]?.tick ?? firstTick;
+  const tickSpan = Math.max(1, lastTick - firstTick);
+  const out: PopulationSample[] = [];
+
+  for (let i = 0; i < normalizedColumns; i += 1) {
+    const samplePos = (i / (normalizedColumns - 1)) * lastIndex;
+    const lo = Math.floor(samplePos);
+    const hi = Math.min(lastIndex, lo + 1);
+    const alpha = samplePos - lo;
+    const loSample = samples[lo];
+    const hiSample = samples[hi];
+    if (!loSample || !hiSample) {
+      continue;
+    }
+
+    const groups = new Array<number>(groupCount).fill(0);
+    for (let groupIndex = 0; groupIndex < groupCount; groupIndex += 1) {
+      const loGroup = loSample.groups[groupIndex] ?? 0;
+      const hiGroup = hiSample.groups[groupIndex] ?? 0;
+      groups[groupIndex] = loGroup + (hiGroup - loGroup) * alpha;
+    }
+
+    const tick = Math.round(firstTick + (i / (normalizedColumns - 1)) * tickSpan);
+    const population = loSample.population + (hiSample.population - loSample.population) * alpha;
+    out.push({ tick, population, groups });
+  }
+
+  return out;
+}
+
 export class PopulationHistogram {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly samples: PopulationSample[] = [];
@@ -110,27 +166,29 @@ export class PopulationHistogram {
     const firstTick = this.samples[0]?.tick ?? 0;
     const latest = this.samples[this.samples.length - 1];
     const lastTick = latest?.tick ?? firstTick;
-    const tickSpan = Math.max(1, lastTick - firstTick);
-    const bins = this.buildBins(chartWidth, firstTick, tickSpan);
+    const sampled = resamplePopulationSamples(this.samples, Math.floor(chartWidth), MAX_GROUPS);
+    if (sampled.length < 2) {
+      this.ctx.fillStyle = '#736a5b';
+      this.ctx.font = '12px Trebuchet MS, sans-serif';
+      this.ctx.fillText('No tick history yet', left + 8, top + 14);
+      this.dirty = false;
+      return;
+    }
     const maxPopulation = Math.max(
       1,
-      ...bins.map((bin) => (bin.count > 0 ? bin.population / bin.count : 0)),
+      ...sampled.map((point) => point.population),
     );
     this.drawPopulationScaleGrid(left, right, top, bottom, maxPopulation);
-    const envelopeHeights = bins.map((bin) => {
-      if (!bin || bin.count <= 0 || bin.population <= 0) {
-        return 0;
-      }
-      const avgPopulation = bin.population / bin.count;
-      return (avgPopulation / maxPopulation) * chartHeight;
-    });
+    const envelopeHeights = sampled.map((point) =>
+      point.population > 0 ? (point.population / maxPopulation) * chartHeight : 0,
+    );
 
     this.ctx.save();
     this.ctx.beginPath();
     this.ctx.rect(left, top, chartWidth, bottom - top);
     this.ctx.clip();
 
-    const count = bins.length;
+    const count = sampled.length;
     const xs =
       count <= 1
         ? [left]
@@ -140,21 +198,20 @@ export class PopulationHistogram {
     );
 
     for (let i = 0; i < count; i += 1) {
-      const bin = bins[i];
+      const point = sampled[i];
       const envelopeHeight = envelopeHeights[i] ?? 0;
       cumulativeY[0]![i] = bottom;
-      if (!bin || bin.count <= 0 || bin.population <= 0 || envelopeHeight <= 0) {
+      if (!point || point.population <= 0 || envelopeHeight <= 0) {
         for (let groupIndex = 0; groupIndex < COMPOSITION_GROUPS.length; groupIndex += 1) {
           cumulativeY[groupIndex + 1]![i] = bottom;
         }
         continue;
       }
 
-      const avgPopulation = bin.population / bin.count;
       let cumulativeHeight = 0;
       for (let groupIndex = 0; groupIndex < COMPOSITION_GROUPS.length; groupIndex += 1) {
-        const avgGroupPopulation = (bin.groups[groupIndex] ?? 0) / bin.count;
-        const fraction = avgPopulation > 0 ? avgGroupPopulation / avgPopulation : 0;
+        const groupPopulation = point.groups[groupIndex] ?? 0;
+        const fraction = point.population > 0 ? groupPopulation / point.population : 0;
         const bandHeight = Math.max(0, fraction * envelopeHeight);
         cumulativeHeight += bandHeight;
         cumulativeY[groupIndex + 1]![i] = bottom - cumulativeHeight;
@@ -293,38 +350,6 @@ export class PopulationHistogram {
       return 7;
     }
     return 8;
-  }
-
-  private buildBins(
-    chartWidth: number,
-    firstTick: number,
-    tickSpan: number,
-  ): Array<{ count: number; population: number; groups: number[] }> {
-    const maxColumnsFromTicks = Math.max(1, Math.floor(tickSpan) + 1);
-    const columns = Math.max(1, Math.min(Math.floor(chartWidth), 420, maxColumnsFromTicks));
-    const bins = Array.from({ length: columns }, () => ({
-      count: 0,
-      population: 0,
-      groups: new Array<number>(MAX_GROUPS).fill(0),
-    }));
-
-    for (const sample of this.samples) {
-      const normalized = (sample.tick - firstTick) / tickSpan;
-      const clamped = Math.max(0, Math.min(1, normalized));
-      const index = Math.min(columns - 1, Math.floor(clamped * (columns - 1)));
-      const bin = bins[index];
-      if (!bin) {
-        continue;
-      }
-      bin.count += 1;
-      bin.population += sample.population;
-      for (let groupIndex = 0; groupIndex < MAX_GROUPS; groupIndex += 1) {
-        const groupTotal = bin.groups[groupIndex] ?? 0;
-        bin.groups[groupIndex] = groupTotal + (sample.groups[groupIndex] ?? 0);
-      }
-    }
-
-    return bins;
   }
 
   private drawLegend(startX: number, y: number, right: number): void {
