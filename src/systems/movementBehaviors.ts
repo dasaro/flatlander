@@ -1,6 +1,7 @@
 import type {
   MovementComponent,
   RandomWalkMovement,
+  SocialNavMovement,
   SeekPointMovement,
   StraightDriftMovement,
   TransformComponent,
@@ -159,6 +160,34 @@ export class SeekPointBehavior implements MovementBehaviorStrategy<SeekPointMove
     velocity = applyBoundary(world, movement, velocity, transform);
 
     movement.heading = Math.atan2(velocity.y, velocity.x);
+    transform.rotation = movement.heading;
+  }
+}
+
+export class SocialNavBehavior implements MovementBehaviorStrategy<SocialNavMovement> {
+  readonly type = 'socialNav' as const;
+
+  update(
+    entityId: number,
+    movement: SocialNavMovement,
+    transform: TransformComponent,
+    world: World,
+    dt: number,
+  ): void {
+    const baseVelocity = angleToVector(movement.heading);
+    const intendedVelocity = {
+      x: baseVelocity.x * movement.speed,
+      y: baseVelocity.y * movement.speed,
+    };
+    let velocity = velocityWithSouthDrift(world, entityId, intendedVelocity);
+
+    stepTransform(transform, velocity, dt);
+    velocity = applyBoundary(world, movement, velocity, transform);
+
+    movement.heading = Math.atan2(velocity.y, velocity.x);
+    movement.smoothHeading = movement.heading;
+    movement.speed = Math.max(0, Math.hypot(velocity.x, velocity.y));
+    movement.smoothSpeed = movement.speed;
     transform.rotation = movement.heading;
   }
 }

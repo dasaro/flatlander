@@ -10,6 +10,21 @@ export interface TransformComponent {
 
 export type BoundaryMode = 'wrap' | 'bounce';
 
+export type SocialIntention =
+  | 'roam'
+  | 'avoid'
+  | 'yield'
+  | 'approachMate'
+  | 'approachForFeeling';
+
+export interface SocialNavGoal {
+  type: 'point' | 'direction';
+  x?: number;
+  y?: number;
+  heading?: number;
+  targetId?: EntityId;
+}
+
 export interface RandomWalkMovement {
   type: 'randomWalk';
   speed: number;
@@ -34,7 +49,28 @@ export interface SeekPointMovement {
   boundary: BoundaryMode;
 }
 
-export type MovementComponent = RandomWalkMovement | StraightDriftMovement | SeekPointMovement;
+export interface SocialNavMovement {
+  type: 'socialNav';
+  speed: number;
+  turnRate: number;
+  heading: number;
+  boundary: BoundaryMode;
+  maxSpeed: number;
+  maxTurnRate: number;
+  decisionEveryTicks: number;
+  intentionMinTicks: number;
+  intention: SocialIntention;
+  intentionTicksLeft: number;
+  goal?: SocialNavGoal;
+  smoothHeading: number;
+  smoothSpeed: number;
+}
+
+export type MovementComponent =
+  | RandomWalkMovement
+  | StraightDriftMovement
+  | SeekPointMovement
+  | SocialNavMovement;
 
 export interface SouthDriftComponent {
   vy: number;
@@ -132,13 +168,24 @@ export interface PregnancyComponent {
 }
 
 export interface LineageComponent {
-  motherId: EntityId;
-  fatherId: EntityId;
+  id: EntityId;
+  birthTick: number;
+  motherId: EntityId | null;
+  fatherId: EntityId | null;
   generation: number;
+  dynastyId: EntityId;
 }
 
 export interface CombatStatsComponent {
   kills: number;
+}
+
+export interface LegacyComponent {
+  births: number;
+  deathsCaused: number;
+  handshakes: number;
+  regularizations: number;
+  descendantsAlive: number;
 }
 
 export type FemaleRank = 'Low' | 'Middle' | 'High';
@@ -164,4 +211,10 @@ export interface IntelligenceComponent {
 
 export interface IrregularityComponent {
   deviation: number;
+}
+
+export interface DurabilityComponent {
+  hp: number;
+  maxHp: number;
+  wear: number;
 }

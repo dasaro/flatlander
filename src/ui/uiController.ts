@@ -1,11 +1,14 @@
 import type {
   AgeComponent,
+  DurabilityComponent,
   FemaleStatusComponent,
   FeelingComponent,
   FertilityComponent,
   HearingHitComponent,
   IrregularityComponent,
   KnowledgeComponent,
+  LegacyComponent,
+  LineageComponent,
   MovementComponent,
   PerceptionComponent,
   PeaceCryComponent,
@@ -99,6 +102,7 @@ interface UiCallbacks {
   onFlatlanderViewUpdate: (settings: FlatlanderViewSettings) => void;
   onFogSightUpdate: (settings: FogSightSettings) => void;
   onApplyNovelSafetyPreset: () => void;
+  onApplyHarmonicMotionPreset: () => void;
   onSouthAttractionUpdate: (settings: SouthAttractionSettings) => void;
   onInspectorUpdate: (movement: SpawnMovementConfig) => void;
   onInspectorVisionUpdate: (vision: Partial<VisionComponent>) => void;
@@ -113,6 +117,7 @@ interface InputRefs {
   stepButton: HTMLButtonElement;
   resetButton: HTMLButtonElement;
   novelSafetyPresetButton: HTMLButtonElement;
+  harmonicMotionPresetButton: HTMLButtonElement;
   seedInput: HTMLInputElement;
   worldTopology: HTMLSelectElement;
   envHousesEnabled: HTMLInputElement;
@@ -169,6 +174,8 @@ interface InputRefs {
   spawnBoundary: HTMLSelectElement;
   spawnSpeed: HTMLInputElement;
   spawnTurnRate: HTMLInputElement;
+  spawnDecisionTicks: HTMLInputElement;
+  spawnIntentionMinTicks: HTMLInputElement;
   spawnVx: HTMLInputElement;
   spawnVy: HTMLInputElement;
   spawnTargetX: HTMLInputElement;
@@ -188,6 +195,8 @@ interface InputRefs {
   spawnBaseRatioRow: HTMLElement;
   spawnSpeedRow: HTMLElement;
   spawnTurnRateRow: HTMLElement;
+  spawnSocialDecisionRow: HTMLElement;
+  spawnSocialIntentionRow: HTMLElement;
   spawnDriftRow: HTMLElement;
   spawnTargetRow: HTMLElement;
   selectedId: HTMLElement;
@@ -222,10 +231,25 @@ interface InputRefs {
   inspectorPregnancyTicks: HTMLElement;
   inspectorSpeed: HTMLInputElement;
   inspectorTurnRate: HTMLInputElement;
+  inspectorDecisionTicks: HTMLInputElement;
+  inspectorIntentionMinTicks: HTMLInputElement;
   inspectorVx: HTMLInputElement;
   inspectorVy: HTMLInputElement;
   inspectorTargetX: HTMLInputElement;
   inspectorTargetY: HTMLInputElement;
+  inspectorCurrentIntention: HTMLElement;
+  inspectorIntentionLeft: HTMLElement;
+  inspectorGeneration: HTMLElement;
+  inspectorDynastyId: HTMLElement;
+  inspectorMotherId: HTMLElement;
+  inspectorFatherId: HTMLElement;
+  inspectorAncestors: HTMLElement;
+  inspectorLegacyBirths: HTMLElement;
+  inspectorLegacyKills: HTMLElement;
+  inspectorLegacyHandshakes: HTMLElement;
+  inspectorLegacyRegularizations: HTMLElement;
+  inspectorLegacyDescendants: HTMLElement;
+  inspectorDurability: HTMLElement;
   inspectorTriangleInfoRow: HTMLElement;
   inspectorTriangleKind: HTMLElement;
   inspectorBaseRatio: HTMLElement;
@@ -242,6 +266,8 @@ interface InputRefs {
   inspectorSwayFrequency: HTMLElement;
   inspectorSpeedRow: HTMLElement;
   inspectorTurnRateRow: HTMLElement;
+  inspectorSocialRow: HTMLElement;
+  inspectorLineageRow: HTMLElement;
   inspectorDriftRow: HTMLElement;
   inspectorTargetRow: HTMLElement;
   tickValue: HTMLElement;
@@ -293,6 +319,10 @@ export class UIController {
       null,
       null,
       null,
+      null,
+      null,
+      null,
+      'N/A',
     );
   }
 
@@ -365,6 +395,10 @@ export class UIController {
     femaleStatus: FemaleStatusComponent | null,
     sway: SwayComponent | null,
     killCount: number | null,
+    lineage: LineageComponent | null,
+    legacy: LegacyComponent | null,
+    durability: DurabilityComponent | null,
+    ancestorsLabel: string,
   ): void {
     this.selectedEntityId = entityId;
     if (
@@ -394,6 +428,19 @@ export class UIController {
       this.refs.inspectorPregnant.textContent = 'N/A';
       this.refs.inspectorPregnancyFather.textContent = 'N/A';
       this.refs.inspectorPregnancyTicks.textContent = 'N/A';
+      this.refs.inspectorCurrentIntention.textContent = 'N/A';
+      this.refs.inspectorIntentionLeft.textContent = 'N/A';
+      this.refs.inspectorGeneration.textContent = 'N/A';
+      this.refs.inspectorDynastyId.textContent = 'N/A';
+      this.refs.inspectorMotherId.textContent = 'N/A';
+      this.refs.inspectorFatherId.textContent = 'N/A';
+      this.refs.inspectorAncestors.textContent = 'N/A';
+      this.refs.inspectorLegacyBirths.textContent = '0';
+      this.refs.inspectorLegacyKills.textContent = '0';
+      this.refs.inspectorLegacyHandshakes.textContent = '0';
+      this.refs.inspectorLegacyRegularizations.textContent = '0';
+      this.refs.inspectorLegacyDescendants.textContent = '0';
+      this.refs.inspectorDurability.textContent = 'N/A';
       this.refs.inspectorNone.hidden = false;
       this.refs.inspectorFields.hidden = true;
       this.refs.inspectorTriangleInfoRow.hidden = true;
@@ -441,6 +488,23 @@ export class UIController {
       ? String(Math.round(feeling.lastFeltTick))
       : 'Never';
     this.renderKnownList(knowledge);
+    this.refs.inspectorGeneration.textContent = lineage ? String(lineage.generation) : '0';
+    this.refs.inspectorDynastyId.textContent = lineage ? String(lineage.dynastyId) : 'N/A';
+    this.refs.inspectorMotherId.textContent = lineage?.motherId !== null && lineage?.motherId !== undefined
+      ? String(lineage.motherId)
+      : 'Unknown';
+    this.refs.inspectorFatherId.textContent = lineage?.fatherId !== null && lineage?.fatherId !== undefined
+      ? String(lineage.fatherId)
+      : 'Unknown';
+    this.refs.inspectorAncestors.textContent = ancestorsLabel;
+    this.refs.inspectorLegacyBirths.textContent = String(legacy?.births ?? 0);
+    this.refs.inspectorLegacyKills.textContent = String(legacy?.deathsCaused ?? 0);
+    this.refs.inspectorLegacyHandshakes.textContent = String(legacy?.handshakes ?? 0);
+    this.refs.inspectorLegacyRegularizations.textContent = String(legacy?.regularizations ?? 0);
+    this.refs.inspectorLegacyDescendants.textContent = String(legacy?.descendantsAlive ?? 0);
+    this.refs.inspectorDurability.textContent = durability
+      ? `${Math.max(0, durability.hp).toFixed(1)} / ${durability.maxHp.toFixed(1)}`
+      : 'N/A';
 
     if (shape.kind === 'segment' && fertility) {
       const mature = (age?.ticksAlive ?? 0) >= fertility.maturityTicks;
@@ -466,22 +530,45 @@ export class UIController {
       this.refs.inspectorVy.value = movement.vy.toFixed(2);
       this.refs.inspectorSpeed.value = '30';
       this.refs.inspectorTurnRate.value = '2';
+      this.refs.inspectorDecisionTicks.value = '16';
+      this.refs.inspectorIntentionMinTicks.value = '80';
       this.refs.inspectorTargetX.value = '500';
       this.refs.inspectorTargetY.value = '350';
+      this.refs.inspectorCurrentIntention.textContent = 'N/A';
+      this.refs.inspectorIntentionLeft.textContent = 'N/A';
+    } else if (movement.type === 'socialNav') {
+      this.refs.inspectorSpeed.value = movement.maxSpeed.toFixed(2);
+      this.refs.inspectorTurnRate.value = movement.maxTurnRate.toFixed(2);
+      this.refs.inspectorDecisionTicks.value = String(Math.max(1, Math.round(movement.decisionEveryTicks)));
+      this.refs.inspectorIntentionMinTicks.value = String(Math.max(1, Math.round(movement.intentionMinTicks)));
+      this.refs.inspectorVx.value = '0';
+      this.refs.inspectorVy.value = '0';
+      this.refs.inspectorTargetX.value = movement.goal?.x?.toFixed(2) ?? '500';
+      this.refs.inspectorTargetY.value = movement.goal?.y?.toFixed(2) ?? '350';
+      this.refs.inspectorCurrentIntention.textContent = movement.intention;
+      this.refs.inspectorIntentionLeft.textContent = String(Math.max(0, movement.intentionTicksLeft));
     } else if (movement.type === 'randomWalk') {
       this.refs.inspectorSpeed.value = movement.speed.toFixed(2);
       this.refs.inspectorTurnRate.value = movement.turnRate.toFixed(2);
+      this.refs.inspectorDecisionTicks.value = '16';
+      this.refs.inspectorIntentionMinTicks.value = '80';
       this.refs.inspectorVx.value = '0';
       this.refs.inspectorVy.value = '0';
       this.refs.inspectorTargetX.value = '500';
       this.refs.inspectorTargetY.value = '350';
+      this.refs.inspectorCurrentIntention.textContent = 'N/A';
+      this.refs.inspectorIntentionLeft.textContent = 'N/A';
     } else {
       this.refs.inspectorSpeed.value = movement.speed.toFixed(2);
       this.refs.inspectorTurnRate.value = movement.turnRate.toFixed(2);
+      this.refs.inspectorDecisionTicks.value = '16';
+      this.refs.inspectorIntentionMinTicks.value = '80';
       this.refs.inspectorVx.value = '0';
       this.refs.inspectorVy.value = '0';
       this.refs.inspectorTargetX.value = movement.target.x.toFixed(2);
       this.refs.inspectorTargetY.value = movement.target.y.toFixed(2);
+      this.refs.inspectorCurrentIntention.textContent = 'N/A';
+      this.refs.inspectorIntentionLeft.textContent = 'N/A';
     }
 
     if (shape.kind === 'polygon' && shape.sides === 3) {
@@ -596,6 +683,11 @@ export class UIController {
     this.refs.novelSafetyPresetButton.addEventListener('click', () => {
       this.applyNovelSafetyPresetInputs();
       this.callbacks.onApplyNovelSafetyPreset();
+    });
+
+    this.refs.harmonicMotionPresetButton.addEventListener('click', () => {
+      this.applyHarmonicMotionPresetInputs();
+      this.callbacks.onApplyHarmonicMotionPreset();
     });
 
     this.refs.worldTopology.addEventListener('input', () => {
@@ -766,6 +858,8 @@ export class UIController {
     const inspectorInputs: Array<HTMLInputElement | HTMLSelectElement> = [
       this.refs.inspectorSpeed,
       this.refs.inspectorTurnRate,
+      this.refs.inspectorDecisionTicks,
+      this.refs.inspectorIntentionMinTicks,
       this.refs.inspectorVx,
       this.refs.inspectorVy,
       this.refs.inspectorTargetX,
@@ -851,6 +945,8 @@ export class UIController {
   private applyNovelSafetyPresetInputs(): void {
     this.refs.spawnSpeed.value = '18';
     this.refs.spawnTurnRate.value = '1.8';
+    this.refs.spawnDecisionTicks.value = '18';
+    this.refs.spawnIntentionMinTicks.value = '80';
     this.refs.spawnVx.value = '12';
     this.refs.spawnVy.value = '0';
     this.refs.spawnFeelingEnabled.checked = true;
@@ -866,8 +962,8 @@ export class UIController {
     this.refs.reproductionEnabled.checked = true;
     this.refs.reproductionGestationTicks.value = '220';
     this.refs.reproductionMatingRadius.value = '65';
-    this.refs.reproductionConceptionChance.value = '0.004';
-    this.refs.reproductionFemaleBirthProbability.value = '0.5';
+    this.refs.reproductionConceptionChance.value = '0.0042';
+    this.refs.reproductionFemaleBirthProbability.value = '0.56';
     this.refs.reproductionMaxPopulation.value = '550';
 
     this.refs.southEnabled.checked = true;
@@ -885,25 +981,42 @@ export class UIController {
     this.callbacks.onSouthAttractionUpdate(this.readSouthAttractionSettings());
   }
 
-  private readEnvironmentSettings(): EnvironmentSettings {
-    const townPopulation = Math.max(0, parseInteger(this.refs.envTownPopulation.value, 5000));
-    const allowSquareHouses =
-      townPopulation >= 10_000 ? false : this.refs.envAllowSquareHouses.checked;
+  private applyHarmonicMotionPresetInputs(): void {
+    this.refs.spawnMovementType.value = 'socialNav';
+    this.refs.spawnSpeed.value = '14';
+    this.refs.spawnTurnRate.value = '1.2';
+    this.refs.spawnDecisionTicks.value = '20';
+    this.refs.spawnIntentionMinTicks.value = '90';
+    this.refs.inspectorMovementType.value = 'socialNav';
+    this.refs.inspectorSpeed.value = '14';
+    this.refs.inspectorTurnRate.value = '1.2';
+    this.refs.inspectorDecisionTicks.value = '20';
+    this.refs.inspectorIntentionMinTicks.value = '90';
+    this.updateSpawnFieldVisibility();
+    this.updateInspectorFieldVisibility();
+  }
 
+  private readEnvironmentSettings(): EnvironmentSettings {
     return {
-      housesEnabled: this.refs.envHousesEnabled.checked,
-      houseCount: Math.max(0, parseInteger(this.refs.envHouseCount.value, 12)),
-      townPopulation,
-      allowTriangularForts: this.refs.envAllowTriangularForts.checked,
-      allowSquareHouses,
+      housesEnabled: false,
+      houseCount: 0,
+      townPopulation: Math.max(0, parseInteger(this.refs.envTownPopulation.value, 5000)),
+      allowTriangularForts: false,
+      allowSquareHouses: false,
       houseSize: Math.max(4, parseNumber(this.refs.envHouseSize.value, 30)),
     };
   }
 
   private syncEnvironmentFieldState(settings: EnvironmentSettings): void {
-    const squareRestricted = settings.townPopulation >= 10_000;
-    this.refs.envAllowSquareHouses.disabled = squareRestricted;
-    this.refs.envAllowSquareHouses.checked = squareRestricted ? false : settings.allowSquareHouses;
+    void settings;
+    this.refs.envHousesEnabled.checked = false;
+    this.refs.envHousesEnabled.disabled = true;
+    this.refs.envHouseCount.value = '0';
+    this.refs.envHouseCount.disabled = true;
+    this.refs.envAllowTriangularForts.checked = false;
+    this.refs.envAllowTriangularForts.disabled = true;
+    this.refs.envAllowSquareHouses.checked = false;
+    this.refs.envAllowSquareHouses.disabled = true;
   }
 
   private readPeaceCrySettings(): PeaceCrySettings {
@@ -918,14 +1031,14 @@ export class UIController {
     return {
       enabled: this.refs.reproductionEnabled.checked,
       gestationTicks: Math.max(1, parseInteger(this.refs.reproductionGestationTicks.value, 300)),
-      matingRadius: Math.max(0, parseNumber(this.refs.reproductionMatingRadius.value, 60)),
+      matingRadius: Math.max(0, parseNumber(this.refs.reproductionMatingRadius.value, 52)),
       conceptionChancePerTick: clampRange(
-        parseNumber(this.refs.reproductionConceptionChance.value, 0.002),
+        parseNumber(this.refs.reproductionConceptionChance.value, 0.0027),
         0,
         1,
       ),
       femaleBirthProbability: clampRange(
-        parseNumber(this.refs.reproductionFemaleBirthProbability.value, 0.5),
+        parseNumber(this.refs.reproductionFemaleBirthProbability.value, 0.54),
         0,
         1,
       ),
@@ -1032,6 +1145,8 @@ export class UIController {
       boundaryFromTopology(this.readTopology()),
       this.refs.spawnSpeed,
       this.refs.spawnTurnRate,
+      this.refs.spawnDecisionTicks,
+      this.refs.spawnIntentionMinTicks,
       this.refs.spawnVx,
       this.refs.spawnVy,
       this.refs.spawnTargetX,
@@ -1062,6 +1177,8 @@ export class UIController {
       boundaryFromTopology(this.readTopology()),
       this.refs.inspectorSpeed,
       this.refs.inspectorTurnRate,
+      this.refs.inspectorDecisionTicks,
+      this.refs.inspectorIntentionMinTicks,
       this.refs.inspectorVx,
       this.refs.inspectorVy,
       this.refs.inspectorTargetX,
@@ -1147,6 +1264,8 @@ export class UIController {
 
     this.refs.spawnSpeedRow.hidden = movementType === 'straightDrift';
     this.refs.spawnTurnRateRow.hidden = movementType === 'straightDrift';
+    this.refs.spawnSocialDecisionRow.hidden = movementType !== 'socialNav';
+    this.refs.spawnSocialIntentionRow.hidden = movementType !== 'socialNav';
     this.refs.spawnDriftRow.hidden = movementType !== 'straightDrift';
     this.refs.spawnTargetRow.hidden = movementType !== 'seekPoint';
   }
@@ -1156,6 +1275,7 @@ export class UIController {
 
     this.refs.inspectorSpeedRow.hidden = movementType === 'straightDrift';
     this.refs.inspectorTurnRateRow.hidden = movementType === 'straightDrift';
+    this.refs.inspectorSocialRow.hidden = movementType !== 'socialNav';
     this.refs.inspectorDriftRow.hidden = movementType !== 'straightDrift';
     this.refs.inspectorTargetRow.hidden = movementType !== 'seekPoint';
   }
@@ -1165,6 +1285,8 @@ export class UIController {
     boundary: SpawnMovementConfig['boundary'],
     speedInput: HTMLInputElement,
     turnRateInput: HTMLInputElement,
+    decisionEveryTicksInput: HTMLInputElement,
+    intentionMinTicksInput: HTMLInputElement,
     vxInput: HTMLInputElement,
     vyInput: HTMLInputElement,
     targetXInput: HTMLInputElement,
@@ -1189,6 +1311,17 @@ export class UIController {
           x: parseNumber(targetXInput.value, 500),
           y: parseNumber(targetYInput.value, 350),
         },
+      };
+    }
+
+    if (movementType === 'socialNav') {
+      return {
+        type: 'socialNav',
+        boundary,
+        maxSpeed: Math.max(0.1, parseNumber(speedInput.value, 14)),
+        maxTurnRate: Math.max(0.1, parseNumber(turnRateInput.value, 1.2)),
+        decisionEveryTicks: Math.max(1, parseInteger(decisionEveryTicksInput.value, 18)),
+        intentionMinTicks: Math.max(1, parseInteger(intentionMinTicksInput.value, 80)),
       };
     }
 
@@ -1265,6 +1398,7 @@ function collectRefs(): InputRefs {
     stepButton: required<HTMLButtonElement>('step-btn'),
     resetButton: required<HTMLButtonElement>('reset-btn'),
     novelSafetyPresetButton: required<HTMLButtonElement>('novel-safety-preset-btn'),
+    harmonicMotionPresetButton: required<HTMLButtonElement>('harmonic-motion-preset-btn'),
     seedInput: required<HTMLInputElement>('seed-input'),
     worldTopology: required<HTMLSelectElement>('world-topology'),
     envHousesEnabled: required<HTMLInputElement>('env-houses-enabled'),
@@ -1321,6 +1455,8 @@ function collectRefs(): InputRefs {
     spawnBoundary: required<HTMLSelectElement>('spawn-boundary'),
     spawnSpeed: required<HTMLInputElement>('spawn-speed'),
     spawnTurnRate: required<HTMLInputElement>('spawn-turn-rate'),
+    spawnDecisionTicks: required<HTMLInputElement>('spawn-decision-ticks'),
+    spawnIntentionMinTicks: required<HTMLInputElement>('spawn-intention-min-ticks'),
     spawnVx: required<HTMLInputElement>('spawn-vx'),
     spawnVy: required<HTMLInputElement>('spawn-vy'),
     spawnTargetX: required<HTMLInputElement>('spawn-target-x'),
@@ -1340,6 +1476,8 @@ function collectRefs(): InputRefs {
     spawnBaseRatioRow: required<HTMLElement>('spawn-base-ratio-row'),
     spawnSpeedRow: required<HTMLElement>('spawn-speed-row'),
     spawnTurnRateRow: required<HTMLElement>('spawn-turn-rate-row'),
+    spawnSocialDecisionRow: required<HTMLElement>('spawn-social-decision-row'),
+    spawnSocialIntentionRow: required<HTMLElement>('spawn-social-intention-row'),
     spawnDriftRow: required<HTMLElement>('spawn-drift-row'),
     spawnTargetRow: required<HTMLElement>('spawn-target-row'),
     selectedId: required<HTMLElement>('selected-id'),
@@ -1374,10 +1512,25 @@ function collectRefs(): InputRefs {
     inspectorPregnancyTicks: required<HTMLElement>('inspector-pregnancy-ticks'),
     inspectorSpeed: required<HTMLInputElement>('inspector-speed'),
     inspectorTurnRate: required<HTMLInputElement>('inspector-turn-rate'),
+    inspectorDecisionTicks: required<HTMLInputElement>('inspector-decision-ticks'),
+    inspectorIntentionMinTicks: required<HTMLInputElement>('inspector-intention-min-ticks'),
     inspectorVx: required<HTMLInputElement>('inspector-vx'),
     inspectorVy: required<HTMLInputElement>('inspector-vy'),
     inspectorTargetX: required<HTMLInputElement>('inspector-target-x'),
     inspectorTargetY: required<HTMLInputElement>('inspector-target-y'),
+    inspectorCurrentIntention: required<HTMLElement>('inspector-current-intention'),
+    inspectorIntentionLeft: required<HTMLElement>('inspector-intention-left'),
+    inspectorGeneration: required<HTMLElement>('inspector-generation'),
+    inspectorDynastyId: required<HTMLElement>('inspector-dynasty-id'),
+    inspectorMotherId: required<HTMLElement>('inspector-mother-id'),
+    inspectorFatherId: required<HTMLElement>('inspector-father-id'),
+    inspectorAncestors: required<HTMLElement>('inspector-ancestors'),
+    inspectorLegacyBirths: required<HTMLElement>('inspector-legacy-births'),
+    inspectorLegacyKills: required<HTMLElement>('inspector-legacy-kills'),
+    inspectorLegacyHandshakes: required<HTMLElement>('inspector-legacy-handshakes'),
+    inspectorLegacyRegularizations: required<HTMLElement>('inspector-legacy-regularizations'),
+    inspectorLegacyDescendants: required<HTMLElement>('inspector-legacy-descendants'),
+    inspectorDurability: required<HTMLElement>('inspector-durability'),
     inspectorTriangleInfoRow: required<HTMLElement>('inspector-triangle-row'),
     inspectorTriangleKind: required<HTMLElement>('inspector-triangle-kind'),
     inspectorBaseRatio: required<HTMLElement>('inspector-triangle-base-ratio'),
@@ -1394,6 +1547,8 @@ function collectRefs(): InputRefs {
     inspectorSwayFrequency: required<HTMLElement>('inspector-sway-frequency'),
     inspectorSpeedRow: required<HTMLElement>('inspector-speed-row'),
     inspectorTurnRateRow: required<HTMLElement>('inspector-turn-rate-row'),
+    inspectorSocialRow: required<HTMLElement>('inspector-social-row'),
+    inspectorLineageRow: required<HTMLElement>('inspector-lineage-row'),
     inspectorDriftRow: required<HTMLElement>('inspector-drift-row'),
     inspectorTargetRow: required<HTMLElement>('inspector-target-row'),
     tickValue: required<HTMLElement>('stat-tick'),
@@ -1429,6 +1584,17 @@ export function movementToSpawnConfig(movement: MovementComponent): SpawnMovemen
       boundary: movement.boundary,
       speed: movement.speed,
       turnRate: movement.turnRate,
+    };
+  }
+
+  if (movement.type === 'socialNav') {
+    return {
+      type: 'socialNav',
+      boundary: movement.boundary,
+      maxSpeed: movement.maxSpeed,
+      maxTurnRate: movement.maxTurnRate,
+      decisionEveryTicks: movement.decisionEveryTicks,
+      intentionMinTicks: movement.intentionMinTicks,
     };
   }
 

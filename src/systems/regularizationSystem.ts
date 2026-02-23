@@ -73,6 +73,10 @@ export class RegularizationSystem implements System {
 
       if (previousRank?.rank === Rank.Irregular && nextRank.rank !== Rank.Irregular) {
         world.regularizedThisTick += 1;
+        const legacy = world.legacy.get(id);
+        if (legacy) {
+          legacy.regularizations += 1;
+        }
         const transform = world.transforms.get(id);
         if (transform) {
           world.events.push({

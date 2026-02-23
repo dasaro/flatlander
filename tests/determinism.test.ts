@@ -6,6 +6,7 @@ import { createWorld } from '../src/core/world';
 import { CleanupSystem } from '../src/systems/cleanupSystem';
 import { CollisionSystem } from '../src/systems/collisionSystem';
 import { CompensationSystem } from '../src/systems/compensationSystem';
+import { ErosionSystem } from '../src/systems/erosionSystem';
 import { FeelingApproachSystem } from '../src/systems/feelingApproachSystem';
 import { FeelingSystem } from '../src/systems/feelingSystem';
 import { HearingSystem } from '../src/systems/hearingSystem';
@@ -16,6 +17,8 @@ import { AvoidanceSteeringSystem } from '../src/systems/avoidanceSteeringSystem'
 import { MovementSystem } from '../src/systems/movementSystem';
 import { PeaceCrySystem } from '../src/systems/peaceCrySystem';
 import { ReproductionSystem } from '../src/systems/reproductionSystem';
+import { SocialNavMindSystem } from '../src/systems/socialNavMindSystem';
+import { SocialNavSteeringSystem } from '../src/systems/socialNavSteeringSystem';
 import { SouthAttractionSystem } from '../src/systems/southAttractionSystem';
 import { StillnessSystem } from '../src/systems/stillnessSystem';
 import { SwaySystem } from '../src/systems/swaySystem';
@@ -35,6 +38,8 @@ function buildSnapshot(seed: number, plan: SpawnRequest[], ticks: number): strin
     new PeaceCrySystem(),
     new HearingSystem(),
     new VisionSystem(),
+    new SocialNavMindSystem(),
+    new SocialNavSteeringSystem(),
     new AvoidanceSteeringSystem(),
     new FeelingApproachSystem(),
     new MovementSystem(),
@@ -44,6 +49,7 @@ function buildSnapshot(seed: number, plan: SpawnRequest[], ticks: number): strin
     new CollisionSystem(),
     new FeelingSystem(),
     new CollisionResolutionSystem(),
+    new ErosionSystem(),
     new LethalitySystem(),
     new CleanupSystem(),
     new ReproductionSystem(),

@@ -6,6 +6,7 @@ import type {
   AgeComponent,
   AudiblePing,
   CombatStatsComponent,
+  DurabilityComponent,
   EntityId,
   FemaleStatusComponent,
   FeelingComponent,
@@ -15,6 +16,7 @@ import type {
   IntelligenceComponent,
   IrregularityComponent,
   KnowledgeComponent,
+  LegacyComponent,
   LineageComponent,
   MovementComponent,
   PerceptionComponent,
@@ -51,6 +53,8 @@ export interface WorldConfig {
   matingRadius: number;
   conceptionChancePerTick: number;
   femaleBirthProbability: number;
+  maleBirthHighRankPenaltyPerSide: number;
+  conceptionHighRankPenaltyPerSide: number;
   maxPopulation: number;
   handshakeStillnessTicks: number;
   compensationEnabled: boolean;
@@ -94,6 +98,11 @@ export interface WorldConfig {
   woundSeverityThreshold: number;
   stabSharpnessExponent: number;
   pressureTicksToKill: number;
+  wearEnabled: boolean;
+  wearRate: number;
+  wearToHpStep: number;
+  stabHpDamageScale: number;
+  bluntExponent: number;
   regularizationEnabled: boolean;
   regularizationRate: number;
   regularityTolerance: number;
@@ -143,7 +152,9 @@ export interface World {
   fertility: Map<EntityId, FertilityComponent>;
   pregnancies: Map<EntityId, PregnancyComponent>;
   lineage: Map<EntityId, LineageComponent>;
+  legacy: Map<EntityId, LegacyComponent>;
   combatStats: Map<EntityId, CombatStatsComponent>;
+  durability: Map<EntityId, DurabilityComponent>;
   femaleStatus: Map<EntityId, FemaleStatusComponent>;
   sway: Map<EntityId, SwayComponent>;
   stillness: Map<EntityId, StillnessComponent>;
@@ -165,20 +176,22 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   width: 1000,
   height: 700,
   topology: 'torus',
-  housesEnabled: true,
-  houseCount: 12,
+  housesEnabled: false,
+  houseCount: 0,
   townPopulation: 5000,
   allowTriangularForts: false,
-  allowSquareHouses: true,
+  allowSquareHouses: false,
   houseSize: 30,
   peaceCryEnabled: true,
   defaultPeaceCryCadenceTicks: 20,
   defaultPeaceCryRadius: 120,
   reproductionEnabled: true,
   gestationTicks: 220,
-  matingRadius: 60,
-  conceptionChancePerTick: 0.0035,
-  femaleBirthProbability: 0.5,
+  matingRadius: 52,
+  conceptionChancePerTick: 0.0027,
+  femaleBirthProbability: 0.54,
+  maleBirthHighRankPenaltyPerSide: 0.085,
+  conceptionHighRankPenaltyPerSide: 0.13,
   maxPopulation: 500,
   handshakeStillnessTicks: 12,
   compensationEnabled: true,
@@ -222,6 +235,11 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   woundSeverityThreshold: 4,
   stabSharpnessExponent: 1.8,
   pressureTicksToKill: 120,
+  wearEnabled: true,
+  wearRate: 0.11,
+  wearToHpStep: 7.5,
+  stabHpDamageScale: 0.85,
+  bluntExponent: 0.7,
   regularizationEnabled: true,
   regularizationRate: 0.15,
   regularityTolerance: 0.015,
@@ -264,7 +282,9 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     fertility: new Map(),
     pregnancies: new Map(),
     lineage: new Map(),
+    legacy: new Map(),
     combatStats: new Map(),
+    durability: new Map(),
     femaleStatus: new Map(),
     sway: new Map(),
     stillness: new Map(),

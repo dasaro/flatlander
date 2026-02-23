@@ -69,6 +69,9 @@ describe('reproduction system', () => {
 
     const childByFather = new Map<number, number>();
     for (const [childId, lineage] of world.lineage) {
+      if (lineage.fatherId === null || lineage.motherId === null) {
+        continue;
+      }
       const childShape = world.shapes.get(childId);
       if (!childShape || childShape.kind !== 'polygon') {
         continue;
@@ -183,6 +186,7 @@ describe('reproduction system', () => {
       }
 
       const childRows = [...world.lineage.entries()]
+        .filter(([, lineage]) => lineage.motherId !== null && lineage.fatherId !== null)
         .sort((a, b) => a[0] - b[0])
         .map(([childId, lineage]) => {
           const childShape = world.shapes.get(childId);
@@ -199,7 +203,7 @@ describe('reproduction system', () => {
       return JSON.stringify({
         tick: world.tick,
         entities: world.entities.size,
-        births: world.lineage.size,
+        births: childRows.length,
         childRows,
       });
     };

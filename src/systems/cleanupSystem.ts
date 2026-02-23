@@ -1,3 +1,4 @@
+import { getLineagePathToRoot } from '../core/genealogy';
 import type { World } from '../core/world';
 import type { System } from './system';
 
@@ -7,6 +8,17 @@ export class CleanupSystem implements System {
     world.deathsThisTick = toRemove.length;
 
     for (const id of toRemove) {
+      const lineagePath = getLineagePathToRoot(world, id);
+      for (const ancestorId of lineagePath) {
+        if (ancestorId === id) {
+          continue;
+        }
+        const legacy = world.legacy.get(ancestorId);
+        if (legacy) {
+          legacy.descendantsAlive = Math.max(0, legacy.descendantsAlive - 1);
+        }
+      }
+
       world.entities.delete(id);
       world.transforms.delete(id);
       world.movements.delete(id);
@@ -26,8 +38,8 @@ export class CleanupSystem implements System {
       world.ages.delete(id);
       world.fertility.delete(id);
       world.pregnancies.delete(id);
-      world.lineage.delete(id);
       world.combatStats.delete(id);
+      world.durability.delete(id);
       world.femaleStatus.delete(id);
       world.sway.delete(id);
       world.stillness.delete(id);

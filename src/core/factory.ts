@@ -9,16 +9,20 @@ import { clamp, distance, vec } from '../geometry/vector';
 import type { Vec2 } from '../geometry/vector';
 import type {
   BoundaryMode,
+  DurabilityComponent,
   EntityId,
   FemaleRank,
   FeelingComponent,
   FertilityComponent,
+  LegacyComponent,
   MovementComponent,
   PerceptionComponent,
   PeaceCryComponent,
+  SocialNavMovement,
   VoiceComponent,
   VisionComponent,
 } from './components';
+import { defaultSocialNavForRank } from './behaviors/movementProfiles';
 import {
   clampFemaleRank,
   defaultFemaleStatus,
@@ -26,8 +30,7 @@ import {
 } from './femaleStatus';
 import { initialIntelligenceForRank } from './intelligence';
 import { defaultPerceptionForRank } from './perceptionPresets';
-import { rankFromShape } from './rank';
-import type { Rank } from './rank';
+import { rankFromShape, Rank } from './rank';
 import type { ShapeComponent, TriangleKind } from './shapes';
 import { defaultVoiceComponent } from './voice';
 import type { World } from './world';
@@ -75,10 +78,20 @@ export interface SeekPointSpawnMovement {
   boundary: BoundaryMode;
 }
 
+export interface SocialNavSpawnMovement {
+  type: 'socialNav';
+  boundary: BoundaryMode;
+  maxSpeed: number;
+  maxTurnRate: number;
+  decisionEveryTicks: number;
+  intentionMinTicks: number;
+}
+
 export type SpawnMovementConfig =
   | RandomWalkSpawnMovement
   | StraightDriftSpawnMovement
-  | SeekPointSpawnMovement;
+  | SeekPointSpawnMovement
+  | SocialNavSpawnMovement;
 
 export interface SpawnRequest {
   shape: SpawnShapeConfig;
@@ -161,19 +174,21 @@ export function spawnEntity(
   const transformRotation = world.rng.nextRange(0, Math.PI * 2);
 
   const shape = shapeFromConfig(world, shapeConfig);
-  const movement = movementFromConfig(world, movementConfig, transformPosition);
-  const vision = visionFromConfig(world, visionConfig);
-  const feeling = feelingFromConfig(world, feelingConfig);
-  const fertility = fertilityFromShape(world, shape);
-  const peaceCry = peaceCryFromShape(world, shape);
   const rank = rankFromShape(shape, {
     irregularityTolerance: world.config.irregularityTolerance,
     nearCircleThreshold: world.config.nearCircleThreshold,
   });
+  const movement = movementFromConfig(world, movementConfig, transformPosition, shape, rank);
+  const vision = visionFromConfig(world, visionConfig);
+  const feeling = feelingFromConfig(world, feelingConfig);
+  const fertility = fertilityFromShape(world, shape);
+  const peaceCry = peaceCryFromShape(world, shape);
   const perception = perceptionFromConfig(rank.rank, perceptionConfig);
   const voice = voiceFromConfig(shape, rank.rank, voiceConfig);
   const femaleStatus = femaleStatusFromConfig(shape, femaleStatusConfig);
   const sway = femaleStatus ? defaultSwayForFemaleRank(femaleStatus.femaleRank) : null;
+  const durability = durabilityForRank(rank.rank, shape);
+  const legacy = createLegacy();
 
   world.entities.add(id);
   world.transforms.set(id, {
@@ -199,7 +214,17 @@ export function spawnEntity(
   if (fertility) {
     world.fertility.set(id, fertility);
   }
+  world.lineage.set(id, {
+    id,
+    birthTick: world.tick,
+    motherId: null,
+    fatherId: null,
+    generation: 0,
+    dynastyId: id,
+  });
+  world.legacy.set(id, legacy);
   world.combatStats.set(id, { kills: 0 });
+  world.durability.set(id, durability);
   if (femaleStatus) {
     world.femaleStatus.set(id, femaleStatus);
   }
@@ -298,6 +323,64 @@ function feelingFromConfig(world: World, config?: SpawnFeelingConfig): FeelingCo
   };
 }
 
+function createLegacy(): LegacyComponent {
+  return {
+    births: 0,
+    deathsCaused: 0,
+    handshakes: 0,
+    regularizations: 0,
+    descendantsAlive: 0,
+  };
+}
+
+function durabilityForRank(rank: Rank, shape: ShapeComponent): DurabilityComponent {
+  if (shape.kind === 'segment') {
+    return {
+      hp: 34,
+      maxHp: 34,
+      wear: 0,
+    };
+  }
+
+  if (rank === Rank.Priest || rank === Rank.NearCircle) {
+    return {
+      hp: 66,
+      maxHp: 66,
+      wear: 0,
+    };
+  }
+
+  if (rank === Rank.Noble) {
+    return {
+      hp: 58,
+      maxHp: 58,
+      wear: 0,
+    };
+  }
+
+  if (rank === Rank.Gentleman) {
+    return {
+      hp: 48,
+      maxHp: 48,
+      wear: 0,
+    };
+  }
+
+  if (rank === Rank.Triangle) {
+    return {
+      hp: 42,
+      maxHp: 42,
+      wear: 0,
+    };
+  }
+
+  return {
+    hp: 45,
+    maxHp: 45,
+    wear: 0,
+  };
+}
+
 function shapeFromConfig(world: World, config: SpawnShapeConfig): ShapeComponent {
   if (config.kind === 'segment') {
     const length = Math.max(2, config.size);
@@ -387,6 +470,8 @@ function movementFromConfig(
   world: World,
   config: SpawnMovementConfig,
   position: Vec2,
+  shape: ShapeComponent,
+  rank: ReturnType<typeof rankFromShape>,
 ): MovementComponent {
   if (config.type === 'randomWalk') {
     return {
@@ -399,6 +484,32 @@ function movementFromConfig(
     return {
       ...config,
     };
+  }
+
+  if (config.type === 'socialNav') {
+    const profile = defaultSocialNavForRank(rank, shape);
+    const heading = world.rng.nextRange(0, Math.PI * 2);
+    const maxSpeed = Math.max(0.1, config.maxSpeed || profile.maxSpeed);
+    const maxTurnRate = Math.max(0.1, config.maxTurnRate || profile.maxTurnRate);
+    const decisionEveryTicks = Math.max(1, Math.round(config.decisionEveryTicks || profile.decisionEveryTicks));
+    const intentionMinTicks = Math.max(1, Math.round(config.intentionMinTicks || profile.intentionMinTicks));
+    const movement: SocialNavMovement = {
+      type: 'socialNav',
+      boundary: config.boundary,
+      speed: maxSpeed * 0.75,
+      turnRate: maxTurnRate,
+      heading,
+      maxSpeed,
+      maxTurnRate,
+      decisionEveryTicks,
+      intentionMinTicks,
+      intention: 'roam',
+      intentionTicksLeft: intentionMinTicks,
+      smoothHeading: heading,
+      smoothSpeed: maxSpeed * 0.75,
+    };
+
+    return movement;
   }
 
   const heading = Math.atan2(config.target.y - position.y, config.target.x - position.x);

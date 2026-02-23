@@ -58,6 +58,10 @@ function registerKill(world: World, killerId: number, victimId: number): void {
   if (stats) {
     stats.kills += 1;
   }
+  const legacy = world.legacy.get(killerId);
+  if (legacy) {
+    legacy.deathsCaused += 1;
+  }
 
   const victimTransform = world.transforms.get(victimId);
   if (!victimTransform) {
@@ -70,6 +74,17 @@ function registerKill(world: World, killerId: number, victimId: number): void {
     entityId: victimId,
     pos: victimTransform.position,
   });
+}
+
+function applyBlunting(world: World, entityId: number, sharpness: number): number {
+  const durability = world.durability.get(entityId);
+  if (!durability || durability.maxHp <= 0) {
+    return sharpness;
+  }
+
+  const hpRatio = clamp(durability.hp / durability.maxHp, 0, 1);
+  const exponent = Math.max(0, world.config.bluntExponent);
+  return sharpness * hpRatio ** exponent;
 }
 
 function evaluateDirectionalStab(
@@ -93,7 +108,8 @@ function evaluateDirectionalStab(
   }
 
   const sharpness = sharpnessFromFeature(attackerShape, attackerFeature);
-  if (sharpness <= 0) {
+  const adjustedSharpness = applyBlunting(world, attackerId, sharpness);
+  if (adjustedSharpness <= 0) {
     world.stabPressure.delete(pressureKey(attackerId, victimId));
     return;
   }
@@ -104,11 +120,11 @@ function evaluateDirectionalStab(
     attackerId,
     victimId,
     pos: contactPoint,
-    sharpness,
+    sharpness: adjustedSharpness,
   });
 
   const exponent = Math.max(0.1, world.config.stabSharpnessExponent);
-  const sharpnessPower = sharpness ** exponent;
+  const sharpnessPower = adjustedSharpness ** exponent;
   const impactSeverity = sharpnessPower * Math.max(0, closingSpeed);
 
   const key = pressureKey(attackerId, victimId);

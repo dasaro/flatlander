@@ -72,6 +72,10 @@ export class AvoidanceSteeringSystem implements System {
         continue;
       }
 
+      if (movement.type === 'socialNav') {
+        continue;
+      }
+
       const eye = getEyeWorldPosition(world, id);
       if (!eye) {
         continue;

@@ -1,4 +1,5 @@
 import { spawnEntity, type SpawnMovementConfig, type SpawnShapeConfig } from '../core/factory';
+import { getLineagePathToRoot } from '../core/genealogy';
 import { boundaryFromTopology } from '../core/topology';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
@@ -75,6 +76,46 @@ function maleChildShape(world: World, fatherId: number): SpawnShapeConfig {
   };
 }
 
+function fatherOrder(world: World, fatherId: number): number {
+  const fatherShape = world.shapes.get(fatherId);
+  if (!fatherShape) {
+    return 3;
+  }
+
+  if (fatherShape.kind === 'polygon') {
+    return fatherShape.sides;
+  }
+
+  if (fatherShape.kind === 'circle') {
+    return world.config.maxPolygonSides;
+  }
+
+  return 3;
+}
+
+function maleBirthProbability(world: World, fatherId: number): number {
+  const baseMale = clamp(1 - world.config.femaleBirthProbability, 0, 1);
+  const order = fatherOrder(world, fatherId);
+  if (order < 6) {
+    return baseMale;
+  }
+
+  const penaltyPerSide = Math.max(0, world.config.maleBirthHighRankPenaltyPerSide);
+  const penalty = (order - 5) * penaltyPerSide;
+  return clamp(baseMale * Math.max(0.03, 1 - penalty), 0, 1);
+}
+
+function conceptionChanceForPair(world: World, fatherId: number): number {
+  const base = clamp(world.config.conceptionChancePerTick, 0, 1);
+  const order = fatherOrder(world, fatherId);
+  if (order < 6) {
+    return base;
+  }
+
+  const penalty = Math.max(0, world.config.conceptionHighRankPenaltyPerSide) * (order - 5);
+  return clamp(base * Math.max(0.04, 1 - penalty), 0, 1);
+}
+
 function irregularBirthChance(world: World, motherId: number, fatherId: number): number {
   const base = clamp(world.config.irregularBirthChance, 0, 1);
   const boost = Math.max(0, world.config.irregularInheritanceBoost);
@@ -142,8 +183,6 @@ export class ReproductionSystem implements System {
     }
 
     const gestationTicks = Math.max(1, Math.round(world.config.gestationTicks));
-    const conceptionChance = clamp(world.config.conceptionChancePerTick, 0, 1);
-    const femaleBirthProbability = clamp(world.config.femaleBirthProbability, 0, 1);
     const maxPopulation = Math.max(1, Math.round(world.config.maxPopulation));
 
     const pregnancyEntries = [...world.pregnancies.entries()].sort((a, b) => a[0] - b[0]);
@@ -170,7 +209,7 @@ export class ReproductionSystem implements System {
         continue;
       }
 
-      const childIsFemale = world.rng.next() < femaleBirthProbability;
+      const childIsFemale = world.rng.next() >= maleBirthProbability(world, pregnancy.fatherId);
       const childShape: SpawnShapeConfig = childIsFemale
         ? {
             kind: 'segment',
@@ -218,11 +257,39 @@ export class ReproductionSystem implements System {
       const motherLineage = world.lineage.get(motherId);
       const fatherLineage = world.lineage.get(pregnancy.fatherId);
       const generation = Math.max(motherLineage?.generation ?? 0, fatherLineage?.generation ?? 0) + 1;
+      const dynastyId =
+        fatherLineage?.dynastyId ??
+        fatherLineage?.id ??
+        motherLineage?.dynastyId ??
+        motherLineage?.id ??
+        childId;
       world.lineage.set(childId, {
+        id: childId,
+        birthTick: world.tick,
         motherId,
         fatherId: pregnancy.fatherId,
         generation,
+        dynastyId,
       });
+      const motherLegacy = world.legacy.get(motherId);
+      if (motherLegacy) {
+        motherLegacy.births += 1;
+      }
+      const fatherLegacy = world.legacy.get(pregnancy.fatherId);
+      if (fatherLegacy) {
+        fatherLegacy.births += 1;
+      }
+
+      const directAncestors = getLineagePathToRoot(world, childId);
+      for (const ancestorId of directAncestors) {
+        if (ancestorId === childId) {
+          continue;
+        }
+        const legacy = world.legacy.get(ancestorId);
+        if (legacy) {
+          legacy.descendantsAlive += 1;
+        }
+      }
 
       world.pregnancies.delete(motherId);
       const fertility = world.fertility.get(motherId);
@@ -272,7 +339,7 @@ export class ReproductionSystem implements System {
         continue;
       }
 
-      if (world.rng.next() >= conceptionChance) {
+      if (world.rng.next() >= conceptionChanceForPair(world, fatherId)) {
         continue;
       }
 

@@ -149,6 +149,14 @@ export class FeelingSystem implements System {
         applyHandshakeStillness(world, pair.b);
         world.handshakeCounts.set(pair.a, (world.handshakeCounts.get(pair.a) ?? 0) + 1);
         world.handshakeCounts.set(pair.b, (world.handshakeCounts.get(pair.b) ?? 0) + 1);
+        const aLegacy = world.legacy.get(pair.a);
+        if (aLegacy) {
+          aLegacy.handshakes += 1;
+        }
+        const bLegacy = world.legacy.get(pair.b);
+        if (bLegacy) {
+          bLegacy.handshakes += 1;
+        }
       }
 
       const aFeeling = world.feeling.get(pair.a);

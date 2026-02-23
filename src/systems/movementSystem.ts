@@ -1,7 +1,12 @@
 import type { MovementComponent } from '../core/components';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
-import { RandomWalkBehavior, SeekPointBehavior, StraightDriftBehavior } from './movementBehaviors';
+import {
+  RandomWalkBehavior,
+  SeekPointBehavior,
+  SocialNavBehavior,
+  StraightDriftBehavior,
+} from './movementBehaviors';
 import type { MovementBehaviorStrategy } from './movementBehaviors';
 import type { System } from './system';
 
@@ -13,6 +18,7 @@ export class MovementSystem implements System {
       randomWalk: new RandomWalkBehavior(),
       straightDrift: new StraightDriftBehavior(),
       seekPoint: new SeekPointBehavior(),
+      socialNav: new SocialNavBehavior(),
     };
   }
 

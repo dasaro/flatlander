@@ -43,6 +43,10 @@ export class FeelingApproachSystem implements System {
         continue;
       }
 
+      if (movement.type === 'socialNav') {
+        continue;
+      }
+
       let nearestId: number | null = null;
       let nearestDistance = Number.POSITIVE_INFINITY;
 
@@ -89,4 +93,3 @@ export class FeelingApproachSystem implements System {
     }
   }
 }
-

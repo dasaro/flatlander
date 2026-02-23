@@ -1,10 +1,10 @@
 import './styles.css';
 
 import type { BoundaryMode, MovementComponent } from './core/components';
+import { countLivingDescendants, getAncestors } from './core/genealogy';
 import { spawnFromRequest, type SpawnMovementConfig, type SpawnRequest } from './core/factory';
 import { FixedTimestepSimulation } from './core/simulation';
 import { boundaryFromTopology, type WorldTopology } from './core/topology';
-import { spawnHouses } from './core/worldgen/houses';
 import { createWorld, type WorldConfig } from './core/world';
 import type { Vec2 } from './geometry/vector';
 import { Camera } from './render/camera';
@@ -17,6 +17,7 @@ import { HearingSystem } from './systems/hearingSystem';
 import { PeaceCrySystem } from './systems/peaceCrySystem';
 import { CleanupSystem } from './systems/cleanupSystem';
 import { CollisionSystem } from './systems/collisionSystem';
+import { ErosionSystem } from './systems/erosionSystem';
 import { FeelingApproachSystem } from './systems/feelingApproachSystem';
 import { FeelingSystem } from './systems/feelingSystem';
 import { IntelligenceGrowthSystem } from './systems/intelligenceGrowthSystem';
@@ -25,6 +26,8 @@ import { CollisionResolutionSystem } from './systems/collisionResolutionSystem';
 import { AvoidanceSteeringSystem } from './systems/avoidanceSteeringSystem';
 import { MovementSystem } from './systems/movementSystem';
 import { ReproductionSystem } from './systems/reproductionSystem';
+import { SocialNavMindSystem } from './systems/socialNavMindSystem';
+import { SocialNavSteeringSystem } from './systems/socialNavSteeringSystem';
 import { SouthAttractionSystem } from './systems/southAttractionSystem';
 import { StillnessSystem } from './systems/stillnessSystem';
 import { SwaySystem } from './systems/swaySystem';
@@ -34,7 +37,6 @@ import { RegularizationSystem } from './systems/regularizationSystem';
 import { PickingController } from './ui/pickingController';
 import { SelectionState } from './ui/selectionState';
 import {
-  type EnvironmentSettings,
   type EventHighlightsSettings,
   type FlatlanderViewSettings,
   type FogSightSettings,
@@ -73,6 +75,8 @@ const systems = [
   new PeaceCrySystem(),
   new HearingSystem(),
   new VisionSystem(),
+  new SocialNavMindSystem(),
+  new SocialNavSteeringSystem(),
   new AvoidanceSteeringSystem(),
   new FeelingApproachSystem(),
   new MovementSystem(),
@@ -82,6 +86,7 @@ const systems = [
   new CollisionSystem(),
   new FeelingSystem(),
   new CollisionResolutionSystem(),
+  new ErosionSystem(),
   new LethalitySystem(),
   new CleanupSystem(),
   new ReproductionSystem(),
@@ -90,14 +95,6 @@ const systems = [
 let worldTopology: WorldTopology = topologyInput.value === 'bounded' ? 'bounded' : 'torus';
 const initialBoundary = boundaryFromTopology(worldTopology);
 let spawnPlan: SpawnRequest[] = applyBoundaryToSpawnPlan(defaultSpawnPlan(), initialBoundary);
-let environmentSettings: EnvironmentSettings = {
-  housesEnabled: true,
-  houseCount: 12,
-  townPopulation: 5000,
-  allowTriangularForts: false,
-  allowSquareHouses: true,
-  houseSize: 30,
-};
 let peaceCrySettings: PeaceCrySettings = {
   enabled: true,
   cadenceTicks: 20,
@@ -106,9 +103,9 @@ let peaceCrySettings: PeaceCrySettings = {
 let reproductionSettings: ReproductionSettings = {
   enabled: true,
   gestationTicks: 220,
-  matingRadius: 60,
-  conceptionChancePerTick: 0.0035,
-  femaleBirthProbability: 0.5,
+  matingRadius: 52,
+  conceptionChancePerTick: 0.0027,
+  femaleBirthProbability: 0.54,
   maxPopulation: 500,
 };
 let eventHighlightsSettings: EventHighlightsSettings = {
@@ -149,13 +146,12 @@ let world = createWorld(
       settingsToWorldConfig(
         southAttractionSettings,
         worldTopology,
-        environmentSettings,
         peaceCrySettings,
         reproductionSettings,
         fogSightSettings,
       ),
     );
-populateWorld(world, spawnPlan, environmentSettings);
+populateWorld(world, spawnPlan);
 
 const simulation = new FixedTimestepSimulation(world, systems);
 const renderer = new CanvasRenderer(canvas, world.config.width, world.config.height);
@@ -187,13 +183,12 @@ const ui = new UIController({
       settingsToWorldConfig(
         southAttractionSettings,
         worldTopology,
-        environmentSettings,
         peaceCrySettings,
         reproductionSettings,
         fogSightSettings,
       ),
     );
-    populateWorld(world, spawnPlan, environmentSettings);
+    populateWorld(world, spawnPlan);
     simulation.setWorld(world);
     effectsManager.clear();
     populationHistogram.reset(world);
@@ -217,12 +212,8 @@ const ui = new UIController({
   onTopologyUpdate: (topology) => {
     applyTopology(topology);
   },
-  onEnvironmentUpdate: (settings) => {
-    environmentSettings = {
-      ...settings,
-      allowSquareHouses: settings.townPopulation >= 10_000 ? false : settings.allowSquareHouses,
-    };
-    applyEnvironmentSettingsToWorld(world, environmentSettings);
+  onEnvironmentUpdate: () => {
+    // Houses are intentionally disabled in this milestone.
   },
   onPeaceCryDefaultsUpdate: (settings) => {
     peaceCrySettings = settings;
@@ -255,6 +246,11 @@ const ui = new UIController({
   onApplyNovelSafetyPreset: () => {
     applyNovelSafetyPreset(world);
     spawnPlan = applyNovelSafetyPresetToPlan(spawnPlan);
+    renderSelection();
+  },
+  onApplyHarmonicMotionPreset: () => {
+    applyHarmonicMotionPreset(world);
+    spawnPlan = applyHarmonicMotionPresetToPlan(spawnPlan);
     renderSelection();
   },
   onSouthAttractionUpdate: (settings) => {
@@ -466,6 +462,10 @@ function renderSelection(): void {
       null,
       null,
       null,
+      null,
+      null,
+      null,
+      'N/A',
     );
     return;
   }
@@ -487,6 +487,21 @@ function renderSelection(): void {
   const femaleStatus = world.femaleStatus.get(selectedId) ?? null;
   const sway = world.sway.get(selectedId) ?? null;
   const killCount = world.combatStats.get(selectedId)?.kills ?? 0;
+  const lineage = world.lineage.get(selectedId) ?? null;
+  const legacy = world.legacy.get(selectedId) ?? null;
+  const durability = world.durability.get(selectedId) ?? null;
+  const ancestorEntries = getAncestors(world, selectedId, 4);
+  const ancestorsLabel =
+    ancestorEntries.length > 0
+      ? ancestorEntries
+          .slice(0, 6)
+          .map((entry) => `${entry.relation}:${entry.id}`)
+          .join(', ')
+      : 'None';
+
+  if (legacy) {
+    legacy.descendantsAlive = countLivingDescendants(world, selectedId);
+  }
   if (!movement || !shape || !rank || !vision || !perception || !voice || !feeling || !knowledge) {
     selectionState.setSelected(null);
     ui.renderSelected(
@@ -508,6 +523,10 @@ function renderSelection(): void {
       null,
       null,
       null,
+      null,
+      null,
+      null,
+      'N/A',
     );
     return;
   }
@@ -531,6 +550,10 @@ function renderSelection(): void {
     femaleStatus,
     sway,
     killCount,
+    lineage,
+    legacy,
+    durability,
+    ancestorsLabel,
   );
 }
 
@@ -629,8 +652,7 @@ function applySpawnPlan(targetWorld: typeof world, plan: SpawnRequest[]): void {
   }
 }
 
-function populateWorld(targetWorld: typeof world, plan: SpawnRequest[], environment: EnvironmentSettings): void {
-  spawnHouses(targetWorld, targetWorld.rng, environment);
+function populateWorld(targetWorld: typeof world, plan: SpawnRequest[]): void {
   applySpawnPlan(targetWorld, plan);
 }
 
@@ -651,6 +673,31 @@ function mergeMovement(
 
   const inheritedHeading =
     current.type === 'straightDrift' ? fallbackHeading : Number.isFinite(current.heading) ? current.heading : 0;
+
+  if (update.type === 'socialNav') {
+    const maxSpeed = Math.max(0.1, update.maxSpeed);
+    const maxTurnRate = Math.max(0.1, update.maxTurnRate);
+    return {
+      type: 'socialNav',
+      boundary,
+      heading: inheritedHeading,
+      speed: current.type === 'straightDrift' ? maxSpeed * 0.75 : Math.min(maxSpeed, current.speed),
+      turnRate: maxTurnRate,
+      maxSpeed,
+      maxTurnRate,
+      decisionEveryTicks: Math.max(1, Math.round(update.decisionEveryTicks)),
+      intentionMinTicks: Math.max(1, Math.round(update.intentionMinTicks)),
+      intention: current.type === 'socialNav' ? current.intention : 'roam',
+      intentionTicksLeft:
+        current.type === 'socialNav'
+          ? Math.max(1, current.intentionTicksLeft)
+          : Math.max(1, Math.round(update.intentionMinTicks)),
+      smoothHeading: current.type === 'socialNav' ? current.smoothHeading : inheritedHeading,
+      smoothSpeed:
+        current.type === 'socialNav' ? Math.min(maxSpeed, current.smoothSpeed) : Math.min(maxSpeed, maxSpeed * 0.75),
+      ...(current.type === 'socialNav' && current.goal ? { goal: current.goal } : {}),
+    };
+  }
 
   if (update.type === 'randomWalk') {
     return {
@@ -677,12 +724,32 @@ function defaultSpawnPlan(): SpawnRequest[] {
     {
       shape: {
         kind: 'segment',
-        size: 24,
+        size: 22,
       },
       movement: {
-        type: 'randomWalk',
-        speed: 24,
-        turnRate: 2.2,
+        type: 'socialNav',
+        maxSpeed: 14,
+        maxTurnRate: 1.45,
+        decisionEveryTicks: 20,
+        intentionMinTicks: 95,
+        boundary: 'wrap',
+      },
+      count: 28,
+    },
+    {
+      shape: {
+        kind: 'polygon',
+        sides: 3,
+        size: 16,
+        irregular: false,
+        triangleKind: 'Equilateral',
+      },
+      movement: {
+        type: 'socialNav',
+        maxSpeed: 14,
+        maxTurnRate: 1.15,
+        decisionEveryTicks: 18,
+        intentionMinTicks: 88,
         boundary: 'wrap',
       },
       count: 16,
@@ -691,80 +758,105 @@ function defaultSpawnPlan(): SpawnRequest[] {
       shape: {
         kind: 'polygon',
         sides: 3,
-        size: 18,
+        size: 17,
         irregular: false,
-        triangleKind: 'Equilateral',
+        triangleKind: 'Isosceles',
+        isoscelesBaseRatio: 0.08,
       },
       movement: {
-        type: 'randomWalk',
-        speed: 20,
-        turnRate: 1.6,
+        type: 'socialNav',
+        maxSpeed: 16,
+        maxTurnRate: 1.3,
+        decisionEveryTicks: 14,
+        intentionMinTicks: 72,
         boundary: 'wrap',
       },
-      count: 12,
+      count: 13,
     },
     {
       shape: {
         kind: 'polygon',
-        sides: 3,
+        sides: 4,
         size: 18,
         irregular: false,
-        triangleKind: 'Isosceles',
-        isoscelesBaseRatio: 0.05,
       },
       movement: {
-        type: 'randomWalk',
-        speed: 18,
-        turnRate: 1.5,
+        type: 'socialNav',
+        maxSpeed: 13,
+        maxTurnRate: 1,
+        decisionEveryTicks: 20,
+        intentionMinTicks: 96,
         boundary: 'wrap',
       },
       count: 8,
-    },
-    {
-      shape: {
-        kind: 'polygon',
-        sides: 6,
-        size: 20,
-        irregular: true,
-      },
-      movement: {
-        type: 'randomWalk',
-        speed: 16,
-        turnRate: 1.3,
-        boundary: 'wrap',
-      },
-      count: 5,
     },
     {
       shape: {
         kind: 'polygon',
         sides: 5,
-        size: 22,
+        size: 19,
         irregular: false,
       },
       movement: {
-        type: 'straightDrift',
-        vx: 18,
-        vy: -14,
+        type: 'socialNav',
+        maxSpeed: 13,
+        maxTurnRate: 1,
+        decisionEveryTicks: 20,
+        intentionMinTicks: 96,
         boundary: 'wrap',
       },
-      count: 8,
+      count: 6,
     },
     {
       shape: {
         kind: 'polygon',
-        sides: 8,
-        size: 25,
+        sides: 6,
+        size: 19,
         irregular: false,
       },
       movement: {
-        type: 'seekPoint',
-        speed: 17,
-        turnRate: 1.1,
-        target: { x: 500, y: 350 },
+        type: 'socialNav',
+        maxSpeed: 11,
+        maxTurnRate: 0.82,
+        decisionEveryTicks: 22,
+        intentionMinTicks: 105,
         boundary: 'wrap',
       },
-      count: 6,
+      count: 4,
+    },
+    {
+      shape: {
+        kind: 'polygon',
+        sides: 7,
+        size: 20,
+        irregular: true,
+      },
+      movement: {
+        type: 'socialNav',
+        maxSpeed: 15,
+        maxTurnRate: 1.2,
+        decisionEveryTicks: 16,
+        intentionMinTicks: 75,
+        boundary: 'wrap',
+      },
+      count: 3,
+    },
+    {
+      shape: {
+        kind: 'polygon',
+        sides: 15,
+        size: 20,
+        irregular: false,
+      },
+      movement: {
+        type: 'socialNav',
+        maxSpeed: 8,
+        maxTurnRate: 0.7,
+        decisionEveryTicks: 24,
+        intentionMinTicks: 122,
+        boundary: 'wrap',
+      },
+      count: 1,
     },
     {
       shape: {
@@ -772,12 +864,14 @@ function defaultSpawnPlan(): SpawnRequest[] {
         size: 14,
       },
       movement: {
-        type: 'straightDrift',
-        vx: -9,
-        vy: 18,
+        type: 'socialNav',
+        maxSpeed: 7,
+        maxTurnRate: 0.62,
+        decisionEveryTicks: 25,
+        intentionMinTicks: 128,
         boundary: 'wrap',
       },
-      count: 3,
+      count: 1,
     },
   ];
 }
@@ -785,19 +879,16 @@ function defaultSpawnPlan(): SpawnRequest[] {
 function settingsToWorldConfig(
   settings: SouthAttractionSettings,
   topology: WorldTopology,
-  environment: EnvironmentSettings,
   peaceCry: PeaceCrySettings,
   reproduction: ReproductionSettings,
   fogSight: FogSightSettings,
 ): Partial<WorldConfig> {
   return {
     topology,
-    housesEnabled: environment.housesEnabled,
-    houseCount: environment.houseCount,
-    townPopulation: environment.townPopulation,
-    allowTriangularForts: environment.allowTriangularForts,
-    allowSquareHouses: environment.townPopulation >= 10_000 ? false : environment.allowSquareHouses,
-    houseSize: environment.houseSize,
+    housesEnabled: false,
+    houseCount: 0,
+    allowTriangularForts: false,
+    allowSquareHouses: false,
     peaceCryEnabled: peaceCry.enabled,
     defaultPeaceCryCadenceTicks: peaceCry.cadenceTicks,
     defaultPeaceCryRadius: peaceCry.radius,
@@ -818,16 +909,6 @@ function settingsToWorldConfig(
     sightEnabled: fogSight.sightEnabled,
     fogDensity: fogSight.fogDensity,
   };
-}
-
-function applyEnvironmentSettingsToWorld(worldState: typeof world, settings: EnvironmentSettings): void {
-  worldState.config.housesEnabled = settings.housesEnabled;
-  worldState.config.houseCount = settings.houseCount;
-  worldState.config.townPopulation = settings.townPopulation;
-  worldState.config.allowTriangularForts = settings.allowTriangularForts;
-  worldState.config.allowSquareHouses =
-    settings.townPopulation >= 10_000 ? false : settings.allowSquareHouses;
-  worldState.config.houseSize = settings.houseSize;
 }
 
 function applyPeaceCrySettingsToWorld(worldState: typeof world, settings: PeaceCrySettings): void {
@@ -905,7 +986,10 @@ function applyNovelSafetyPreset(worldState: typeof world): void {
   worldState.config.reproductionEnabled = true;
   worldState.config.gestationTicks = 220;
   worldState.config.matingRadius = 65;
-  worldState.config.conceptionChancePerTick = 0.004;
+  worldState.config.conceptionChancePerTick = 0.0042;
+  worldState.config.femaleBirthProbability = 0.56;
+  worldState.config.maleBirthHighRankPenaltyPerSide = 0.085;
+  worldState.config.conceptionHighRankPenaltyPerSide = 0.13;
   worldState.config.maxPopulation = 550;
   worldState.config.defaultVisionAvoidDistance = Math.max(worldState.config.defaultVisionAvoidDistance, 55);
   worldState.config.defaultVisionAvoidTurnRate = Math.max(worldState.config.defaultVisionAvoidTurnRate, 2.8);
@@ -947,11 +1031,21 @@ function applyNovelSafetyPreset(worldState: typeof world): void {
     const isIsosceles =
       shape.kind === 'polygon' && shape.sides === 3 && shape.triangleKind === 'Isosceles';
     const isWoman = shape.kind === 'segment';
-    const cap = isWoman ? 22 : isIsosceles ? 16 : 20;
+    const cap = isWoman ? 14 : isIsosceles ? 16 : 13;
     if (movement.type === 'straightDrift') {
       const driftScale = isWoman ? 0.75 : isIsosceles ? 0.65 : 0.8;
       movement.vx *= driftScale;
       movement.vy *= driftScale;
+      continue;
+    }
+
+    if (movement.type === 'socialNav') {
+      movement.maxSpeed = Math.min(movement.maxSpeed, cap);
+      movement.maxTurnRate = Math.max(movement.maxTurnRate, isWoman ? 1.4 : 1);
+      movement.speed = Math.min(movement.speed, movement.maxSpeed);
+      movement.smoothSpeed = Math.min(movement.smoothSpeed, movement.maxSpeed);
+      movement.decisionEveryTicks = Math.max(16, movement.decisionEveryTicks);
+      movement.intentionMinTicks = Math.max(80, movement.intentionMinTicks);
       continue;
     }
 
@@ -966,7 +1060,7 @@ function applyNovelSafetyPresetToPlan(plan: SpawnRequest[]): SpawnRequest[] {
     const isIsosceles =
       shape.kind === 'polygon' && shape.sides === 3 && shape.triangleKind === 'Isosceles';
     const isWoman = shape.kind === 'segment';
-    const cap = isWoman ? 22 : isIsosceles ? 16 : 20;
+    const cap = isWoman ? 14 : isIsosceles ? 16 : 13;
 
     const adjustedMovement: SpawnMovementConfig =
       movement.type === 'straightDrift'
@@ -975,6 +1069,14 @@ function applyNovelSafetyPresetToPlan(plan: SpawnRequest[]): SpawnRequest[] {
             vx: movement.vx * (isWoman ? 0.75 : isIsosceles ? 0.65 : 0.8),
             vy: movement.vy * (isWoman ? 0.75 : isIsosceles ? 0.65 : 0.8),
           }
+        : movement.type === 'socialNav'
+          ? {
+              ...movement,
+              maxSpeed: Math.min(movement.maxSpeed, cap),
+              maxTurnRate: Math.max(movement.maxTurnRate, isWoman ? 1.4 : 1),
+              decisionEveryTicks: Math.max(16, movement.decisionEveryTicks),
+              intentionMinTicks: Math.max(80, movement.intentionMinTicks),
+            }
         : {
             ...movement,
             speed: Math.min(movement.speed, cap),
@@ -987,6 +1089,44 @@ function applyNovelSafetyPresetToPlan(plan: SpawnRequest[]): SpawnRequest[] {
         enabled: request.feeling?.enabled ?? true,
         feelCooldownTicks: Math.max(20, request.feeling?.feelCooldownTicks ?? 20),
         approachSpeed: Math.min(9, request.feeling?.approachSpeed ?? 9),
+      },
+    };
+  });
+}
+
+function applyHarmonicMotionPreset(worldState: typeof world): void {
+  for (const [id, movement] of worldState.movements) {
+    if (!worldState.entities.has(id)) {
+      continue;
+    }
+
+    if (movement.type !== 'socialNav') {
+      continue;
+    }
+
+    movement.maxSpeed = Math.min(Math.max(10, movement.maxSpeed), 15);
+    movement.maxTurnRate = Math.min(Math.max(0.8, movement.maxTurnRate), 1.4);
+    movement.decisionEveryTicks = Math.max(18, movement.decisionEveryTicks);
+    movement.intentionMinTicks = Math.max(88, movement.intentionMinTicks);
+    movement.speed = Math.min(movement.speed, movement.maxSpeed);
+    movement.smoothSpeed = Math.min(movement.smoothSpeed, movement.maxSpeed);
+  }
+}
+
+function applyHarmonicMotionPresetToPlan(plan: SpawnRequest[]): SpawnRequest[] {
+  return plan.map((request) => {
+    if (request.movement.type !== 'socialNav') {
+      return request;
+    }
+
+    return {
+      ...request,
+      movement: {
+        ...request.movement,
+        maxSpeed: Math.min(Math.max(10, request.movement.maxSpeed), 15),
+        maxTurnRate: Math.min(Math.max(0.8, request.movement.maxTurnRate), 1.4),
+        decisionEveryTicks: Math.max(18, request.movement.decisionEveryTicks),
+        intentionMinTicks: Math.max(88, request.movement.intentionMinTicks),
       },
     };
   });

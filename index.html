@@ -70,6 +70,7 @@
           </div>
           <div class="button-row" style="margin-top: 6px">
             <button id="novel-safety-preset-btn" type="button">Novel Safety Preset</button>
+            <button id="harmonic-motion-preset-btn" type="button">Harmonic Motion Preset</button>
           </div>
         </section>
 
@@ -213,11 +214,11 @@
           <h2>World / Environment</h2>
           <div class="row">
             <label for="env-houses-enabled">Houses Enabled</label>
-            <input id="env-houses-enabled" type="checkbox" checked />
+            <input id="env-houses-enabled" type="checkbox" />
           </div>
           <div class="row">
             <label for="env-house-count">House Count</label>
-            <input id="env-house-count" type="number" min="0" max="200" step="1" value="12" />
+            <input id="env-house-count" type="number" min="0" max="0" step="1" value="0" />
           </div>
           <div class="row">
             <label for="env-town-population">Town Population</label>
@@ -229,11 +230,11 @@
           </div>
           <div class="row">
             <label for="env-allow-square-houses">Allow Square Houses</label>
-            <input id="env-allow-square-houses" type="checkbox" checked />
+            <input id="env-allow-square-houses" type="checkbox" />
           </div>
           <div class="row">
             <label for="env-house-size">House Size</label>
-            <input id="env-house-size" type="number" min="4" max="120" step="1" value="30" />
+            <input id="env-house-size" type="number" min="4" max="120" step="1" value="30" disabled />
           </div>
           <div class="row">
             <label for="peace-cry-enabled">Peace-Cry Enabled</label>
@@ -250,7 +251,7 @@
           <div class="button-row">
             <button id="peace-cry-apply-all" type="button">Apply Cry To Women</button>
           </div>
-          <p class="hint">Environment and peace-cry defaults apply fully after Reset.</p>
+          <p class="hint">Houses are disabled in this build. Peace-cry defaults apply fully after Reset.</p>
         </section>
 
         <section class="panel">
@@ -265,15 +266,15 @@
           </div>
           <div class="row">
             <label for="reproduction-mating-radius">Mating Radius</label>
-            <input id="reproduction-mating-radius" type="number" min="0" step="1" value="60" />
+            <input id="reproduction-mating-radius" type="number" min="0" step="1" value="52" />
           </div>
           <div class="row">
             <label for="reproduction-conception-chance">Conception / Tick</label>
-            <input id="reproduction-conception-chance" type="number" min="0" max="1" step="0.0001" value="0.0035" />
+            <input id="reproduction-conception-chance" type="number" min="0" max="1" step="0.0001" value="0.0027" />
           </div>
           <div class="row">
             <label for="reproduction-female-birth-probability">Female Birth Prob.</label>
-            <input id="reproduction-female-birth-probability" type="number" min="0" max="1" step="0.01" value="0.5" />
+            <input id="reproduction-female-birth-probability" type="number" min="0" max="1" step="0.01" value="0.54" />
           </div>
           <div class="row">
             <label for="reproduction-max-population">Max Population</label>
@@ -342,7 +343,8 @@
           <div class="row">
             <label for="spawn-movement-type">Behavior</label>
             <select id="spawn-movement-type">
-              <option value="randomWalk" selected>Random Walk</option>
+              <option value="socialNav" selected>Social Nav</option>
+              <option value="randomWalk">Random Walk</option>
               <option value="straightDrift">Straight Drift</option>
               <option value="seekPoint">Seek Point</option>
             </select>
@@ -362,6 +364,14 @@
           <div class="row" id="spawn-turn-rate-row">
             <label for="spawn-turn-rate">Turn Rate</label>
             <input id="spawn-turn-rate" type="number" step="0.1" value="2" />
+          </div>
+          <div class="row" id="spawn-social-decision-row">
+            <label for="spawn-decision-ticks">Decision Every Ticks</label>
+            <input id="spawn-decision-ticks" type="number" min="1" step="1" value="18" />
+          </div>
+          <div class="row" id="spawn-social-intention-row">
+            <label for="spawn-intention-min-ticks">Intention Min Ticks</label>
+            <input id="spawn-intention-min-ticks" type="number" min="1" step="1" value="80" />
           </div>
           <div class="row" id="spawn-drift-row">
             <label for="spawn-vx">Velocity</label>
@@ -405,6 +415,7 @@
             <div class="row">
               <label for="inspector-movement-type">Behavior</label>
               <select id="inspector-movement-type">
+                <option value="socialNav">Social Nav</option>
                 <option value="randomWalk">Random Walk</option>
                 <option value="straightDrift">Straight Drift</option>
                 <option value="seekPoint">Seek Point</option>
@@ -510,6 +521,24 @@
               <label for="inspector-turn-rate">Turn Rate</label>
               <input id="inspector-turn-rate" type="number" step="0.1" value="2" />
             </div>
+            <div id="inspector-social-row">
+              <div class="row">
+                <label for="inspector-decision-ticks">Decision Every Ticks</label>
+                <input id="inspector-decision-ticks" type="number" min="1" step="1" value="18" />
+              </div>
+              <div class="row">
+                <label for="inspector-intention-min-ticks">Intention Min Ticks</label>
+                <input id="inspector-intention-min-ticks" type="number" min="1" step="1" value="80" />
+              </div>
+              <div class="row">
+                <span>Current Intention</span>
+                <strong id="inspector-current-intention">N/A</strong>
+              </div>
+              <div class="row">
+                <span>Intention Ticks Left</span>
+                <strong id="inspector-intention-left">N/A</strong>
+              </div>
+            </div>
             <div class="row" id="inspector-drift-row">
               <label for="inspector-vx">Velocity</label>
               <div class="pair-input">
@@ -565,6 +594,52 @@
                 <span> rad | </span>
                 <strong id="inspector-sway-frequency">N/A</strong>
                 <span> Hz</span>
+              </div>
+            </div>
+            <div id="inspector-lineage-row">
+              <div class="row">
+                <span>Generation</span>
+                <strong id="inspector-generation">0</strong>
+              </div>
+              <div class="row">
+                <span>Dynasty</span>
+                <strong id="inspector-dynasty-id">N/A</strong>
+              </div>
+              <div class="row">
+                <span>Mother</span>
+                <strong id="inspector-mother-id">Unknown</strong>
+              </div>
+              <div class="row">
+                <span>Father</span>
+                <strong id="inspector-father-id">Unknown</strong>
+              </div>
+              <div class="row">
+                <span>Ancestors (depth 4)</span>
+                <strong id="inspector-ancestors">None</strong>
+              </div>
+              <div class="row">
+                <span>Legacy Births</span>
+                <strong id="inspector-legacy-births">0</strong>
+              </div>
+              <div class="row">
+                <span>Legacy Kills</span>
+                <strong id="inspector-legacy-kills">0</strong>
+              </div>
+              <div class="row">
+                <span>Legacy Handshakes</span>
+                <strong id="inspector-legacy-handshakes">0</strong>
+              </div>
+              <div class="row">
+                <span>Legacy Regularizations</span>
+                <strong id="inspector-legacy-regularizations">0</strong>
+              </div>
+              <div class="row">
+                <span>Living Descendants</span>
+                <strong id="inspector-legacy-descendants">0</strong>
+              </div>
+              <div class="row">
+                <span>Durability</span>
+                <strong id="inspector-durability">N/A</strong>
               </div>
             </div>
           </div>

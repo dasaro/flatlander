@@ -2,6 +2,39 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.7.0] - 2026-02-23
+
+### Added
+- `socialNav` movement mode with deterministic BDI-lite intention updates (`roam`, `avoid`, `yield`, `approachMate`, `approachForFeeling`).
+- `SocialNavMindSystem` and `SocialNavSteeringSystem` for smooth, low-flicker rank-aware motion.
+- Genealogy and legacy tracking:
+  - expanded lineage (`generation`, `dynastyId`, parents, birth tick)
+  - per-entity legacy counters (births, deaths caused, handshakes, regularizations, living descendants)
+  - ancestry helpers in `src/core/genealogy.ts`
+- Durability + erosion model with deterministic wear and contact damage:
+  - new `ErosionSystem`
+  - lethality sharpness now reduced by wear-based blunting.
+- Stability harness (`npm run stability`) in `src/tools/stabilityHarness.ts`.
+- Additional tests:
+  - social nav determinism/smooth heading bounds
+  - erosion behavior
+  - genealogy helpers
+  - houses-disabled defaults.
+- New root `AGENTS.md` with a Population Balance Contract and explicit stability bands.
+
+### Changed
+- Default spawn plan now starts with social-nav movement and a broader low-order distribution.
+- Reproduction defaults retuned for better long-run balance (reduced conception pressure, tuned female birth share).
+- Father-side reproduction modifiers now reduce male births and conception probability at higher male side counts.
+- Inspector extended with:
+  - social-nav state (current intention, ticks left, editable decision/intention windows)
+  - lineage/legacy/durability details.
+- Added harmonic motion preset wiring for smoother movement tuning.
+- Main system order now includes social-nav systems and erosion before lethality cleanup.
+
+### Removed
+- Houses are hard-disabled by default in runtime world setup and default config.
+
 ## [0.6.0] - 2026-02-23
 
 ### Added
