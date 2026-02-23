@@ -5,7 +5,20 @@ export interface TimelineRenderConfig {
   selectedTypes: EventType[];
   selectedRankKeys: string[];
   showLegend: boolean;
+  tickStart: number;
+  tickEnd: number;
 }
+
+interface TimelineBin {
+  tickStart: number;
+  tickEnd: number;
+  countsByType: Record<EventType, number>;
+  byTypeByRankKey: Record<EventType, Record<string, number>>;
+  total: number;
+}
+
+const CONTENT_LEFT = 38;
+const CONTENT_RIGHT_PADDING = 12;
 
 const TYPE_COLORS: Record<EventType, string> = {
   touch: '#c99d4c',
@@ -23,9 +36,33 @@ function colorFromRankKey(rankKey: string): string {
   return `hsl(${hue} 48% 44%)`;
 }
 
+function emptyCountsByType(): Record<EventType, number> {
+  return {
+    touch: 0,
+    handshake: 0,
+    peaceCry: 0,
+    stab: 0,
+    death: 0,
+    birth: 0,
+    regularized: 0,
+  };
+}
+
+function emptyByTypeByRank(): Record<EventType, Record<string, number>> {
+  return {
+    touch: {},
+    handshake: {},
+    peaceCry: {},
+    stab: {},
+    death: {},
+    birth: {},
+    regularized: {},
+  };
+}
+
 export class EventTimelineRenderer {
   private readonly ctx: CanvasRenderingContext2D;
-  private summaries: TickSummary[] = [];
+  private bins: TimelineBin[] = [];
   private hoverIndex: number | null = null;
 
   constructor(
@@ -41,18 +78,18 @@ export class EventTimelineRenderer {
     this.canvas.addEventListener('mousemove', (event) => {
       const rect = this.canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
-      const contentLeft = 32;
-      const contentRight = this.canvas.width - 8;
+      const contentLeft = CONTENT_LEFT;
+      const contentRight = this.canvas.width - CONTENT_RIGHT_PADDING;
       const contentWidth = Math.max(1, contentRight - contentLeft);
-      if (this.summaries.length === 0 || x < contentLeft || x > contentRight) {
+      if (this.bins.length === 0 || x < contentLeft || x > contentRight) {
         this.hoverIndex = null;
         this.updateTooltip();
         return;
       }
 
-      const barPitch = contentWidth / this.summaries.length;
+      const barPitch = contentWidth / this.bins.length;
       const index = Math.floor((x - contentLeft) / barPitch);
-      if (index < 0 || index >= this.summaries.length) {
+      if (index < 0 || index >= this.bins.length) {
         this.hoverIndex = null;
         this.updateTooltip();
         return;
@@ -69,14 +106,13 @@ export class EventTimelineRenderer {
   }
 
   render(summaries: TickSummary[], config: TimelineRenderConfig): void {
-    this.summaries = summaries;
     this.resizeForDisplay();
 
     const { width, height } = this.canvas;
     const top = 10;
     const bottom = height - 20;
-    const left = 32;
-    const right = width - 8;
+    const left = CONTENT_LEFT;
+    const right = width - CONTENT_RIGHT_PADDING;
     const contentWidth = Math.max(1, right - left);
     const contentHeight = Math.max(1, bottom - top);
 
@@ -89,58 +125,185 @@ export class EventTimelineRenderer {
     this.ctx.beginPath();
     this.ctx.moveTo(left, bottom + 0.5);
     this.ctx.lineTo(right, bottom + 0.5);
+    this.ctx.moveTo(left + 0.5, top);
+    this.ctx.lineTo(left + 0.5, bottom);
     this.ctx.stroke();
 
-    if (summaries.length === 0) {
-      this.ctx.fillStyle = '#736a5b';
-      this.ctx.font = '12px Trebuchet MS, sans-serif';
-      this.ctx.fillText('No events for current filters', left + 6, top + 12);
-      this.updateTooltip();
-      return;
-    }
-
-    const stackedByIndex = summaries.map((summary) =>
-      this.stackedEntries(summary, config.splitByRank, config.selectedTypes, config.selectedRankKeys),
+    const tickStart = Math.max(0, Math.floor(config.tickStart));
+    const tickEnd = Math.max(tickStart, Math.floor(config.tickEnd));
+    const bins = this.buildBins(
+      summaries,
+      config.splitByRank,
+      config.selectedTypes,
+      config.selectedRankKeys,
+      contentWidth,
+      tickStart,
+      tickEnd,
     );
-    const totals = stackedByIndex.map((entries) =>
-      entries.reduce((sum, entry) => sum + entry.value, 0),
-    );
-    const maxTotal = Math.max(1, ...totals);
-    const barPitch = contentWidth / summaries.length;
-    const barWidth = Math.max(1, Math.floor(barPitch * 0.75));
+    this.bins = bins;
 
-    for (let i = 0; i < summaries.length; i += 1) {
-      const entries = stackedByIndex[i] ?? [];
-      if (entries.length === 0) {
+    const maxTotal = Math.max(1, ...bins.map((bin) => bin.total));
+    const barPitch = contentWidth / bins.length;
+    const barWidth = Math.max(1, Math.floor(barPitch));
+
+    for (let i = 0; i < bins.length; i += 1) {
+      const bin = bins[i];
+      if (!bin) {
         continue;
       }
+      const x = left + i * barPitch;
 
-      const x = left + i * barPitch + (barPitch - barWidth) / 2;
-      let y = bottom;
-      const total = totals[i] ?? 0;
-      for (const entry of entries) {
-        const ratio = total > 0 ? entry.value / maxTotal : 0;
-        const h = ratio * contentHeight;
-        y -= h;
-        this.ctx.fillStyle = entry.color;
-        this.ctx.fillRect(x, y, barWidth, h);
+      // Draw slot background so empty bins remain visible and aligned with the full tick range.
+      this.ctx.fillStyle = 'rgba(84, 74, 54, 0.06)';
+      this.ctx.fillRect(x, top, barWidth, contentHeight);
+
+      if (bin.total > 0) {
+        let y = bottom;
+        const entries = this.stackedEntriesFromBin(
+          bin,
+          config.splitByRank,
+          config.selectedTypes,
+          config.selectedRankKeys,
+        );
+        for (const entry of entries) {
+          const ratio = entry.value / maxTotal;
+          const h = ratio * contentHeight;
+          y -= h;
+          this.ctx.fillStyle = entry.color;
+          this.ctx.fillRect(x, y, barWidth, h);
+        }
       }
 
       if (this.hoverIndex === i) {
         this.ctx.strokeStyle = '#2f2b24';
-        this.ctx.lineWidth = 1.3;
-        this.ctx.strokeRect(x - 1, y - 1, barWidth + 2, bottom - y + 2);
+        this.ctx.lineWidth = 1.2;
+        this.ctx.strokeRect(x - 0.5, top - 0.5, barWidth + 1, contentHeight + 1);
       }
     }
 
     this.ctx.fillStyle = '#2b2721';
     this.ctx.font = '11px Trebuchet MS, sans-serif';
-    const firstTick = summaries[0]?.tick ?? 0;
-    const lastTick = summaries[summaries.length - 1]?.tick ?? firstTick;
-    this.ctx.fillText(`eventful ticks: ${summaries.length}`, left, height - 6);
-    this.ctx.fillText(`ticks ${firstTick}..${lastTick}`, right - 110, height - 6);
+    const nonEmptyBins = bins.reduce((count, bin) => count + (bin.total > 0 ? 1 : 0), 0);
+    this.ctx.fillText(`bins with events: ${nonEmptyBins}/${bins.length}`, left, height - 6);
+    this.ctx.fillText(`ticks ${tickStart}..${tickEnd}`, right - 110, height - 6);
+
+    if (summaries.length === 0) {
+      this.ctx.fillStyle = '#736a5b';
+      this.ctx.font = '12px Trebuchet MS, sans-serif';
+      this.ctx.fillText('No events for current filters', left + 6, top + 12);
+    }
 
     this.updateTooltip();
+  }
+
+  private buildBins(
+    summaries: TickSummary[],
+    splitByRank: boolean,
+    selectedTypes: EventType[],
+    selectedRankKeys: string[],
+    contentWidth: number,
+    tickStart: number,
+    tickEnd: number,
+  ): TimelineBin[] {
+    const binCount = Math.max(1, Math.floor(contentWidth));
+    const bins: TimelineBin[] = Array.from({ length: binCount }, (_, index) => {
+      const start = Math.floor(tickStart + (index / binCount) * (tickEnd - tickStart + 1));
+      const end =
+        index === binCount - 1
+          ? tickEnd
+          : Math.floor(tickStart + ((index + 1) / binCount) * (tickEnd - tickStart + 1)) - 1;
+      return {
+        tickStart: start,
+        tickEnd: Math.max(start, end),
+        countsByType: emptyCountsByType(),
+        byTypeByRankKey: emptyByTypeByRank(),
+        total: 0,
+      };
+    });
+
+    const tickSpan = Math.max(1, tickEnd - tickStart);
+    for (const summary of summaries) {
+      const normalized = (summary.tick - tickStart) / tickSpan;
+      const clamped = Math.max(0, Math.min(1, normalized));
+      const index = Math.min(binCount - 1, Math.floor(clamped * (binCount - 1)));
+      const bin = bins[index];
+      if (!bin) {
+        continue;
+      }
+
+      const entries = this.stackedEntries(summary, splitByRank, selectedTypes, selectedRankKeys);
+      const binTotal = entries.reduce((sum, entry) => sum + entry.value, 0);
+      bin.total += binTotal;
+
+      for (const eventType of selectedTypes) {
+        const value = summary.countsByType[eventType] ?? 0;
+        bin.countsByType[eventType] += value;
+      }
+
+      if (splitByRank) {
+        for (const eventType of selectedTypes) {
+          const byRank = summary.byTypeByRankKey[eventType];
+          if (!byRank) {
+            continue;
+          }
+          for (const [rankKey, value] of Object.entries(byRank)) {
+            bin.byTypeByRankKey[eventType][rankKey] =
+              (bin.byTypeByRankKey[eventType][rankKey] ?? 0) + value;
+          }
+        }
+      }
+    }
+
+    return bins;
+  }
+
+  private stackedEntriesFromBin(
+    bin: TimelineBin,
+    splitByRank: boolean,
+    selectedTypes: EventType[],
+    selectedRankKeys: string[],
+  ): Array<{ value: number; color: string }> {
+    if (splitByRank) {
+      const rankOrder = selectedRankKeys.length > 0 ? selectedRankKeys : this.rankKeysInBin(bin, selectedTypes);
+      const entries: Array<{ value: number; color: string }> = [];
+      for (const rankKey of rankOrder) {
+        let value = 0;
+        for (const eventType of selectedTypes) {
+          value += bin.byTypeByRankKey[eventType]?.[rankKey] ?? 0;
+        }
+        if (value <= 0) {
+          continue;
+        }
+        entries.push({
+          value,
+          color: colorFromRankKey(rankKey),
+        });
+      }
+      return entries;
+    }
+
+    const entries: Array<{ value: number; color: string }> = [];
+    for (const eventType of selectedTypes) {
+      const value = bin.countsByType[eventType] ?? 0;
+      if (value <= 0) {
+        continue;
+      }
+      entries.push({
+        value,
+        color: TYPE_COLORS[eventType],
+      });
+    }
+    return entries;
+  }
+
+  private rankKeysInBin(bin: TimelineBin, selectedTypes: EventType[]): string[] {
+    const keys = new Set<string>();
+    for (const eventType of selectedTypes) {
+      for (const rankKey of Object.keys(bin.byTypeByRankKey[eventType] ?? {})) {
+        keys.add(rankKey);
+      }
+    }
+    return [...keys].sort((a, b) => a.localeCompare(b));
   }
 
   private stackedEntries(
@@ -188,19 +351,21 @@ export class EventTimelineRenderer {
       return;
     }
 
-    const summary = this.summaries[this.hoverIndex];
-    if (!summary) {
+    const bin = this.bins[this.hoverIndex];
+    if (!bin) {
       this.tooltipElement.textContent = 'Hover bars for tick details.';
       return;
     }
 
     const typeParts: string[] = [];
-    for (const [type, count] of Object.entries(summary.countsByType)) {
+    for (const [type, count] of Object.entries(bin.countsByType)) {
       if (count > 0) {
         typeParts.push(`${type}:${count}`);
       }
     }
-    this.tooltipElement.textContent = `tick ${summary.tick} | ${typeParts.join('  ') || 'no events'}`;
+    const tickLabel =
+      bin.tickStart === bin.tickEnd ? `tick ${bin.tickStart}` : `ticks ${bin.tickStart}-${bin.tickEnd}`;
+    this.tooltipElement.textContent = `${tickLabel} | ${typeParts.join('  ') || 'no events'}`;
   }
 
   private resizeForDisplay(): void {

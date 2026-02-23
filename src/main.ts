@@ -218,7 +218,7 @@ const effectsManager = new EffectsManager();
 effectsManager.setSettings(eventHighlightsSettings);
 const flatlanderViewRenderer = new FlatlanderViewRenderer(flatlanderCanvas);
 const populationHistogram = new PopulationHistogram(histogramCanvas);
-const eventAnalytics = new EventAnalytics(1500);
+const eventAnalytics = new EventAnalytics(Number.POSITIVE_INFINITY);
 const eventTimelineRenderer = hasEventTimelineUi
   ? new EventTimelineRenderer(eventTimelineCanvas, eventTimelineTooltip)
   : null;
@@ -916,6 +916,8 @@ function renderEventTimeline(): void {
     selectedTypes: [...selectedTypes],
     selectedRankKeys: [...selectedRanks],
     showLegend: timelineShowLegend,
+    tickStart: 0,
+    tickEnd: world.tick,
   });
   eventTimelineLegend.hidden = !timelineShowLegend;
 }

@@ -108,44 +108,66 @@ export class PopulationHistogram {
       1,
       ...bins.map((bin) => (bin.count > 0 ? bin.population / bin.count : 0)),
     );
-    const barWidth = Math.max(1, Math.floor(chartWidth / bins.length));
     this.drawPopulationScaleGrid(left, right, top, bottom, maxPopulation);
+    const envelopeHeights = bins.map((bin) => {
+      if (!bin || bin.count <= 0 || bin.population <= 0) {
+        return 0;
+      }
+      const avgPopulation = bin.population / bin.count;
+      return (avgPopulation / maxPopulation) * chartHeight;
+    });
 
     this.ctx.save();
     this.ctx.beginPath();
     this.ctx.rect(left, top, chartWidth, bottom - top);
     this.ctx.clip();
 
+    const bandBottomY: number[][] = Array.from({ length: COMPOSITION_GROUPS.length }, () =>
+      new Array<number>(bins.length).fill(bottom),
+    );
+    const bandTopY: number[][] = Array.from({ length: COMPOSITION_GROUPS.length }, () =>
+      new Array<number>(bins.length).fill(bottom),
+    );
+
     for (let i = 0; i < bins.length; i += 1) {
       const bin = bins[i];
-      if (!bin || bin.count <= 0 || bin.population <= 0) {
+      const envelopeHeight = envelopeHeights[i] ?? 0;
+      if (!bin || bin.count <= 0 || bin.population <= 0 || envelopeHeight <= 0) {
         continue;
       }
 
-      const x = left + i;
-      let y = bottom;
       const avgPopulation = bin.population / bin.count;
-      if (avgPopulation <= 0) {
-        continue;
-      }
-      const envelopeHeight = (avgPopulation / maxPopulation) * chartHeight;
-      if (envelopeHeight <= 0) {
-        continue;
-      }
+      let cumulative = 0;
       for (let groupIndex = 0; groupIndex < COMPOSITION_GROUPS.length; groupIndex += 1) {
         const avgGroupPopulation = (bin.groups[groupIndex] ?? 0) / bin.count;
-        if (avgGroupPopulation <= 0) {
-          continue;
-        }
-        const fraction = avgGroupPopulation / avgPopulation;
-        if (fraction <= 0) {
-          continue;
-        }
-        const h = fraction * envelopeHeight;
-        y -= h;
-        this.ctx.fillStyle = COMPOSITION_GROUPS[groupIndex]?.color ?? '#888888';
-        this.ctx.fillRect(x, y, barWidth, h + 0.5);
+        const fraction = avgPopulation > 0 ? avgGroupPopulation / avgPopulation : 0;
+        const bandHeight = Math.max(0, fraction * envelopeHeight);
+        const lowerY = bottom - cumulative;
+        const upperY = lowerY - bandHeight;
+        bandBottomY[groupIndex]![i] = lowerY;
+        bandTopY[groupIndex]![i] = upperY;
+        cumulative += bandHeight;
       }
+    }
+
+    for (let groupIndex = 0; groupIndex < COMPOSITION_GROUPS.length; groupIndex += 1) {
+      const bottomBand = bandBottomY[groupIndex];
+      const topBand = bandTopY[groupIndex];
+      if (!bottomBand || !topBand || bottomBand.length === 0 || topBand.length === 0) {
+        continue;
+      }
+
+      this.ctx.beginPath();
+      this.ctx.moveTo(left, bottomBand[0] ?? bottom);
+      for (let i = 1; i < bins.length; i += 1) {
+        this.ctx.lineTo(left + i, bottomBand[i] ?? bottom);
+      }
+      for (let i = bins.length - 1; i >= 0; i -= 1) {
+        this.ctx.lineTo(left + i, topBand[i] ?? bottom);
+      }
+      this.ctx.closePath();
+      this.ctx.fillStyle = COMPOSITION_GROUPS[groupIndex]?.color ?? '#888888';
+      this.ctx.fill();
     }
 
     this.ctx.restore();
