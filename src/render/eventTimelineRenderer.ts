@@ -111,10 +111,11 @@ export class EventTimelineRenderer {
     const { width, height } = this.canvas;
     const top = 10;
     const bottom = height - 20;
+    const baseY = bottom - 6;
     const left = CONTENT_LEFT;
     const right = width - CONTENT_RIGHT_PADDING;
     const contentWidth = Math.max(1, right - left);
-    const contentHeight = Math.max(1, bottom - top);
+    const contentHeight = Math.max(1, baseY - top);
 
     this.ctx.clearRect(0, 0, width, height);
     this.ctx.fillStyle = '#fffdf8';
@@ -123,10 +124,10 @@ export class EventTimelineRenderer {
     this.ctx.strokeStyle = '#9e957f';
     this.ctx.lineWidth = 1;
     this.ctx.beginPath();
-    this.ctx.moveTo(left, bottom + 0.5);
-    this.ctx.lineTo(right, bottom + 0.5);
+    this.ctx.moveTo(left, baseY + 0.5);
+    this.ctx.lineTo(right, baseY + 0.5);
     this.ctx.moveTo(left + 0.5, top);
-    this.ctx.lineTo(left + 0.5, bottom);
+    this.ctx.lineTo(left + 0.5, baseY);
     this.ctx.stroke();
 
     const tickStart = Math.max(0, Math.floor(config.tickStart));
@@ -152,13 +153,13 @@ export class EventTimelineRenderer {
     const maxTotal = Math.max(1, ...bins.map((bin) => bin.total));
     const maxDepth = Math.max(1, ...entriesByBin.map((entries) => entries.length));
     const barPitch = contentWidth / bins.length;
-    const laneGap = Math.max(9, Math.min(18, contentHeight / (maxDepth + 1)));
+    const laneGap = Math.max(10, Math.min(22, contentHeight / (maxDepth + 1)));
     const maxDiamondRadius = Math.max(3, Math.min(8, barPitch * 0.35));
 
     this.ctx.strokeStyle = 'rgba(117, 106, 85, 0.2)';
     this.ctx.lineWidth = 1;
     for (let row = 1; row <= maxDepth; row += 1) {
-      const y = bottom - row * laneGap + 0.5;
+      const y = baseY - row * laneGap + 0.5;
       this.ctx.beginPath();
       this.ctx.moveTo(left, y);
       this.ctx.lineTo(right, y);
@@ -174,14 +175,14 @@ export class EventTimelineRenderer {
       const entries = entriesByBin[i] ?? [];
 
       if (bin.total <= 0 || entries.length === 0) {
-        this.drawDiamond(xCenter, bottom - laneGap, 2.5, 'rgba(112, 101, 83, 0.16)', false);
+        this.drawDiamond(xCenter, baseY - laneGap, 2.5, 'rgba(112, 101, 83, 0.16)', false);
       } else {
         for (let layer = 0; layer < entries.length; layer += 1) {
           const entry = entries[layer];
           if (!entry) {
             continue;
           }
-          const yCenter = bottom - (layer + 1) * laneGap;
+          const yCenter = baseY - (layer + 1) * laneGap;
           const valueRatio = Math.max(0, Math.min(1, entry.value / maxTotal));
           const radius = Math.max(2.5, maxDiamondRadius * (0.45 + 0.55 * Math.sqrt(valueRatio)));
           this.drawDiamond(xCenter, yCenter, radius, entry.color, true);
@@ -192,7 +193,7 @@ export class EventTimelineRenderer {
         const highlightWidth = Math.max(2, barPitch);
         this.ctx.strokeStyle = '#2f2b24';
         this.ctx.lineWidth = 1;
-        this.ctx.strokeRect(xCenter - highlightWidth * 0.5, top, highlightWidth, contentHeight);
+        this.ctx.strokeRect(xCenter - highlightWidth * 0.5, top, highlightWidth, contentHeight + 6);
       }
     }
 

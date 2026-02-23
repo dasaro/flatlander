@@ -303,7 +303,8 @@ export class PopulationHistogram {
     firstTick: number,
     tickSpan: number,
   ): Array<{ count: number; population: number; groups: number[] }> {
-    const columns = Math.max(1, Math.min(Math.floor(chartWidth), 420));
+    const maxColumnsFromTicks = Math.max(1, Math.floor(tickSpan) + 1);
+    const columns = Math.max(1, Math.min(Math.floor(chartWidth), 420, maxColumnsFromTicks));
     const bins = Array.from({ length: columns }, () => ({
       count: 0,
       population: 0,
