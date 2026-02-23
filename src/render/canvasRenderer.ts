@@ -8,7 +8,6 @@ import type { Camera } from './camera';
 import { selectTopKnownIds } from './contactNetwork';
 import type { EffectsManager } from './effects';
 import { fogIntensityAtDistance, fogRingRadiusForLevel, visualAlpha } from './viewModifiers';
-import { APP_VERSION } from '../version';
 
 export interface RenderOptions {
   showSouthZoneOverlay?: boolean;
@@ -34,6 +33,7 @@ export interface RenderOptions {
 
 export class CanvasRenderer {
   private readonly ctx: CanvasRenderingContext2D;
+  private appVersionText = 'v0.0.0';
 
   constructor(private readonly canvas: HTMLCanvasElement, width: number, height: number) {
     const context = canvas.getContext('2d');
@@ -48,6 +48,10 @@ export class CanvasRenderer {
   setWorldSize(width: number, height: number): void {
     this.canvas.width = width;
     this.canvas.height = height;
+  }
+
+  setAppVersion(version: string): void {
+    this.appVersionText = version.startsWith('v') ? version : `v${version}`;
   }
 
   render(
@@ -232,7 +236,7 @@ export class CanvasRenderer {
     this.ctx.font = '12px Trebuchet MS, sans-serif';
     this.ctx.fillStyle = '#2e2b25';
     this.ctx.fillText('SOUTH', x, y);
-    const versionText = `v${APP_VERSION}`;
+    const versionText = this.appVersionText;
     const versionWidth = this.ctx.measureText(versionText).width;
     this.ctx.fillText(versionText, this.canvas.width - versionWidth - 10, 12);
 

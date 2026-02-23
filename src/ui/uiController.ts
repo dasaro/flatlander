@@ -1083,6 +1083,7 @@ export class UIController {
     this.refs.envHousesEnabled.disabled = true;
     this.refs.envHouseCount.value = '0';
     this.refs.envHouseCount.disabled = true;
+    this.refs.envTownPopulation.disabled = true;
     this.refs.envAllowTriangularForts.checked = false;
     this.refs.envAllowTriangularForts.disabled = true;
     this.refs.envAllowSquareHouses.checked = false;

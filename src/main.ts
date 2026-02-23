@@ -91,8 +91,10 @@ if (!(topologyInput instanceof HTMLSelectElement)) {
   throw new Error('Missing #world-topology select element.');
 }
 const versionBadge = document.getElementById('app-version-badge');
+const quickRunBtn = document.getElementById('quick-run-btn');
 const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
 const appShell = document.getElementById('app-shell');
+const primaryRunBtn = document.getElementById('run-btn');
 
 const systems = [
   new SouthAttractionSystem(),
@@ -202,6 +204,7 @@ populateWorld(world, spawnPlan);
 
 const simulation = new FixedTimestepSimulation(world, systems);
 const renderer = new CanvasRenderer(canvas, world.config.width, world.config.height);
+renderer.setAppVersion(APP_VERSION);
 const effectsManager = new EffectsManager();
 effectsManager.setSettings(eventHighlightsSettings);
 const flatlanderViewRenderer = new FlatlanderViewRenderer(flatlanderCanvas);
@@ -237,6 +240,13 @@ if (versionBadge instanceof HTMLElement) {
 }
 if (appShell instanceof HTMLElement && sidebarToggleBtn instanceof HTMLButtonElement) {
   initializeResponsiveUi(appShell, sidebarToggleBtn);
+}
+if (quickRunBtn instanceof HTMLButtonElement && primaryRunBtn instanceof HTMLButtonElement) {
+  syncQuickRunButton(quickRunBtn, primaryRunBtn);
+  quickRunBtn.addEventListener('click', () => {
+    primaryRunBtn.click();
+    syncQuickRunButton(quickRunBtn, primaryRunBtn);
+  });
 }
 initializePanelCollapsers();
 wireTimelineControls();
@@ -524,6 +534,9 @@ function frame(now: number): void {
   populationHistogram.render();
   renderEventTimeline();
   ui.renderStats(world);
+  if (quickRunBtn instanceof HTMLButtonElement && primaryRunBtn instanceof HTMLButtonElement) {
+    syncQuickRunButton(quickRunBtn, primaryRunBtn);
+  }
   requestAnimationFrame(frame);
 }
 
@@ -1381,6 +1394,14 @@ function initializeResponsiveUi(shell: HTMLElement, toggleButton: HTMLButtonElem
   toggleButton.addEventListener('click', () => {
     shell.classList.toggle(collapsedClass);
   });
+}
+
+function syncQuickRunButton(quickButton: HTMLButtonElement, primaryButton: HTMLButtonElement): void {
+  quickButton.textContent = primaryButton.textContent || 'Start';
+  quickButton.setAttribute(
+    'aria-label',
+    `Quick ${quickButton.textContent?.toLowerCase() === 'pause' ? 'pause' : 'start'} simulation`,
+  );
 }
 
 function initializePanelCollapsers(): void {

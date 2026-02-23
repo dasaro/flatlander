@@ -9,7 +9,10 @@
     <header class="app-bar">
       <button id="sidebar-toggle-btn" type="button" class="sidebar-toggle" aria-label="Toggle menu">☰</button>
       <div class="app-bar-title">Flatlander</div>
-      <div id="app-version-badge" class="app-version-badge">v0.0.0</div>
+      <div class="app-bar-right">
+        <button id="quick-run-btn" type="button" class="quick-run-btn">Start</button>
+        <div id="app-version-badge" class="app-version-badge">v0.0.0</div>
+      </div>
     </header>
     <div class="app-shell" id="app-shell">
       <aside class="sidebar" id="sidebar">
@@ -301,7 +304,7 @@
           </div>
           <div class="row">
             <label for="env-town-population">Town Population</label>
-            <input id="env-town-population" type="number" min="0" step="100" value="5000" />
+            <input id="env-town-population" type="number" min="0" step="100" value="5000" disabled />
           </div>
           <div class="row">
             <label for="env-allow-triangular-forts">Allow Triangular Forts</label>
