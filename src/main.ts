@@ -1146,7 +1146,7 @@ function applyBoundaryToSpawnPlan(plan: SpawnRequest[], boundary: BoundaryMode):
 
 function applyNovelSafetyPreset(worldState: typeof world): void {
   worldState.config.handshakeStillnessTicks = 12;
-  worldState.config.compensationEnabled = true;
+  worldState.config.compensationEnabled = false;
   worldState.config.compensationRate = 0.55;
   worldState.config.intelligenceGrowthPerSecond = 0.004;
   worldState.config.handshakeIntelligenceBonus = 0.015;

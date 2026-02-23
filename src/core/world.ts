@@ -5,6 +5,7 @@ import type { WorldTopology } from './topology';
 import type {
   AgeComponent,
   AudiblePing,
+  BrainAngleComponent,
   CombatStatsComponent,
   DurabilityComponent,
   EntityId,
@@ -171,6 +172,7 @@ export interface World {
   stillness: Map<EntityId, StillnessComponent>;
   sleep: Map<EntityId, SleepComponent>;
   intelligence: Map<EntityId, IntelligenceComponent>;
+  brainAngles: Map<EntityId, BrainAngleComponent>;
   irregularity: Map<EntityId, IrregularityComponent>;
   handshakeCounts: Map<EntityId, number>;
   audiblePings: AudiblePing[];
@@ -207,7 +209,7 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   conceptionHighRankPenaltyPerSide: 0.13,
   maxPopulation: 500,
   handshakeStillnessTicks: 12,
-  compensationEnabled: true,
+  compensationEnabled: false,
   compensationRate: 0.4,
   intelligenceGrowthPerSecond: 0.003,
   handshakeIntelligenceBonus: 0.01,
@@ -313,6 +315,7 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     stillness: new Map(),
     sleep: new Map(),
     intelligence: new Map(),
+    brainAngles: new Map(),
     irregularity: new Map(),
     handshakeCounts: new Map(),
     audiblePings: [],

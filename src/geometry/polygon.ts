@@ -37,7 +37,7 @@ export function radialDeviation(radial: number[]): number {
 
 export function isoscelesTriangleVertices(equalSideLength: number, baseRatio: number): Vec2[] {
   const side = Math.max(1, equalSideLength);
-  const safeRatio = clamp(baseRatio, 0.01, 0.95);
+  const safeRatio = clamp(baseRatio, 0.005, 0.95);
   const base = side * safeRatio;
   const halfBase = base / 2;
   const height = Math.sqrt(Math.max(EPSILON, side * side - halfBase * halfBase));

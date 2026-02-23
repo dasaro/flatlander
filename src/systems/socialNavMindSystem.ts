@@ -51,7 +51,7 @@ function sightDirectionCandidate(world: World, entityId: EntityId): DirectionCan
   }
   return {
     id: hit.hitId,
-    distance: hit.distance,
+    distance: hit.distance ?? Number.POSITIVE_INFINITY,
     direction: hit.direction,
   };
 }

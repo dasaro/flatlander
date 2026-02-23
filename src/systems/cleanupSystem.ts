@@ -45,6 +45,7 @@ export class CleanupSystem implements System {
       world.stillness.delete(id);
       world.sleep.delete(id);
       world.intelligence.delete(id);
+      world.brainAngles.delete(id);
       world.irregularity.delete(id);
       world.handshakeCounts.delete(id);
       world.geometries.delete(id);

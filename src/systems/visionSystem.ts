@@ -27,6 +27,7 @@ interface VisionTarget {
 interface VisionCandidate {
   id: number;
   distance: number;
+  intensity: number;
   direction: Vec2;
   kind: 'entity' | 'boundary';
   boundarySide?: 'north' | 'south' | 'west' | 'east';
@@ -101,13 +102,14 @@ function isBetterCandidate(next: VisionCandidate, best: VisionCandidate | null):
 export class VisionSystem implements System {
   update(world: World): void {
     world.visionHits.clear();
-    if (!world.config.sightEnabled || world.config.fogDensity <= 0) {
+    if (!world.config.sightEnabled) {
       return;
     }
 
     const ids = getSortedEntityIds(world);
     const targets = collectTargets(world, ids);
     const fogDensity = Math.max(0, world.config.fogDensity);
+    const hasDimnessCue = fogDensity > 0;
     const fogMinIntensity = Math.max(0, world.config.fogMinIntensity);
     const fogMaxDistance = Math.max(0, world.config.fogMaxDistance);
     const boundedTopology = world.config.topology === 'bounded';
@@ -146,12 +148,13 @@ export class VisionSystem implements System {
         if (boundedTopology) {
           const boundaryHit = raycastWorldBounds(eye, rayDirection, world.config.width, world.config.height);
           if (boundaryHit && boundaryHit.distance <= vision.range && boundaryHit.distance <= fogMaxDistance) {
-            const intensity = Math.exp(-fogDensity * boundaryHit.distance);
-            const effective = intensity * perception.sightSkill;
+            const intensity = hasDimnessCue ? Math.exp(-fogDensity * boundaryHit.distance) : 1;
+            const effective = hasDimnessCue ? intensity * perception.sightSkill : perception.sightSkill;
             if (effective >= fogMinIntensity) {
               const candidate: VisionCandidate = {
                 id: WORLD_BOUNDARY_HIT_IDS[boundaryHit.side],
                 distance: boundaryHit.distance,
+                intensity,
                 direction: rayDirection,
                 kind: 'boundary',
                 boundarySide: boundaryHit.side,
@@ -185,8 +188,8 @@ export class VisionSystem implements System {
             continue;
           }
 
-          const intensity = Math.exp(-fogDensity * hitDistance);
-          const effective = intensity * perception.sightSkill;
+          const intensity = hasDimnessCue ? Math.exp(-fogDensity * hitDistance) : 1;
+          const effective = hasDimnessCue ? intensity * perception.sightSkill : perception.sightSkill;
           if (effective < fogMinIntensity) {
             continue;
           }
@@ -194,6 +197,7 @@ export class VisionSystem implements System {
           const candidate: VisionCandidate = {
             id: target.id,
             distance: hitDistance,
+            intensity,
             direction: rayDirection,
             kind: 'entity',
           };
@@ -206,7 +210,9 @@ export class VisionSystem implements System {
       if (best !== null) {
         world.visionHits.set(id, {
           hitId: best.id,
-          distance: best.distance,
+          distance: hasDimnessCue ? best.distance : null,
+          distanceReliable: hasDimnessCue,
+          intensity: hasDimnessCue ? best.intensity : 1,
           direction: best.direction,
           kind: best.kind,
           ...(best.boundarySide ? { boundarySide: best.boundarySide } : {}),

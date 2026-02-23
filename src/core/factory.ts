@@ -29,6 +29,14 @@ import {
   defaultFemaleStatus,
   defaultSwayForFemaleRank,
 } from './femaleStatus';
+import {
+  baseRatioFromBrainAngleDeg,
+  brainAngleDegFromBaseRatio,
+  MAX_BRAIN_RATIO,
+  MAX_CANON_BRAIN_ANGLE_DEG,
+  MIN_BRAIN_RATIO,
+  MIN_CANON_BRAIN_ANGLE_DEG,
+} from './isosceles';
 import { initialIntelligenceForRank } from './intelligence';
 import { defaultPerceptionForRank } from './perceptionPresets';
 import { rankFromShape, Rank } from './rank';
@@ -53,6 +61,7 @@ export interface PolygonSpawnConfig {
   irregular: boolean;
   triangleKind?: TriangleKind;
   isoscelesBaseRatio?: number;
+  brainAngleDeg?: number;
   radial?: number[];
   maxDeviationDeg?: number;
 }
@@ -135,9 +144,9 @@ export interface SpawnFemaleStatusConfig {
   femaleRank?: FemaleRank;
 }
 
-export const DEFAULT_ISOSCELES_BASE_RATIO = 0.05;
-export const MIN_ISOSCELES_BASE_RATIO = 0.01;
-export const MAX_ISOSCELES_BASE_RATIO = 0.95;
+export const DEFAULT_ISOSCELES_BASE_RATIO = baseRatioFromBrainAngleDeg(MIN_CANON_BRAIN_ANGLE_DEG);
+export const MIN_ISOSCELES_BASE_RATIO = MIN_BRAIN_RATIO;
+export const MAX_ISOSCELES_BASE_RATIO = MAX_BRAIN_RATIO;
 
 export function spawnFromRequest(world: World, request: SpawnRequest): EntityId[] {
   const created: EntityId[] = [];
@@ -210,6 +219,16 @@ export function spawnEntity(
   world.ages.set(id, { ticksAlive: 0 });
   world.sleep.set(id, { asleep: false, stillTicks: 0 });
   world.intelligence.set(id, { value: initialIntelligenceForRank(rank) });
+  if (
+    shape.kind === 'polygon' &&
+    shape.sides === 3 &&
+    shape.triangleKind === 'Isosceles' &&
+    shape.isoscelesBaseRatio !== undefined
+  ) {
+    world.brainAngles.set(id, {
+      brainAngleDeg: brainAngleDegFromBaseRatio(shape.isoscelesBaseRatio),
+    });
+  }
   if (shape.kind === 'polygon' && shape.irregular && shape.radial) {
     world.irregularity.set(id, {
       deviation: radialDeviation(shape.radial),
@@ -420,8 +439,14 @@ function shapeFromConfig(world: World, config: SpawnShapeConfig): ShapeComponent
 
   if (sides === 3 && config.triangleKind === 'Isosceles') {
     triangleKind = 'Isosceles';
+    const canonicalBrainAngleDeg =
+      config.brainAngleDeg !== undefined
+        ? clamp(config.brainAngleDeg, MIN_CANON_BRAIN_ANGLE_DEG, MAX_CANON_BRAIN_ANGLE_DEG)
+        : undefined;
     isoscelesBaseRatio = clamp(
-      config.isoscelesBaseRatio ?? DEFAULT_ISOSCELES_BASE_RATIO,
+      canonicalBrainAngleDeg !== undefined
+        ? baseRatioFromBrainAngleDeg(canonicalBrainAngleDeg)
+        : (config.isoscelesBaseRatio ?? DEFAULT_ISOSCELES_BASE_RATIO),
       MIN_ISOSCELES_BASE_RATIO,
       MAX_ISOSCELES_BASE_RATIO,
     );

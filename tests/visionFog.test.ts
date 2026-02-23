@@ -32,7 +32,7 @@ function setupViewer(worldSeed: number, overrides: Parameters<typeof createWorld
 }
 
 describe('fog-gated sight recognition', () => {
-  it('disables sight recognition when fogDensity is zero', () => {
+  it('keeps presence hits when fogDensity is zero but without dimness-based distance reliability', () => {
     const { world, viewerId } = setupViewer(11, {
       fogDensity: 0,
       sightEnabled: true,
@@ -46,7 +46,11 @@ describe('fog-gated sight recognition', () => {
 
     const system = new VisionSystem();
     system.update(world);
-    expect(world.visionHits.has(viewerId)).toBe(false);
+    const hit = world.visionHits.get(viewerId);
+    expect(hit?.hitId).toBeDefined();
+    expect(hit?.distance).toBeNull();
+    expect(hit?.distanceReliable).toBe(false);
+    expect(hit?.intensity ?? 0).toBeCloseTo(1, 9);
   });
 
   it('recognizes nearer targets with fog and ignores targets beyond fogMaxDistance', () => {
@@ -73,7 +77,8 @@ describe('fog-gated sight recognition', () => {
     system.update(world);
     const hit = world.visionHits.get(viewerId);
     expect(hit?.hitId).toBe(nearId);
-    expect(hit?.distance ?? 0).toBeLessThan(120);
+    expect(hit?.distance ?? Number.POSITIVE_INFINITY).toBeLessThan(120);
+    expect(hit?.distanceReliable).toBe(true);
 
     const { world: farOnlyWorld, viewerId: farOnlyViewerId } = setupViewer(22, {
       fogDensity: 0.01,

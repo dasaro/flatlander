@@ -100,6 +100,7 @@ export class AvoidanceSteeringSystem implements System {
         vision.enabled &&
         visionHit &&
         vision.avoidDistance > 0 &&
+        visionHit.distance !== null &&
         visionHit.distance < vision.avoidDistance
       ) {
         const toHit =
@@ -117,6 +118,12 @@ export class AvoidanceSteeringSystem implements System {
           turnDelta -= sideSign * avoidTurnRate * dt;
           usedSight = true;
         }
+      } else if (vision && vision.enabled && visionHit && !visionHit.distanceReliable) {
+        // Canon fog-free sight: presence is visible, but distance cue is unreliable.
+        const toHit = visionHit.direction;
+        const side = cross(forward, toHit);
+        const sideSign = side >= 0 ? 1 : -1;
+        turnDelta -= sideSign * avoidTurnRate * 0.2 * dt;
       }
 
       const hearingHit = usedSight
