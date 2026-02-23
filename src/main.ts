@@ -51,6 +51,16 @@ import {
 import { EventDrainPipeline } from './ui/eventDrainPipeline';
 import { APP_VERSION } from './version';
 
+const TIMELINE_TYPE_CONTROL_IDS: Record<EventType, string> = {
+  touch: 'timeline-type-touch',
+  handshake: 'timeline-type-handshake',
+  peaceCry: 'timeline-type-peaceCry',
+  stab: 'timeline-type-stab',
+  death: 'timeline-type-death',
+  birth: 'timeline-type-birth',
+  regularized: 'timeline-type-regularized',
+};
+
 const canvas = document.getElementById('world-canvas');
 if (!(canvas instanceof HTMLCanvasElement)) {
   throw new Error('Missing #world-canvas canvas element.');
@@ -60,17 +70,12 @@ if (!(histogramCanvas instanceof HTMLCanvasElement)) {
   throw new Error('Missing #population-histogram canvas element.');
 }
 const eventTimelineCanvas = document.getElementById('event-timeline-canvas');
-if (!(eventTimelineCanvas instanceof HTMLCanvasElement)) {
-  throw new Error('Missing #event-timeline-canvas canvas element.');
-}
 const eventTimelineTooltip = document.getElementById('event-timeline-tooltip');
-if (!(eventTimelineTooltip instanceof HTMLElement)) {
-  throw new Error('Missing #event-timeline-tooltip element.');
-}
 const eventTimelineLegend = document.getElementById('event-timeline-legend');
-if (!(eventTimelineLegend instanceof HTMLElement)) {
-  throw new Error('Missing #event-timeline-legend element.');
-}
+const hasEventTimelineUi =
+  eventTimelineCanvas instanceof HTMLCanvasElement &&
+  eventTimelineTooltip instanceof HTMLElement &&
+  eventTimelineLegend instanceof HTMLElement;
 const flatlanderCanvas = document.getElementById('flatlander-canvas');
 if (!(flatlanderCanvas instanceof HTMLCanvasElement)) {
   throw new Error('Missing #flatlander-canvas canvas element.');
@@ -85,17 +90,8 @@ if (!(topologyInput instanceof HTMLSelectElement)) {
   throw new Error('Missing #world-topology select element.');
 }
 const versionBadge = document.getElementById('app-version-badge');
-if (!(versionBadge instanceof HTMLElement)) {
-  throw new Error('Missing #app-version-badge element.');
-}
 const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
-if (!(sidebarToggleBtn instanceof HTMLButtonElement)) {
-  throw new Error('Missing #sidebar-toggle-btn button.');
-}
 const appShell = document.getElementById('app-shell');
-if (!(appShell instanceof HTMLElement)) {
-  throw new Error('Missing #app-shell element.');
-}
 
 const systems = [
   new SouthAttractionSystem(),
@@ -194,7 +190,9 @@ effectsManager.setSettings(eventHighlightsSettings);
 const flatlanderViewRenderer = new FlatlanderViewRenderer(flatlanderCanvas);
 const populationHistogram = new PopulationHistogram(histogramCanvas);
 const eventAnalytics = new EventAnalytics(1500);
-const eventTimelineRenderer = new EventTimelineRenderer(eventTimelineCanvas, eventTimelineTooltip);
+const eventTimelineRenderer = hasEventTimelineUi
+  ? new EventTimelineRenderer(eventTimelineCanvas, eventTimelineTooltip)
+  : null;
 populationHistogram.reset(world);
 const camera = new Camera(world.config.width, world.config.height);
 const selectionState = new SelectionState();
@@ -217,8 +215,12 @@ let timelineSplitByRank = readCheckbox('timeline-split-by-rank');
 let timelineShowLegend = readCheckbox('timeline-show-legend');
 
 document.title = `Flatlander ${APP_VERSION}`;
-versionBadge.textContent = `v${APP_VERSION}`;
-initializeResponsiveUi(appShell, sidebarToggleBtn);
+if (versionBadge instanceof HTMLElement) {
+  versionBadge.textContent = `v${APP_VERSION}`;
+}
+if (appShell instanceof HTMLElement && sidebarToggleBtn instanceof HTMLButtonElement) {
+  initializeResponsiveUi(appShell, sidebarToggleBtn);
+}
 initializePanelCollapsers();
 wireTimelineControls();
 
@@ -704,6 +706,9 @@ function processTickEvents(): void {
 }
 
 function renderEventTimeline(): void {
+  if (!eventTimelineRenderer || !(eventTimelineLegend instanceof HTMLElement)) {
+    return;
+  }
   syncDynamicRankFilters();
   const selectedTypes = readSelectedTimelineTypes();
   const selectedRanks = readSelectedTimelineRankKeys();
@@ -724,9 +729,7 @@ function renderEventTimeline(): void {
     selectedRankKeys: [...selectedRanks],
     showLegend: timelineShowLegend,
   });
-  if (eventTimelineLegend) {
-    eventTimelineLegend.hidden = !timelineShowLegend;
-  }
+  eventTimelineLegend.hidden = !timelineShowLegend;
 }
 
 function readInitialSeed(raw: string): number {
@@ -1220,16 +1223,6 @@ function applyHarmonicMotionPresetToPlan(plan: SpawnRequest[]): SpawnRequest[] {
   });
 }
 
-const TIMELINE_TYPE_CONTROL_IDS: Record<EventType, string> = {
-  touch: 'timeline-type-touch',
-  handshake: 'timeline-type-handshake',
-  peaceCry: 'timeline-type-peaceCry',
-  stab: 'timeline-type-stab',
-  death: 'timeline-type-death',
-  birth: 'timeline-type-birth',
-  regularized: 'timeline-type-regularized',
-};
-
 function readCheckbox(id: string): boolean {
   const element = document.getElementById(id);
   return element instanceof HTMLInputElement ? element.checked : false;
@@ -1312,9 +1305,19 @@ function syncDynamicRankFilters(): void {
     return;
   }
 
+  const escapeSelectorValue = (value: string): string => {
+    const cssEscape = (globalThis as { CSS?: { escape?: (input: string) => string } }).CSS?.escape;
+    if (typeof cssEscape === 'function') {
+      return cssEscape(value);
+    }
+    return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  };
+
   const observed = eventAnalytics.getObservedRankKeys();
   for (const rankKey of observed) {
-    const existing = container.querySelector<HTMLInputElement>(`input[data-rank-filter="${CSS.escape(rankKey)}"]`);
+    const existing = container.querySelector<HTMLInputElement>(
+      `input[data-rank-filter="${escapeSelectorValue(rankKey)}"]`,
+    );
     if (existing) {
       continue;
     }
@@ -1359,8 +1362,12 @@ function initializePanelCollapsers(): void {
     collapseButton.setAttribute('aria-label', 'Collapse panel');
     header.appendChild(collapseButton);
 
-    const savedState = localStorage.getItem(storageKey);
-    const collapsed = savedState === 'collapsed';
+    let collapsed = false;
+    try {
+      collapsed = localStorage.getItem(storageKey) === 'collapsed';
+    } catch {
+      collapsed = false;
+    }
     if (collapsed) {
       panel.classList.add('collapsed');
       collapseButton.textContent = '▸';
@@ -1371,7 +1378,11 @@ function initializePanelCollapsers(): void {
       event.stopPropagation();
       const isCollapsed = panel.classList.toggle('collapsed');
       collapseButton.textContent = isCollapsed ? '▸' : '▾';
-      localStorage.setItem(storageKey, isCollapsed ? 'collapsed' : 'open');
+      try {
+        localStorage.setItem(storageKey, isCollapsed ? 'collapsed' : 'open');
+      } catch {
+        // Ignore storage failures (private mode / restricted storage).
+      }
     });
   });
 }

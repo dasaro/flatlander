@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.7.2] - 2026-02-23
+
+### Fixed
+- GUI startup regression introduced in `0.7.1`:
+  - fixed initialization-order crash (`Cannot access 'TIMELINE_TYPE_CONTROL_IDS' before initialization`) that prevented the app script from booting.
+- Timeline UI is now fail-safe:
+  - timeline renderer initializes only when timeline elements exist, so missing/partial DOM no longer hard-crashes the app.
+- Sidebar panel collapse state is now storage-safe:
+  - localStorage read/write failures (private mode / restricted storage) are caught and ignored instead of breaking startup.
+- Added safe selector escaping fallback when `CSS.escape` is unavailable.
+- Version injection hardened:
+  - Vite now falls back to reading `package.json` version when `npm_package_version` is absent.
+
 ## [0.7.1] - 2026-02-23
 
 ### Added
