@@ -69,9 +69,15 @@ function resolveVelocityAgainstNormal(world: World, entityId: EntityId, normal: 
   applyVelocity(movement, transform, corrected);
 }
 
+function accumulateCorrection(world: World, entityId: EntityId, amount: number): void {
+  const next = (world.lastCorrections.get(entityId) ?? 0) + Math.max(0, amount);
+  world.lastCorrections.set(entityId, next);
+}
+
 export class CollisionResolutionSystem implements System {
   update(world: World, _dt: number): void {
     void _dt;
+    world.lastCorrections.clear();
     if (world.manifolds.length === 0) {
       return;
     }
@@ -107,6 +113,11 @@ export class CollisionResolutionSystem implements System {
 
         const penetration = Math.max(0, manifold.penetration);
         const correctionMagnitude = Math.max(0, penetration - slop) * percent;
+        if (correctionMagnitude <= 0) {
+          resolveVelocityAgainstNormal(world, aId, manifold.normal);
+          resolveVelocityAgainstNormal(world, bId, mul(manifold.normal, -1));
+          continue;
+        }
         const correction = mul(manifold.normal, correctionMagnitude);
 
         if (!aStatic && !bStatic) {
@@ -115,16 +126,20 @@ export class CollisionResolutionSystem implements System {
             x: bTransform.position.x + correction.x * 0.5,
             y: bTransform.position.y + correction.y * 0.5,
           };
+          accumulateCorrection(world, aId, correctionMagnitude * 0.5);
+          accumulateCorrection(world, bId, correctionMagnitude * 0.5);
           correctWorldBounds(world, aTransform);
           correctWorldBounds(world, bTransform);
         } else if (!aStatic) {
           aTransform.position = sub(aTransform.position, correction);
+          accumulateCorrection(world, aId, correctionMagnitude);
           correctWorldBounds(world, aTransform);
         } else if (!bStatic) {
           bTransform.position = {
             x: bTransform.position.x + correction.x,
             y: bTransform.position.y + correction.y,
           };
+          accumulateCorrection(world, bId, correctionMagnitude);
           correctWorldBounds(world, bTransform);
         }
 

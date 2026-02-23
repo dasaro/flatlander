@@ -4,6 +4,7 @@ import { rankKeyForEntity } from '../core/rankKey';
 import { boundaryFromTopology } from '../core/topology';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
+import { generateAngleDeviationRadialProfile } from '../geometry/polygon';
 import { clamp, distance, wrap } from '../geometry/vector';
 import type { Vec2 } from '../geometry/vector';
 import type { System } from './system';
@@ -118,7 +119,15 @@ function conceptionChanceForPair(world: World, fatherId: number): number {
 }
 
 function irregularBirthChance(world: World, motherId: number, fatherId: number): number {
-  const base = clamp(world.config.irregularBirthChance, 0, 1);
+  if (!world.config.irregularBirthsEnabled) {
+    return 0;
+  }
+
+  const configuredBase =
+    Number.isFinite(world.config.irregularBirthBaseChance) && world.config.irregularBirthBaseChance >= 0
+      ? world.config.irregularBirthBaseChance
+      : world.config.irregularBirthChance;
+  const base = clamp(configuredBase, 0, 1);
   const boost = Math.max(0, world.config.irregularInheritanceBoost);
   const motherShape = world.shapes.get(motherId);
   const fatherShape = world.shapes.get(fatherId);
@@ -224,9 +233,26 @@ export class ReproductionSystem implements System {
 
             const makeIrregular =
               world.rng.next() < irregularBirthChance(world, motherId, pregnancy.fatherId);
+            if (!makeIrregular) {
+              return {
+                ...male,
+                irregular: false,
+              };
+            }
+
+            const profile = generateAngleDeviationRadialProfile(
+              male.sides,
+              male.size,
+              world.rng,
+              world.config.irregularDeviationStdMinDeg,
+              world.config.irregularDeviationStdMaxDeg,
+              world.config.irregularDeviationCapDeg,
+            );
             return {
               ...male,
-              irregular: makeIrregular,
+              irregular: true,
+              radial: profile.radial,
+              maxDeviationDeg: profile.maxDeviationDeg,
             };
           })();
       const inheritedFemaleRank = childIsFemale

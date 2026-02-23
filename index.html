@@ -117,6 +117,59 @@
             <label for="event-stroke-kills">Stroke By Kills</label>
             <input id="event-stroke-kills" type="checkbox" />
           </div>
+          <div class="row">
+            <label for="overlay-contact-network">Contact Network</label>
+            <input id="overlay-contact-network" type="checkbox" />
+          </div>
+          <div class="row">
+            <label for="overlay-network-parents">Network Parents</label>
+            <input id="overlay-network-parents" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="overlay-network-known">Network Known</label>
+            <input id="overlay-network-known" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="overlay-network-max-known">Max Known Edges</label>
+            <input id="overlay-network-max-known" type="number" min="0" max="200" step="1" value="25" />
+          </div>
+          <div class="row">
+            <label for="overlay-network-on-screen">Only On Screen</label>
+            <input id="overlay-network-on-screen" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="overlay-network-focus-radius">Focus Radius</label>
+            <input id="overlay-network-focus-radius" type="number" min="0" step="1" value="400" />
+          </div>
+          <div class="row">
+            <label for="overlay-dim-age">Dim By Age</label>
+            <input id="overlay-dim-age" type="checkbox" />
+          </div>
+          <div class="row">
+            <label for="overlay-dim-deterioration">Dim By Deterioration</label>
+            <input id="overlay-dim-deterioration" type="checkbox" />
+          </div>
+          <div class="row">
+            <label for="overlay-dim-strength">Dimming Strength</label>
+            <input id="overlay-dim-strength" type="number" min="0" max="1" step="0.05" value="0.25" />
+          </div>
+          <div class="row">
+            <label for="overlay-fog-preview">Fog Preview (Selected)</label>
+            <input id="overlay-fog-preview" type="checkbox" />
+          </div>
+          <div class="row">
+            <label for="overlay-fog-preview-strength">Fog Preview Strength</label>
+            <input id="overlay-fog-preview-strength" type="number" min="0" max="1" step="0.05" value="0.2" />
+          </div>
+          <div class="row">
+            <label for="overlay-fog-preview-hide-min">Hide Below Fog Min</label>
+            <input id="overlay-fog-preview-hide-min" type="checkbox" />
+          </div>
+          <div class="row">
+            <label for="overlay-fog-rings">Show Fog Rings</label>
+            <input id="overlay-fog-rings" type="checkbox" />
+          </div>
+          <p class="hint">Network legend: solid=parent, dashed=known</p>
           <p class="hint">Kill stroke legend: 0 / 1-2 / 3-5 / 6+</p>
           <div class="button-row">
             <button id="event-highlights-clear" type="button">Clear Effects</button>
@@ -305,6 +358,21 @@
           <div class="row">
             <label for="reproduction-max-population">Max Population</label>
             <input id="reproduction-max-population" type="number" min="1" step="1" value="500" />
+          </div>
+          <div class="row">
+            <label for="reproduction-irregular-enabled">Irregular Births</label>
+            <input id="reproduction-irregular-enabled" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="reproduction-irregular-base-chance">Irregular Base Chance</label>
+            <input
+              id="reproduction-irregular-base-chance"
+              type="number"
+              min="0"
+              max="1"
+              step="0.0001"
+              value="0.02"
+            />
           </div>
           <p class="hint">Reset preserves current reproduction settings.</p>
         </section>
@@ -662,6 +730,10 @@
               <div class="row">
                 <span>Living Descendants</span>
                 <strong id="inspector-legacy-descendants">0</strong>
+              </div>
+              <div class="row">
+                <span>Age (ticks)</span>
+                <strong id="inspector-age">0</strong>
               </div>
               <div class="row">
                 <span>Durability</span>

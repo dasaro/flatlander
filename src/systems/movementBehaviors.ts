@@ -7,7 +7,7 @@ import type {
   TransformComponent,
 } from '../core/components';
 import type { World } from '../core/world';
-import { angleToVector, clamp, normalize, sub, vec, wrap } from '../geometry/vector';
+import { EPSILON, angleToVector, clamp, normalize, sub, vec, wrap } from '../geometry/vector';
 import type { Vec2 } from '../geometry/vector';
 
 export interface MovementBehaviorStrategy<T extends MovementComponent = MovementComponent> {
@@ -37,6 +37,10 @@ function stepTransform(transform: TransformComponent, velocity: Vec2, dt: number
     x: transform.position.x + velocity.x * dt,
     y: transform.position.y + velocity.y * dt,
   };
+}
+
+function speedOf(velocity: Vec2): number {
+  return Math.hypot(velocity.x, velocity.y);
 }
 
 function velocityWithSouthDrift(world: World, entityId: number, intendedVelocity: Vec2): Vec2 {
@@ -103,8 +107,11 @@ export class RandomWalkBehavior implements MovementBehaviorStrategy<RandomWalkMo
     stepTransform(transform, velocity, dt);
     velocity = applyBoundary(world, movement, velocity, transform);
 
-    movement.heading = Math.atan2(velocity.y, velocity.x);
-    transform.rotation = movement.heading;
+    const speed = speedOf(velocity);
+    if (speed > EPSILON) {
+      movement.heading = normalizeAngle(Math.atan2(velocity.y, velocity.x));
+      transform.rotation = movement.heading;
+    }
   }
 }
 
@@ -127,7 +134,9 @@ export class StraightDriftBehavior implements MovementBehaviorStrategy<StraightD
 
     movement.vx = velocity.x;
     movement.vy = velocity.y - driftVy;
-    transform.rotation = Math.atan2(velocity.y, velocity.x);
+    if (speedOf(velocity) > EPSILON) {
+      transform.rotation = normalizeAngle(Math.atan2(velocity.y, velocity.x));
+    }
   }
 }
 
@@ -159,8 +168,11 @@ export class SeekPointBehavior implements MovementBehaviorStrategy<SeekPointMove
     stepTransform(transform, velocity, dt);
     velocity = applyBoundary(world, movement, velocity, transform);
 
-    movement.heading = Math.atan2(velocity.y, velocity.x);
-    transform.rotation = movement.heading;
+    const speed = speedOf(velocity);
+    if (speed > EPSILON) {
+      movement.heading = normalizeAngle(Math.atan2(velocity.y, velocity.x));
+      transform.rotation = movement.heading;
+    }
   }
 }
 
@@ -184,10 +196,13 @@ export class SocialNavBehavior implements MovementBehaviorStrategy<SocialNavMove
     stepTransform(transform, velocity, dt);
     velocity = applyBoundary(world, movement, velocity, transform);
 
-    movement.heading = Math.atan2(velocity.y, velocity.x);
-    movement.smoothHeading = movement.heading;
-    movement.speed = Math.max(0, Math.hypot(velocity.x, velocity.y));
+    const nextSpeed = Math.max(0, speedOf(velocity));
+    if (nextSpeed > EPSILON) {
+      movement.heading = normalizeAngle(Math.atan2(velocity.y, velocity.x));
+      movement.smoothHeading = movement.heading;
+      transform.rotation = movement.heading;
+    }
+    movement.speed = nextSpeed;
     movement.smoothSpeed = movement.speed;
-    transform.rotation = movement.heading;
   }
 }

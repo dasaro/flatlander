@@ -43,10 +43,12 @@ export class CleanupSystem implements System {
       world.femaleStatus.delete(id);
       world.sway.delete(id);
       world.stillness.delete(id);
+      world.sleep.delete(id);
       world.intelligence.delete(id);
       world.irregularity.delete(id);
       world.handshakeCounts.delete(id);
       world.geometries.delete(id);
+      world.lastCorrections.delete(id);
     }
 
     if (toRemove.length > 0 && world.stabPressure.size > 0) {

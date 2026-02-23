@@ -21,6 +21,7 @@ import { SocialNavMindSystem } from '../systems/socialNavMindSystem';
 import { SocialNavSteeringSystem } from '../systems/socialNavSteeringSystem';
 import { SouthAttractionSystem } from '../systems/southAttractionSystem';
 import { StillnessSystem } from '../systems/stillnessSystem';
+import { SleepSystem } from '../systems/sleepSystem';
 import { SwaySystem } from '../systems/swaySystem';
 import { VisionSystem } from '../systems/visionSystem';
 
@@ -176,6 +177,7 @@ function runSeed(seed: number, ticks: number): Distribution {
     new SouthAttractionSystem(),
     new IntelligenceGrowthSystem(),
     new StillnessSystem(),
+    new SleepSystem(),
     new PeaceCrySystem(),
     new HearingSystem(),
     new VisionSystem(),

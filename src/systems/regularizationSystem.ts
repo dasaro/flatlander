@@ -2,7 +2,12 @@ import { rankFromShape, Rank } from '../core/rank';
 import { rankKeyForEntity } from '../core/rankKey';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
-import { radialDeviation, radialPolygonVertices, regularPolygonVertices } from '../geometry/polygon';
+import {
+  maxAngleDeviationDegrees,
+  radialDeviation,
+  radialPolygonVertices,
+  regularPolygonVertices,
+} from '../geometry/polygon';
 import { clamp, distance, vec } from '../geometry/vector';
 import type { System } from './system';
 
@@ -43,12 +48,15 @@ export class RegularizationSystem implements System {
         }
       }
 
-      const deviation = radialDeviation(shape.radial);
-      shape.irregularity = deviation;
       shape.vertices = radialPolygonVertices(shape.sides, shape.baseRadius, shape.radial);
+      const deviation = radialDeviation(shape.radial);
+      const angleDeviationDeg = maxAngleDeviationDegrees(shape.vertices);
+      shape.irregularity = deviation;
       shape.boundingRadius = boundingRadius(shape.vertices);
+      shape.maxDeviationDeg = angleDeviationDeg;
       world.irregularity.set(id, {
         deviation,
+        angleDeviationDeg,
       });
 
       if (deviation > tolerance) {
@@ -62,6 +70,7 @@ export class RegularizationSystem implements System {
       shape.irregular = false;
       delete shape.radial;
       delete shape.baseRadius;
+      delete shape.maxDeviationDeg;
       shape.regular = true;
       world.irregularity.delete(id);
 

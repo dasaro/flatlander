@@ -180,6 +180,23 @@ export function internalAngles(vertices: Vec2[]): number[] {
   return angles;
 }
 
+export function maxAngleDeviationDegrees(vertices: Vec2[]): number {
+  if (vertices.length < 3) {
+    return 0;
+  }
+
+  const angles = internalAngles(vertices);
+  const idealAngle = ((Math.max(3, vertices.length) - 2) * Math.PI) / Math.max(3, vertices.length);
+  let maxDeviation = 0;
+  for (const angle of angles) {
+    const deviation = Math.abs(angle - idealAngle) * (180 / Math.PI);
+    if (deviation > maxDeviation) {
+      maxDeviation = deviation;
+    }
+  }
+  return maxDeviation;
+}
+
 export function minimumInternalAngle(vertices: Vec2[]): number {
   const angles = internalAngles(vertices);
   return angles.reduce((min, value) => Math.min(min, value), Number.POSITIVE_INFINITY);
@@ -227,6 +244,77 @@ export interface IrregularRadialPolygonResult {
   vertices: Vec2[];
   irregularity: number;
   radial: number[];
+}
+
+export interface AngleDeviationRadialResult {
+  vertices: Vec2[];
+  radial: number[];
+  maxDeviationDeg: number;
+}
+
+export function generateAngleDeviationRadialProfile(
+  sides: number,
+  radius: number,
+  rng: SeededRng,
+  stdMinDeg: number,
+  stdMaxDeg: number,
+  capDeg: number,
+): AngleDeviationRadialResult {
+  const safeSides = Math.max(3, Math.round(sides));
+  const minDeg = Math.max(0, Math.min(stdMinDeg, stdMaxDeg));
+  const maxDeg = Math.max(minDeg, Math.max(stdMinDeg, stdMaxDeg));
+  const safeCap = Math.max(0.05, capDeg);
+  const targetStdDeg = clamp(rng.nextRange(minDeg, maxDeg), 0.05, safeCap);
+
+  const noise: number[] = [];
+  for (let i = 0; i < safeSides; i += 1) {
+    noise.push(rng.nextRange(-1, 1));
+  }
+
+  const noiseMean = mean(noise);
+  const centered = noise.map((value) => value - noiseMean);
+  const noiseStd = Math.max(EPSILON, stddev(centered, 0));
+  const amplitude = clamp(targetStdDeg / 18, 0.01, 0.22);
+
+  const radial = centered.map((value) => clamp(1 + (value / noiseStd) * amplitude, 0.68, 1.32));
+  for (let pass = 0; pass < 2; pass += 1) {
+    const smoothed = new Array(radial.length).fill(1);
+    for (let i = 0; i < radial.length; i += 1) {
+      const prev = radial[(i - 1 + radial.length) % radial.length] ?? 1;
+      const curr = radial[i] ?? 1;
+      const next = radial[(i + 1) % radial.length] ?? 1;
+      smoothed[i] = clamp((prev + curr * 2 + next) / 4, 0.72, 1.28);
+    }
+    for (let i = 0; i < radial.length; i += 1) {
+      radial[i] = smoothed[i] ?? radial[i] ?? 1;
+    }
+  }
+
+  let vertices = ensureCounterClockwise(radialPolygonVertices(safeSides, radius, radial));
+  if (!isConvex(vertices)) {
+    for (let i = 0; i < radial.length; i += 1) {
+      const value = radial[i] ?? 1;
+      radial[i] = 1 + (value - 1) * 0.7;
+    }
+    vertices = ensureCounterClockwise(radialPolygonVertices(safeSides, radius, radial));
+  }
+
+  let maxDeviationDeg = maxAngleDeviationDegrees(vertices);
+  if (maxDeviationDeg > safeCap && maxDeviationDeg > EPSILON) {
+    const scale = safeCap / maxDeviationDeg;
+    for (let i = 0; i < radial.length; i += 1) {
+      const value = radial[i] ?? 1;
+      radial[i] = 1 + (value - 1) * scale;
+    }
+    vertices = ensureCounterClockwise(radialPolygonVertices(safeSides, radius, radial));
+    maxDeviationDeg = maxAngleDeviationDegrees(vertices);
+  }
+
+  return {
+    vertices,
+    radial,
+    maxDeviationDeg: Math.min(maxDeviationDeg, safeCap),
+  };
 }
 
 export function generateIrregularRadialPolygon(

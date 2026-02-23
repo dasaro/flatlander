@@ -272,6 +272,10 @@ export class SocialNavMindSystem implements System {
       if (!movement || movement.type !== 'socialNav' || !transform || world.staticObstacles.has(id)) {
         continue;
       }
+      if (world.sleep.get(id)?.asleep) {
+        movement.intentionTicksLeft = Math.max(0, movement.intentionTicksLeft - 1);
+        continue;
+      }
 
       const needDecision = movement.intentionTicksLeft <= 0;
       const visionHit = world.visionHits.get(id);

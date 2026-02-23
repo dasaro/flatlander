@@ -2,6 +2,32 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.7.3] - 2026-02-23
+
+### Added
+- Contact-network overlay for selected entities in God-view:
+  - parent links (solid), known links (dashed), deterministic known-edge capping.
+- Optional visual overlays:
+  - age dimming,
+  - deterioration dimming from durability (`hp/maxHp`),
+  - selected-observer fog preview with optional fog rings.
+- New deterministic sleep/settle stabilization:
+  - `SleepSystem` with wake-on-impact support,
+  - per-entity collision correction tracking (`world.lastCorrections`).
+- Novel-inspired irregular birth model updates:
+  - deterministic angle-deviation radial profile generation for irregular male polygon births,
+  - angle deviation metadata (`maxDeviationDeg`) propagated to shape/inspector data.
+- New tests:
+  - contact-network known-edge selection,
+  - view modifier alpha/fog helpers,
+  - sleep system behavior,
+  - irregular-birth cap/determinism assertions in reproduction tests.
+
+### Changed
+- Reproduction settings now include irregular-birth controls (`enabled`, base chance) and apply to reset/create-world flow.
+- Regularization now refreshes and tracks angle-deviation metadata while converging irregular polygons.
+- Movement/steering jitter reduced with tiny-angle deadbands and low-speed rotation guards.
+
 ## [0.7.2] - 2026-02-23
 
 ### Fixed

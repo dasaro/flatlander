@@ -22,6 +22,7 @@ import type {
   PerceptionComponent,
   PeaceCryComponent,
   PregnancyComponent,
+  SleepComponent,
   StillnessComponent,
   SouthDriftComponent,
   SwayComponent,
@@ -106,11 +107,21 @@ export interface WorldConfig {
   regularizationEnabled: boolean;
   regularizationRate: number;
   regularityTolerance: number;
+  irregularBirthsEnabled: boolean;
+  irregularBirthBaseChance: number;
   irregularBirthChance: number;
   irregularInheritanceBoost: number;
+  irregularDeviationStdMinDeg: number;
+  irregularDeviationStdMaxDeg: number;
+  irregularDeviationCapDeg: number;
   defaultVisionRange: number;
   defaultVisionAvoidDistance: number;
   defaultVisionAvoidTurnRate: number;
+  sleepEnabled: boolean;
+  sleepSpeedEps: number;
+  sleepCorrectionEps: number;
+  sleepAfterTicks: number;
+  wakeOnImpactSpeed: number;
 }
 
 export interface CollisionRecord {
@@ -158,6 +169,7 @@ export interface World {
   femaleStatus: Map<EntityId, FemaleStatusComponent>;
   sway: Map<EntityId, SwayComponent>;
   stillness: Map<EntityId, StillnessComponent>;
+  sleep: Map<EntityId, SleepComponent>;
   intelligence: Map<EntityId, IntelligenceComponent>;
   irregularity: Map<EntityId, IrregularityComponent>;
   handshakeCounts: Map<EntityId, number>;
@@ -169,6 +181,7 @@ export interface World {
   deathsThisTick: number;
   regularizedThisTick: number;
   geometries: Map<EntityId, GeometryShape>;
+  lastCorrections: Map<EntityId, number>;
   events: EventQueue;
 }
 
@@ -243,11 +256,21 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   regularizationEnabled: true,
   regularizationRate: 0.15,
   regularityTolerance: 0.015,
+  irregularBirthsEnabled: true,
+  irregularBirthBaseChance: 0.02,
   irregularBirthChance: 0.02,
   irregularInheritanceBoost: 0.08,
+  irregularDeviationStdMinDeg: 0.2,
+  irregularDeviationStdMaxDeg: 0.8,
+  irregularDeviationCapDeg: 2,
   defaultVisionRange: 120,
   defaultVisionAvoidDistance: 40,
   defaultVisionAvoidTurnRate: 2.5,
+  sleepEnabled: true,
+  sleepSpeedEps: 0.15,
+  sleepCorrectionEps: 0.08,
+  sleepAfterTicks: 30,
+  wakeOnImpactSpeed: 0.8,
 };
 
 export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}): World {
@@ -288,6 +311,7 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     femaleStatus: new Map(),
     sway: new Map(),
     stillness: new Map(),
+    sleep: new Map(),
     intelligence: new Map(),
     irregularity: new Map(),
     handshakeCounts: new Map(),
@@ -299,6 +323,7 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     deathsThisTick: 0,
     regularizedThisTick: 0,
     geometries: new Map(),
+    lastCorrections: new Map(),
     events: new EventQueue(),
   };
 }

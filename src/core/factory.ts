@@ -2,6 +2,7 @@ import {
   generateIrregularRadialPolygon,
   isoscelesTriangleVertices,
   radialDeviation,
+  radialPolygonVertices,
   regularPolygonVertices,
   regularityMetric,
 } from '../geometry/polygon';
@@ -52,6 +53,8 @@ export interface PolygonSpawnConfig {
   irregular: boolean;
   triangleKind?: TriangleKind;
   isoscelesBaseRatio?: number;
+  radial?: number[];
+  maxDeviationDeg?: number;
 }
 
 export type SpawnShapeConfig = SegmentSpawnConfig | CircleSpawnConfig | PolygonSpawnConfig;
@@ -205,10 +208,12 @@ export function spawnEntity(
   world.feeling.set(id, feeling);
   world.knowledge.set(id, { known: new Map() });
   world.ages.set(id, { ticksAlive: 0 });
+  world.sleep.set(id, { asleep: false, stillTicks: 0 });
   world.intelligence.set(id, { value: initialIntelligenceForRank(rank) });
   if (shape.kind === 'polygon' && shape.irregular && shape.radial) {
     world.irregularity.set(id, {
       deviation: radialDeviation(shape.radial),
+      ...(shape.maxDeviationDeg !== undefined ? { angleDeviationDeg: shape.maxDeviationDeg } : {}),
     });
   }
   if (fertility) {
@@ -411,6 +416,7 @@ function shapeFromConfig(world: World, config: SpawnShapeConfig): ShapeComponent
   let isoscelesBaseRatio: number | undefined;
   let radial: number[] | undefined;
   let baseRadius: number | undefined;
+  let maxDeviationDeg: number | undefined;
 
   if (sides === 3 && config.triangleKind === 'Isosceles') {
     triangleKind = 'Isosceles';
@@ -424,15 +430,22 @@ function shapeFromConfig(world: World, config: SpawnShapeConfig): ShapeComponent
     regular = false;
     irregular = false;
   } else if (config.irregular) {
-    const irregularResult = generateIrregularRadialPolygon(
-      sides,
-      radius,
-      world.config.irregularJitter,
-      world.rng,
-    );
-    vertices = irregularResult.vertices;
-    irregularity = irregularResult.irregularity;
-    radial = irregularResult.radial;
+    if (Array.isArray(config.radial) && config.radial.length === sides) {
+      radial = config.radial.map((value) => Math.max(0.01, Number.isFinite(value) ? value : 1));
+      vertices = radialPolygonVertices(sides, radius, radial);
+      irregularity = radialDeviation(radial);
+      maxDeviationDeg = config.maxDeviationDeg;
+    } else {
+      const irregularResult = generateIrregularRadialPolygon(
+        sides,
+        radius,
+        world.config.irregularJitter,
+        world.rng,
+      );
+      vertices = irregularResult.vertices;
+      irregularity = irregularResult.irregularity;
+      radial = irregularResult.radial;
+    }
     baseRadius = radius;
     regular = false;
     irregular = true;
@@ -463,6 +476,7 @@ function shapeFromConfig(world: World, config: SpawnShapeConfig): ShapeComponent
     ...(baseRadius !== undefined ? { baseRadius } : {}),
     ...(triangleKind ? { triangleKind } : {}),
     ...(isoscelesBaseRatio !== undefined ? { isoscelesBaseRatio } : {}),
+    ...(maxDeviationDeg !== undefined ? { maxDeviationDeg } : {}),
   };
 }
 

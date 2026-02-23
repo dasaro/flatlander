@@ -30,6 +30,9 @@ export class FeelingApproachSystem implements System {
       if (world.staticObstacles.has(id)) {
         continue;
       }
+      if (world.sleep.get(id)?.asleep) {
+        continue;
+      }
 
       const movement = world.movements.get(id);
       const transform = world.transforms.get(id);

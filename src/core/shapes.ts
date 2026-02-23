@@ -27,6 +27,7 @@ export interface PolygonShape {
   radial?: number[];
   triangleKind?: TriangleKind;
   isoscelesBaseRatio?: number;
+  maxDeviationDeg?: number;
 }
 
 export type ShapeComponent = SegmentShape | CircleShape | PolygonShape;

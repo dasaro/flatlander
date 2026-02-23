@@ -67,6 +67,9 @@ export class AvoidanceSteeringSystem implements System {
       if (!movement || world.staticObstacles.has(id)) {
         continue;
       }
+      if (world.sleep.get(id)?.asleep) {
+        continue;
+      }
 
       if (movement.type === 'straightDrift') {
         continue;
@@ -118,7 +121,7 @@ export class AvoidanceSteeringSystem implements System {
         turnDelta -= sideSign * avoidTurnRate * HEARING_TURN_WEIGHT * dt;
       }
 
-      if (turnDelta !== 0) {
+      if (Math.abs(turnDelta) >= 1e-4) {
         movement.heading = normalizeAngle(movement.heading + turnDelta);
       }
     }

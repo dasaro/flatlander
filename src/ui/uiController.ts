@@ -72,6 +72,8 @@ export interface ReproductionSettings {
   conceptionChancePerTick: number;
   femaleBirthProbability: number;
   maxPopulation: number;
+  irregularBirthsEnabled: boolean;
+  irregularBirthBaseChance: number;
 }
 
 export interface EventHighlightsSettings {
@@ -83,6 +85,19 @@ export interface EventHighlightsSettings {
   showHearingOverlay: boolean;
   showTalkingOverlay: boolean;
   strokeByKills: boolean;
+  showContactNetwork: boolean;
+  networkShowParents: boolean;
+  networkShowKnown: boolean;
+  networkMaxKnownEdges: number;
+  networkShowOnlyOnScreen: boolean;
+  networkFocusRadius: number;
+  dimByAge: boolean;
+  dimByDeterioration: boolean;
+  dimStrength: number;
+  fogPreviewEnabled: boolean;
+  fogPreviewStrength: number;
+  fogPreviewHideBelowMin: boolean;
+  fogPreviewRings: boolean;
 }
 
 export type FlatlanderViewSettings = FlatlanderViewConfig;
@@ -141,6 +156,8 @@ interface InputRefs {
   reproductionConceptionChance: HTMLInputElement;
   reproductionFemaleBirthProbability: HTMLInputElement;
   reproductionMaxPopulation: HTMLInputElement;
+  reproductionIrregularEnabled: HTMLInputElement;
+  reproductionIrregularBaseChance: HTMLInputElement;
   eventHighlightsEnabled: HTMLInputElement;
   eventHighlightsShowLegend: HTMLInputElement;
   eventHighlightsIntensity: HTMLInputElement;
@@ -150,6 +167,19 @@ interface InputRefs {
   eventShowHearing: HTMLInputElement;
   eventShowTalking: HTMLInputElement;
   eventStrokeKills: HTMLInputElement;
+  overlayContactNetwork: HTMLInputElement;
+  overlayNetworkParents: HTMLInputElement;
+  overlayNetworkKnown: HTMLInputElement;
+  overlayNetworkMaxKnown: HTMLInputElement;
+  overlayNetworkOnScreen: HTMLInputElement;
+  overlayNetworkFocusRadius: HTMLInputElement;
+  overlayDimAge: HTMLInputElement;
+  overlayDimDeterioration: HTMLInputElement;
+  overlayDimStrength: HTMLInputElement;
+  overlayFogPreview: HTMLInputElement;
+  overlayFogPreviewStrength: HTMLInputElement;
+  overlayFogPreviewHideMin: HTMLInputElement;
+  overlayFogRings: HTMLInputElement;
   eventHighlightsClearButton: HTMLButtonElement;
   flatlanderEnabled: HTMLInputElement;
   flatlanderRays: HTMLSelectElement;
@@ -259,6 +289,7 @@ interface InputRefs {
   inspectorLegacyHandshakes: HTMLElement;
   inspectorLegacyRegularizations: HTMLElement;
   inspectorLegacyDescendants: HTMLElement;
+  inspectorAge: HTMLElement;
   inspectorDurability: HTMLElement;
   inspectorTriangleInfoRow: HTMLElement;
   inspectorTriangleKind: HTMLElement;
@@ -450,6 +481,7 @@ export class UIController {
       this.refs.inspectorLegacyHandshakes.textContent = '0';
       this.refs.inspectorLegacyRegularizations.textContent = '0';
       this.refs.inspectorLegacyDescendants.textContent = '0';
+      this.refs.inspectorAge.textContent = '0';
       this.refs.inspectorDurability.textContent = 'N/A';
       this.refs.inspectorNone.hidden = false;
       this.refs.inspectorFields.hidden = true;
@@ -512,6 +544,7 @@ export class UIController {
     this.refs.inspectorLegacyHandshakes.textContent = String(legacy?.handshakes ?? 0);
     this.refs.inspectorLegacyRegularizations.textContent = String(legacy?.regularizations ?? 0);
     this.refs.inspectorLegacyDescendants.textContent = String(legacy?.descendantsAlive ?? 0);
+    this.refs.inspectorAge.textContent = String(Math.max(0, age?.ticksAlive ?? 0));
     this.refs.inspectorDurability.textContent = durability
       ? `${Math.max(0, durability.hp).toFixed(1)} / ${durability.maxHp.toFixed(1)}`
       : 'N/A';
@@ -630,10 +663,15 @@ export class UIController {
     if (shape.kind === 'polygon' && (shape.irregular ?? false)) {
       this.refs.inspectorIrregularRow.hidden = false;
       this.refs.inspectorIrregularState.textContent = 'Regularizing...';
-      const deviation = irregularity?.deviation ?? shape.irregularity;
-      this.refs.inspectorIrregularDeviation.textContent = Number.isFinite(deviation)
-        ? deviation.toFixed(4)
-        : 'N/A';
+      const deviationDeg = irregularity?.angleDeviationDeg ?? shape.maxDeviationDeg;
+      if (Number.isFinite(deviationDeg)) {
+        this.refs.inspectorIrregularDeviation.textContent = `${(deviationDeg ?? 0).toFixed(2)}°`;
+      } else {
+        const deviation = irregularity?.deviation ?? shape.irregularity;
+        this.refs.inspectorIrregularDeviation.textContent = Number.isFinite(deviation)
+          ? deviation.toFixed(4)
+          : 'N/A';
+      }
     } else if (shape.kind === 'polygon') {
       this.refs.inspectorIrregularRow.hidden = false;
       this.refs.inspectorIrregularState.textContent = 'No';
@@ -759,6 +797,8 @@ export class UIController {
       this.refs.reproductionConceptionChance,
       this.refs.reproductionFemaleBirthProbability,
       this.refs.reproductionMaxPopulation,
+      this.refs.reproductionIrregularEnabled,
+      this.refs.reproductionIrregularBaseChance,
     ];
 
     for (const input of reproductionInputs) {
@@ -779,6 +819,19 @@ export class UIController {
       this.refs.eventShowHearing,
       this.refs.eventShowTalking,
       this.refs.eventStrokeKills,
+      this.refs.overlayContactNetwork,
+      this.refs.overlayNetworkParents,
+      this.refs.overlayNetworkKnown,
+      this.refs.overlayNetworkMaxKnown,
+      this.refs.overlayNetworkOnScreen,
+      this.refs.overlayNetworkFocusRadius,
+      this.refs.overlayDimAge,
+      this.refs.overlayDimDeterioration,
+      this.refs.overlayDimStrength,
+      this.refs.overlayFogPreview,
+      this.refs.overlayFogPreviewStrength,
+      this.refs.overlayFogPreviewHideMin,
+      this.refs.overlayFogRings,
     ];
 
     for (const input of eventHighlightInputs) {
@@ -980,6 +1033,8 @@ export class UIController {
     this.refs.reproductionConceptionChance.value = '0.0042';
     this.refs.reproductionFemaleBirthProbability.value = '0.56';
     this.refs.reproductionMaxPopulation.value = '550';
+    this.refs.reproductionIrregularEnabled.checked = true;
+    this.refs.reproductionIrregularBaseChance.value = '0.02';
 
     this.refs.southEnabled.checked = true;
     this.refs.southStrength.value = '2';
@@ -1058,6 +1113,12 @@ export class UIController {
         1,
       ),
       maxPopulation: Math.max(1, parseInteger(this.refs.reproductionMaxPopulation.value, 400)),
+      irregularBirthsEnabled: this.refs.reproductionIrregularEnabled.checked,
+      irregularBirthBaseChance: clampRange(
+        parseNumber(this.refs.reproductionIrregularBaseChance.value, 0.02),
+        0,
+        1,
+      ),
     };
   }
 
@@ -1071,6 +1132,19 @@ export class UIController {
       showHearingOverlay: this.refs.eventShowHearing.checked,
       showTalkingOverlay: this.refs.eventShowTalking.checked,
       strokeByKills: this.refs.eventStrokeKills.checked,
+      showContactNetwork: this.refs.overlayContactNetwork.checked,
+      networkShowParents: this.refs.overlayNetworkParents.checked,
+      networkShowKnown: this.refs.overlayNetworkKnown.checked,
+      networkMaxKnownEdges: Math.max(0, parseInteger(this.refs.overlayNetworkMaxKnown.value, 25)),
+      networkShowOnlyOnScreen: this.refs.overlayNetworkOnScreen.checked,
+      networkFocusRadius: Math.max(0, parseNumber(this.refs.overlayNetworkFocusRadius.value, 400)),
+      dimByAge: this.refs.overlayDimAge.checked,
+      dimByDeterioration: this.refs.overlayDimDeterioration.checked,
+      dimStrength: clampRange(parseNumber(this.refs.overlayDimStrength.value, 0.25), 0, 1),
+      fogPreviewEnabled: this.refs.overlayFogPreview.checked,
+      fogPreviewStrength: clampRange(parseNumber(this.refs.overlayFogPreviewStrength.value, 0.2), 0, 1),
+      fogPreviewHideBelowMin: this.refs.overlayFogPreviewHideMin.checked,
+      fogPreviewRings: this.refs.overlayFogRings.checked,
     };
   }
 
@@ -1437,6 +1511,8 @@ function collectRefs(): InputRefs {
     reproductionConceptionChance: required<HTMLInputElement>('reproduction-conception-chance'),
     reproductionFemaleBirthProbability: required<HTMLInputElement>('reproduction-female-birth-probability'),
     reproductionMaxPopulation: required<HTMLInputElement>('reproduction-max-population'),
+    reproductionIrregularEnabled: required<HTMLInputElement>('reproduction-irregular-enabled'),
+    reproductionIrregularBaseChance: required<HTMLInputElement>('reproduction-irregular-base-chance'),
     eventHighlightsEnabled: required<HTMLInputElement>('event-highlights-enabled'),
     eventHighlightsShowLegend: required<HTMLInputElement>('event-highlights-show-legend'),
     eventHighlightsIntensity: required<HTMLInputElement>('event-highlights-intensity'),
@@ -1446,6 +1522,19 @@ function collectRefs(): InputRefs {
     eventShowHearing: required<HTMLInputElement>('event-show-hearing'),
     eventShowTalking: required<HTMLInputElement>('event-show-talking'),
     eventStrokeKills: required<HTMLInputElement>('event-stroke-kills'),
+    overlayContactNetwork: required<HTMLInputElement>('overlay-contact-network'),
+    overlayNetworkParents: required<HTMLInputElement>('overlay-network-parents'),
+    overlayNetworkKnown: required<HTMLInputElement>('overlay-network-known'),
+    overlayNetworkMaxKnown: required<HTMLInputElement>('overlay-network-max-known'),
+    overlayNetworkOnScreen: required<HTMLInputElement>('overlay-network-on-screen'),
+    overlayNetworkFocusRadius: required<HTMLInputElement>('overlay-network-focus-radius'),
+    overlayDimAge: required<HTMLInputElement>('overlay-dim-age'),
+    overlayDimDeterioration: required<HTMLInputElement>('overlay-dim-deterioration'),
+    overlayDimStrength: required<HTMLInputElement>('overlay-dim-strength'),
+    overlayFogPreview: required<HTMLInputElement>('overlay-fog-preview'),
+    overlayFogPreviewStrength: required<HTMLInputElement>('overlay-fog-preview-strength'),
+    overlayFogPreviewHideMin: required<HTMLInputElement>('overlay-fog-preview-hide-min'),
+    overlayFogRings: required<HTMLInputElement>('overlay-fog-rings'),
     eventHighlightsClearButton: required<HTMLButtonElement>('event-highlights-clear'),
     flatlanderEnabled: required<HTMLInputElement>('flatlander-enabled'),
     flatlanderRays: required<HTMLSelectElement>('flatlander-rays'),
@@ -1555,6 +1644,7 @@ function collectRefs(): InputRefs {
     inspectorLegacyHandshakes: required<HTMLElement>('inspector-legacy-handshakes'),
     inspectorLegacyRegularizations: required<HTMLElement>('inspector-legacy-regularizations'),
     inspectorLegacyDescendants: required<HTMLElement>('inspector-legacy-descendants'),
+    inspectorAge: required<HTMLElement>('inspector-age'),
     inspectorDurability: required<HTMLElement>('inspector-durability'),
     inspectorTriangleInfoRow: required<HTMLElement>('inspector-triangle-row'),
     inspectorTriangleKind: required<HTMLElement>('inspector-triangle-kind'),

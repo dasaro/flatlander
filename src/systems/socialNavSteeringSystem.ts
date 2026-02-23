@@ -51,6 +51,9 @@ export class SocialNavSteeringSystem implements System {
       if (!movement || movement.type !== 'socialNav' || !transform || world.staticObstacles.has(id)) {
         continue;
       }
+      if (world.sleep.get(id)?.asleep) {
+        continue;
+      }
 
       let targetHeading = movement.smoothHeading;
       if (movement.goal?.type === 'direction' && movement.goal.heading !== undefined) {
@@ -69,9 +72,12 @@ export class SocialNavSteeringSystem implements System {
       const turnedHeading = turnTowards(movement.smoothHeading, targetHeading, maxTurnDelta);
       const headingAlpha = clamp(dt * 8, 0, 1);
       const speedAlpha = clamp(dt * 6, 0, 1);
-      movement.smoothHeading = normalizeAngle(
-        movement.smoothHeading + normalizeAngle(turnedHeading - movement.smoothHeading) * headingAlpha,
-      );
+      const headingDelta = normalizeAngle(turnedHeading - movement.smoothHeading);
+      if (Math.abs(headingDelta) >= 1e-4) {
+        movement.smoothHeading = normalizeAngle(
+          movement.smoothHeading + headingDelta * headingAlpha,
+        );
+      }
 
       const targetSpeed = targetSpeedForIntention(world, id);
       movement.smoothSpeed += (targetSpeed - movement.smoothSpeed) * speedAlpha;

@@ -5,7 +5,9 @@ import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
 import type { Vec2 } from '../geometry/vector';
 import type { Camera } from './camera';
+import { selectTopKnownIds } from './contactNetwork';
 import type { EffectsManager } from './effects';
+import { fogIntensityAtDistance, fogRingRadiusForLevel, visualAlpha } from './viewModifiers';
 import { APP_VERSION } from '../version';
 
 export interface RenderOptions {
@@ -15,6 +17,19 @@ export interface RenderOptions {
   strokeByKills?: boolean;
   showHearingOverlay?: boolean;
   showTalkingOverlay?: boolean;
+  showContactNetwork?: boolean;
+  networkShowParents?: boolean;
+  networkShowKnown?: boolean;
+  networkMaxKnownEdges?: number;
+  networkShowOnlyOnScreen?: boolean;
+  networkFocusRadius?: number;
+  dimByAge?: boolean;
+  dimByDeterioration?: boolean;
+  dimStrength?: number;
+  fogPreviewEnabled?: boolean;
+  fogPreviewStrength?: number;
+  fogPreviewHideBelowMin?: boolean;
+  fogPreviewRings?: boolean;
 }
 
 export class CanvasRenderer {
@@ -58,7 +73,14 @@ export class CanvasRenderer {
     this.ctx.lineWidth = 2 / camera.zoom;
     this.ctx.strokeRect(0, 0, world.config.width, world.config.height);
 
+    const selectedObserverEye =
+      selectedEntityId !== null ? getEyeWorldPosition(world, selectedEntityId) : null;
+    if (selectedObserverEye && options.fogPreviewEnabled && options.fogPreviewRings) {
+      this.drawFogPreviewRings(world, selectedObserverEye, camera);
+    }
+
     const ids = getSortedEntityIds(world);
+    const ageHalfLifeTicks = 6_000;
     for (const id of ids) {
       const shape = world.shapes.get(id);
       const transform = world.transforms.get(id);
@@ -84,8 +106,40 @@ export class CanvasRenderer {
       const killStrokeColor = colorForKillCount(kills);
       const defaultStroke =
         shape.kind === 'polygon' && shape.sides === 3 && !isSelected ? fillColor : '#232323';
+      let entityAlpha = visualAlpha({
+        ticksAlive: world.ages.get(id)?.ticksAlive ?? 0,
+        hp: world.durability.get(id)?.hp ?? null,
+        maxHp: world.durability.get(id)?.maxHp ?? null,
+        dimByAge: options.dimByAge ?? false,
+        dimByDeterioration: options.dimByDeterioration ?? false,
+        strength: options.dimStrength ?? 0.25,
+        ageHalfLifeTicks,
+      });
+
+      if (selectedObserverEye && options.fogPreviewEnabled && id !== selectedEntityId) {
+        const center = geometryCenter(geometry);
+        const distance = Math.hypot(
+          center.x - selectedObserverEye.x,
+          center.y - selectedObserverEye.y,
+        );
+        const intensity = fogIntensityAtDistance(
+          distance,
+          world.config.fogDensity,
+          world.config.fogMaxDistance,
+        );
+        if ((options.fogPreviewHideBelowMin ?? false) && intensity < world.config.fogMinIntensity) {
+          continue;
+        }
+        const previewStrength = Math.max(0, Math.min(1, options.fogPreviewStrength ?? 0.2));
+        entityAlpha *= 1 + (intensity - 1) * previewStrength;
+      }
+      entityAlpha = Math.max(0.05, Math.min(1, entityAlpha));
+      if (isSelected) {
+        entityAlpha = Math.max(entityAlpha, 0.85);
+      }
 
       this.ctx.save();
+      this.ctx.globalAlpha = entityAlpha;
       this.ctx.fillStyle = fillColor;
       this.ctx.strokeStyle = isSelected
         ? '#111111'
@@ -137,6 +191,7 @@ export class CanvasRenderer {
       const eye = getEyeWorldPosition(world, id);
       if (eye) {
         this.ctx.save();
+        this.ctx.globalAlpha = Math.max(0.35, entityAlpha);
         this.ctx.fillStyle = isSelected ? '#111111' : '#f7f3ea';
         this.ctx.strokeStyle = '#111111';
         this.ctx.lineWidth = 1 / camera.zoom;
@@ -146,6 +201,10 @@ export class CanvasRenderer {
         this.ctx.stroke();
         this.ctx.restore();
       }
+    }
+
+    if (options.showContactNetwork && selectedEntityId !== null) {
+      this.drawContactNetworkOverlay(world, camera, selectedEntityId, options);
     }
 
     if (options.showHearingOverlay && selectedEntityId !== null) {
@@ -245,6 +304,159 @@ export class CanvasRenderer {
       }
     }
 
+    this.ctx.restore();
+  }
+
+  private drawContactNetworkOverlay(
+    world: World,
+    camera: Camera,
+    selectedEntityId: number,
+    options: RenderOptions,
+  ): void {
+    const selectedCenter = this.entityCenter(world, selectedEntityId);
+    if (!selectedCenter) {
+      return;
+    }
+
+    const showParents = options.networkShowParents ?? true;
+    const showKnown = options.networkShowKnown ?? true;
+    const onlyOnScreen = options.networkShowOnlyOnScreen ?? true;
+    const maxKnownEdges = Math.max(0, Math.round(options.networkMaxKnownEdges ?? 25));
+    const focusRadius = Math.max(0, options.networkFocusRadius ?? 400);
+
+    const parentIds: number[] = [];
+    if (showParents) {
+      const lineage = world.lineage.get(selectedEntityId);
+      if (lineage?.motherId !== null && lineage?.motherId !== undefined && world.entities.has(lineage.motherId)) {
+        parentIds.push(lineage.motherId);
+      }
+      if (
+        lineage?.fatherId !== null &&
+        lineage?.fatherId !== undefined &&
+        world.entities.has(lineage.fatherId) &&
+        !parentIds.includes(lineage.fatherId)
+      ) {
+        parentIds.push(lineage.fatherId);
+      }
+    }
+
+    const positions = new Map<number, Vec2>();
+    if (showKnown && maxKnownEdges > 0) {
+      for (const id of world.entities) {
+        const center = this.entityCenter(world, id);
+        if (center) {
+          positions.set(id, center);
+        }
+      }
+    }
+
+    const known = world.knowledge.get(selectedEntityId);
+    const knownIds = showKnown && known
+      ? selectTopKnownIds(known.known, positions, selectedCenter, maxKnownEdges, focusRadius).filter(
+          (id) => id !== selectedEntityId && !parentIds.includes(id) && world.entities.has(id),
+        )
+      : [];
+
+    const visible = (id: number): boolean => {
+      const center = this.entityCenter(world, id);
+      if (!center) {
+        return false;
+      }
+      if (!onlyOnScreen) {
+        return true;
+      }
+      const screen = camera.worldToScreen(center.x, center.y, this.canvas);
+      return screen.x >= 0 && screen.x <= this.canvas.width && screen.y >= 0 && screen.y <= this.canvas.height;
+    };
+
+    const drawEdge = (toId: number, dashed: boolean): void => {
+      const toCenter = this.entityCenter(world, toId);
+      if (!toCenter || !visible(toId)) {
+        return;
+      }
+      this.ctx.beginPath();
+      this.ctx.moveTo(selectedCenter.x, selectedCenter.y);
+      this.ctx.lineTo(toCenter.x, toCenter.y);
+      if (dashed) {
+        this.ctx.setLineDash([5 / camera.zoom, 4 / camera.zoom]);
+      } else {
+        this.ctx.setLineDash([]);
+      }
+      this.ctx.stroke();
+      this.ctx.setLineDash([]);
+    };
+
+    this.ctx.save();
+    this.ctx.lineCap = 'round';
+    this.ctx.strokeStyle = 'rgba(34, 49, 71, 0.42)';
+    this.ctx.lineWidth = 1.4 / camera.zoom;
+    for (const parentId of parentIds) {
+      drawEdge(parentId, false);
+    }
+
+    this.ctx.strokeStyle = 'rgba(45, 45, 45, 0.28)';
+    this.ctx.lineWidth = 1 / camera.zoom;
+    for (const knownId of knownIds) {
+      drawEdge(knownId, true);
+    }
+    this.ctx.restore();
+
+    const drawNodeRing = (id: number, color: string, radius: number, lineWidth: number): void => {
+      const center = this.entityCenter(world, id);
+      if (!center || !visible(id)) {
+        return;
+      }
+      this.ctx.save();
+      this.ctx.strokeStyle = color;
+      this.ctx.lineWidth = lineWidth / camera.zoom;
+      this.ctx.beginPath();
+      this.ctx.arc(center.x, center.y, radius / camera.zoom, 0, Math.PI * 2);
+      this.ctx.stroke();
+      this.ctx.restore();
+    };
+
+    drawNodeRing(selectedEntityId, 'rgba(17, 17, 17, 0.85)', 9, 2.4);
+    for (const parentId of parentIds) {
+      drawNodeRing(parentId, 'rgba(56, 73, 115, 0.7)', 7.5, 1.7);
+    }
+    for (const knownId of knownIds) {
+      drawNodeRing(knownId, 'rgba(52, 52, 52, 0.38)', 6.6, 1.3);
+    }
+  }
+
+  private entityCenter(world: World, entityId: number): Vec2 | null {
+    const transform = world.transforms.get(entityId);
+    const shape = world.shapes.get(entityId);
+    if (!transform || !shape) {
+      return null;
+    }
+
+    const geometry = world.geometries.get(entityId) ?? geometryFromComponents(shape, transform);
+    return geometryCenter(geometry);
+  }
+
+  private drawFogPreviewRings(world: World, observer: Vec2, camera: Camera): void {
+    const levels = [0.8, 0.5, 0.2];
+    const fogDensity = Math.max(0, world.config.fogDensity);
+    const fogMaxDistance = Math.max(0, world.config.fogMaxDistance);
+    if (fogDensity <= 0 || fogMaxDistance <= 0) {
+      return;
+    }
+
+    this.ctx.save();
+    this.ctx.strokeStyle = 'rgba(54, 60, 74, 0.18)';
+    this.ctx.lineWidth = 1 / camera.zoom;
+    this.ctx.setLineDash([5 / camera.zoom, 7 / camera.zoom]);
+    for (const level of levels) {
+      const radius = fogRingRadiusForLevel(level, fogDensity, fogMaxDistance);
+      if (radius === null || radius <= 0) {
+        continue;
+      }
+      this.ctx.beginPath();
+      this.ctx.arc(observer.x, observer.y, radius, 0, Math.PI * 2);
+      this.ctx.stroke();
+    }
+    this.ctx.setLineDash([]);
     this.ctx.restore();
   }
 

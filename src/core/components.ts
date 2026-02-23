@@ -211,10 +211,16 @@ export interface IntelligenceComponent {
 
 export interface IrregularityComponent {
   deviation: number;
+  angleDeviationDeg?: number;
 }
 
 export interface DurabilityComponent {
   hp: number;
   maxHp: number;
   wear: number;
+}
+
+export interface SleepComponent {
+  asleep: boolean;
+  stillTicks: number;
 }

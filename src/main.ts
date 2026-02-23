@@ -33,6 +33,7 @@ import { SocialNavMindSystem } from './systems/socialNavMindSystem';
 import { SocialNavSteeringSystem } from './systems/socialNavSteeringSystem';
 import { SouthAttractionSystem } from './systems/southAttractionSystem';
 import { StillnessSystem } from './systems/stillnessSystem';
+import { SleepSystem } from './systems/sleepSystem';
 import { SwaySystem } from './systems/swaySystem';
 import { VisionSystem } from './systems/visionSystem';
 import { CompensationSystem } from './systems/compensationSystem';
@@ -97,6 +98,7 @@ const systems = [
   new SouthAttractionSystem(),
   new IntelligenceGrowthSystem(),
   new StillnessSystem(),
+  new SleepSystem(),
   new PeaceCrySystem(),
   new HearingSystem(),
   new VisionSystem(),
@@ -132,6 +134,8 @@ let reproductionSettings: ReproductionSettings = {
   conceptionChancePerTick: 0.0027,
   femaleBirthProbability: 0.54,
   maxPopulation: 500,
+  irregularBirthsEnabled: true,
+  irregularBirthBaseChance: 0.02,
 };
 let eventHighlightsSettings: EventHighlightsSettings = {
   enabled: true,
@@ -142,6 +146,19 @@ let eventHighlightsSettings: EventHighlightsSettings = {
   showHearingOverlay: false,
   showTalkingOverlay: false,
   strokeByKills: false,
+  showContactNetwork: false,
+  networkShowParents: true,
+  networkShowKnown: true,
+  networkMaxKnownEdges: 25,
+  networkShowOnlyOnScreen: true,
+  networkFocusRadius: 400,
+  dimByAge: false,
+  dimByDeterioration: false,
+  dimStrength: 0.25,
+  fogPreviewEnabled: false,
+  fogPreviewStrength: 0.2,
+  fogPreviewHideBelowMin: false,
+  fogPreviewRings: false,
 };
 let flatlanderViewSettings: FlatlanderViewSettings = {
   enabled: true,
@@ -489,6 +506,19 @@ function frame(now: number): void {
     strokeByKills: eventHighlightsSettings.strokeByKills,
     showHearingOverlay: eventHighlightsSettings.showHearingOverlay,
     showTalkingOverlay: eventHighlightsSettings.showTalkingOverlay,
+    showContactNetwork: eventHighlightsSettings.showContactNetwork,
+    networkShowParents: eventHighlightsSettings.networkShowParents,
+    networkShowKnown: eventHighlightsSettings.networkShowKnown,
+    networkMaxKnownEdges: eventHighlightsSettings.networkMaxKnownEdges,
+    networkShowOnlyOnScreen: eventHighlightsSettings.networkShowOnlyOnScreen,
+    networkFocusRadius: eventHighlightsSettings.networkFocusRadius,
+    dimByAge: eventHighlightsSettings.dimByAge,
+    dimByDeterioration: eventHighlightsSettings.dimByDeterioration,
+    dimStrength: eventHighlightsSettings.dimStrength,
+    fogPreviewEnabled: eventHighlightsSettings.fogPreviewEnabled,
+    fogPreviewStrength: eventHighlightsSettings.fogPreviewStrength,
+    fogPreviewHideBelowMin: eventHighlightsSettings.fogPreviewHideBelowMin,
+    fogPreviewRings: eventHighlightsSettings.fogPreviewRings,
   });
   renderFlatlanderView();
   populationHistogram.render();
@@ -989,6 +1019,9 @@ function settingsToWorldConfig(
     conceptionChancePerTick: reproduction.conceptionChancePerTick,
     femaleBirthProbability: reproduction.femaleBirthProbability,
     maxPopulation: reproduction.maxPopulation,
+    irregularBirthsEnabled: reproduction.irregularBirthsEnabled,
+    irregularBirthBaseChance: reproduction.irregularBirthBaseChance,
+    irregularBirthChance: reproduction.irregularBirthBaseChance,
     southAttractionEnabled: settings.enabled,
     southAttractionStrength: settings.strength,
     southAttractionWomenMultiplier: settings.womenMultiplier,
@@ -1018,6 +1051,9 @@ function applyReproductionSettingsToWorld(
   worldState.config.conceptionChancePerTick = Math.max(0, Math.min(1, settings.conceptionChancePerTick));
   worldState.config.femaleBirthProbability = Math.max(0, Math.min(1, settings.femaleBirthProbability));
   worldState.config.maxPopulation = Math.max(1, Math.round(settings.maxPopulation));
+  worldState.config.irregularBirthsEnabled = settings.irregularBirthsEnabled;
+  worldState.config.irregularBirthBaseChance = Math.max(0, Math.min(1, settings.irregularBirthBaseChance));
+  worldState.config.irregularBirthChance = worldState.config.irregularBirthBaseChance;
 }
 
 function applyPeaceCryDefaultsToWomen(worldState: typeof world): void {
@@ -1082,6 +1118,9 @@ function applyNovelSafetyPreset(worldState: typeof world): void {
   worldState.config.maleBirthHighRankPenaltyPerSide = 0.085;
   worldState.config.conceptionHighRankPenaltyPerSide = 0.13;
   worldState.config.maxPopulation = 550;
+  worldState.config.irregularBirthsEnabled = true;
+  worldState.config.irregularBirthBaseChance = 0.02;
+  worldState.config.irregularBirthChance = 0.02;
   worldState.config.defaultVisionAvoidDistance = Math.max(worldState.config.defaultVisionAvoidDistance, 55);
   worldState.config.defaultVisionAvoidTurnRate = Math.max(worldState.config.defaultVisionAvoidTurnRate, 2.8);
   worldState.config.peaceCryEnabled = true;

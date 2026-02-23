@@ -212,4 +212,67 @@ describe('reproduction system', () => {
     const b = buildSnapshot(999);
     expect(a).toBe(b);
   });
+
+  it('produces deterministic irregular male births with capped angle deviation', () => {
+    const snapshot = (seed: number): string => {
+      const world = createWorld(seed, {
+        reproductionEnabled: true,
+        gestationTicks: 1,
+        matingRadius: 80,
+        conceptionChancePerTick: 1,
+        femaleBirthProbability: 0,
+        maxPopulation: 20,
+        southAttractionEnabled: false,
+        irregularBirthsEnabled: true,
+        irregularBirthBaseChance: 1,
+        irregularBirthChance: 1,
+        irregularInheritanceBoost: 0,
+        irregularDeviationStdMinDeg: 0.7,
+        irregularDeviationStdMaxDeg: 0.7,
+        irregularDeviationCapDeg: 1.2,
+      });
+
+      const mother = spawnEntity(
+        world,
+        { kind: 'segment', size: 24 },
+        { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+        { x: 140, y: 140 },
+      );
+      spawnEntity(
+        world,
+        { kind: 'polygon', sides: 4, size: 18, irregular: false },
+        { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+        { x: 140, y: 140 },
+      );
+      makeMature(world, mother);
+
+      const sim = simulationWithReproduction(world);
+      sim.stepOneTick();
+      sim.stepOneTick();
+
+      const child = [...world.lineage.entries()].find(([, lineage]) => lineage.motherId === mother);
+      if (!child) {
+        throw new Error('Expected a child birth for irregular birth test.');
+      }
+      const childId = child[0];
+      const shape = world.shapes.get(childId);
+      if (!shape || shape.kind !== 'polygon') {
+        throw new Error('Expected polygon child for irregular birth test.');
+      }
+
+      expect(shape.irregular ?? false).toBe(true);
+      expect(shape.maxDeviationDeg ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(1.2 + 1e-6);
+      expect(world.irregularity.get(childId)?.angleDeviationDeg ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(
+        1.2 + 1e-6,
+      );
+
+      return JSON.stringify({
+        childId,
+        radial: shape.radial?.map((value) => Number(value.toFixed(8))) ?? [],
+        maxDeviationDeg: Number((shape.maxDeviationDeg ?? 0).toFixed(8)),
+      });
+    };
+
+    expect(snapshot(321)).toBe(snapshot(321));
+  });
 });

@@ -34,6 +34,10 @@ export class MovementSystem implements System {
         continue;
       }
 
+      if (world.sleep.get(id)?.asleep) {
+        continue;
+      }
+
       const movement = world.movements.get(id);
       const transform = world.transforms.get(id);
       if (!movement || !transform) {
