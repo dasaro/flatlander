@@ -13,6 +13,7 @@ import type {
   PerceptionComponent,
   PeaceCryComponent,
   PregnancyComponent,
+  StillnessComponent,
   SwayComponent,
   VoiceComponent,
   VoiceSignature,
@@ -98,6 +99,8 @@ export interface EventHighlightsSettings {
   fogPreviewStrength: number;
   fogPreviewHideBelowMin: boolean;
   fogPreviewRings: boolean;
+  showEyes: boolean;
+  showPovCone: boolean;
 }
 
 export type FlatlanderViewSettings = FlatlanderViewConfig;
@@ -127,9 +130,11 @@ interface UiCallbacks {
   onInspectorUpdate: (movement: SpawnMovementConfig) => void;
   onInspectorVisionUpdate: (vision: Partial<VisionComponent>) => void;
   onInspectorPerceptionUpdate: (perception: Partial<SpawnPerceptionConfig>) => void;
+  onInspectorEyeUpdate: (eye: { fovDeg: number }) => void;
   onInspectorVoiceUpdate: (voice: Partial<SpawnVoiceConfig>) => void;
   onInspectorPeaceCryUpdate: (peaceCry: Partial<PeaceCryComponent>) => void;
   onInspectorFeelingUpdate: (feeling: Partial<FeelingComponent>) => void;
+  onInspectorToggleManualStillness: () => void;
 }
 
 interface InputRefs {
@@ -180,6 +185,8 @@ interface InputRefs {
   overlayFogPreviewStrength: HTMLInputElement;
   overlayFogPreviewHideMin: HTMLInputElement;
   overlayFogRings: HTMLInputElement;
+  overlayShowEyes: HTMLInputElement;
+  overlayShowPovCone: HTMLInputElement;
   eventHighlightsClearButton: HTMLButtonElement;
   flatlanderEnabled: HTMLInputElement;
   flatlanderRays: HTMLSelectElement;
@@ -254,6 +261,9 @@ interface InputRefs {
   inspectorHearingSkill: HTMLInputElement;
   inspectorHearingRadius: HTMLInputElement;
   inspectorHeardSignature: HTMLElement;
+  inspectorEyeWorld: HTMLElement;
+  inspectorEyeForward: HTMLElement;
+  inspectorEyeFov: HTMLInputElement;
   inspectorPeaceCryRow: HTMLElement;
   inspectorPeaceCryEnabled: HTMLInputElement;
   inspectorPeaceCryCadence: HTMLInputElement;
@@ -261,6 +271,15 @@ interface InputRefs {
   inspectorFeelingEnabled: HTMLInputElement;
   inspectorFeelCooldown: HTMLInputElement;
   inspectorApproachSpeed: HTMLInputElement;
+  inspectorManualHaltButton: HTMLButtonElement;
+  inspectorStillnessActive: HTMLElement;
+  inspectorStillnessMode: HTMLElement;
+  inspectorStillnessReason: HTMLElement;
+  inspectorStillnessTicks: HTMLElement;
+  inspectorStillnessRequestedBy: HTMLElement;
+  inspectorFeelingState: HTMLElement;
+  inspectorFeelingPartner: HTMLElement;
+  inspectorFeelingTicks: HTMLElement;
   inspectorKnownCount: HTMLElement;
   inspectorLastFeltTick: HTMLElement;
   inspectorKnownList: HTMLElement;
@@ -364,6 +383,10 @@ export class UIController {
       null,
       null,
       null,
+      null,
+      null,
+      null,
+      null,
       'N/A',
     );
   }
@@ -425,6 +448,9 @@ export class UIController {
     rank: RankComponent | null,
     vision: VisionComponent | null,
     perception: PerceptionComponent | null,
+    eyeWorld: Vec2 | null,
+    eyeForwardDeg: number | null,
+    eyeFovDeg: number | null,
     voice: VoiceComponent | null,
     hearingHit: HearingHitComponent | null,
     peaceCry: PeaceCryComponent | null,
@@ -440,6 +466,7 @@ export class UIController {
     lineage: LineageComponent | null,
     legacy: LegacyComponent | null,
     durability: DurabilityComponent | null,
+    stillness: StillnessComponent | null,
     ancestorsLabel: string,
   ): void {
     this.selectedEntityId = entityId;
@@ -450,6 +477,9 @@ export class UIController {
       rank === null ||
       vision === null ||
       perception === null ||
+      eyeWorld === null ||
+      eyeForwardDeg === null ||
+      eyeFovDeg === null ||
       voice === null ||
       feeling === null ||
       knowledge === null
@@ -461,8 +491,19 @@ export class UIController {
       this.refs.inspectorHearingSkill.value = '0.50';
       this.refs.inspectorHearingRadius.value = '180';
       this.refs.inspectorHeardSignature.textContent = 'None';
+      this.refs.inspectorEyeWorld.textContent = 'N/A';
+      this.refs.inspectorEyeForward.textContent = 'N/A';
+      this.refs.inspectorEyeFov.value = '180';
       this.refs.inspectorKnownCount.textContent = '0';
       this.refs.inspectorLastFeltTick.textContent = 'Never';
+      this.refs.inspectorFeelingState.textContent = 'idle';
+      this.refs.inspectorFeelingPartner.textContent = 'None';
+      this.refs.inspectorFeelingTicks.textContent = '0';
+      this.refs.inspectorStillnessActive.textContent = 'No';
+      this.refs.inspectorStillnessMode.textContent = 'N/A';
+      this.refs.inspectorStillnessReason.textContent = 'N/A';
+      this.refs.inspectorStillnessTicks.textContent = '0';
+      this.refs.inspectorStillnessRequestedBy.textContent = 'N/A';
       this.refs.inspectorKnownList.innerHTML = '';
       this.refs.inspectorReproductionRow.hidden = true;
       this.refs.inspectorFertilityEnabled.textContent = 'N/A';
@@ -510,6 +551,9 @@ export class UIController {
     this.refs.inspectorHearingSkill.value = perception.hearingSkill.toFixed(2);
     this.refs.inspectorHearingRadius.value = perception.hearingRadius.toFixed(1);
     this.refs.inspectorHeardSignature.textContent = hearingHit ? hearingHit.signature : 'None';
+    this.refs.inspectorEyeWorld.textContent = `(${eyeWorld.x.toFixed(1)}, ${eyeWorld.y.toFixed(1)})`;
+    this.refs.inspectorEyeForward.textContent = `${eyeForwardDeg.toFixed(1)}°`;
+    this.refs.inspectorEyeFov.value = eyeFovDeg.toFixed(0);
 
     if (peaceCry) {
       this.refs.inspectorPeaceCryRow.hidden = false;
@@ -526,6 +570,12 @@ export class UIController {
     this.refs.inspectorFeelingEnabled.checked = feeling.enabled;
     this.refs.inspectorFeelCooldown.value = String(Math.max(0, Math.round(feeling.feelCooldownTicks)));
     this.refs.inspectorApproachSpeed.value = feeling.approachSpeed.toFixed(1);
+    this.refs.inspectorFeelingState.textContent = feeling.state;
+    this.refs.inspectorFeelingPartner.textContent =
+      feeling.partnerId !== null && feeling.partnerId !== undefined
+        ? String(feeling.partnerId)
+        : 'None';
+    this.refs.inspectorFeelingTicks.textContent = String(Math.max(0, Math.round(feeling.ticksLeft)));
     this.refs.inspectorKnownCount.textContent = String(knowledge.known.size);
     this.refs.inspectorLastFeltTick.textContent = Number.isFinite(feeling.lastFeltTick)
       ? String(Math.round(feeling.lastFeltTick))
@@ -549,6 +599,16 @@ export class UIController {
     this.refs.inspectorDurability.textContent = durability
       ? `${Math.max(0, durability.hp).toFixed(1)} / ${durability.maxHp.toFixed(1)}`
       : 'N/A';
+    this.refs.inspectorStillnessActive.textContent = stillness ? 'Yes' : 'No';
+    this.refs.inspectorStillnessMode.textContent = stillness?.mode ?? 'N/A';
+    this.refs.inspectorStillnessReason.textContent = stillness?.reason ?? 'N/A';
+    this.refs.inspectorStillnessTicks.textContent = String(
+      Math.max(0, Math.round(stillness?.ticksRemaining ?? 0)),
+    );
+    this.refs.inspectorStillnessRequestedBy.textContent =
+      stillness?.requestedBy !== null && stillness?.requestedBy !== undefined
+        ? String(stillness.requestedBy)
+        : 'N/A';
 
     if (shape.kind === 'segment' && fertility) {
       const mature = (age?.ticksAlive ?? 0) >= fertility.maturityTicks;
@@ -833,6 +893,8 @@ export class UIController {
       this.refs.overlayFogPreviewStrength,
       this.refs.overlayFogPreviewHideMin,
       this.refs.overlayFogRings,
+      this.refs.overlayShowEyes,
+      this.refs.overlayShowPovCone,
     ];
 
     for (const input of eventHighlightInputs) {
@@ -961,6 +1023,8 @@ export class UIController {
       input.addEventListener('input', () => this.emitInspectorPerceptionUpdate());
       input.addEventListener('change', () => this.emitInspectorPerceptionUpdate());
     }
+    this.refs.inspectorEyeFov.addEventListener('input', () => this.emitInspectorEyeUpdate());
+    this.refs.inspectorEyeFov.addEventListener('change', () => this.emitInspectorEyeUpdate());
 
     const voiceInputs: Array<HTMLInputElement | HTMLSelectElement> = [
       this.refs.inspectorVoiceEnabled,
@@ -992,6 +1056,13 @@ export class UIController {
       input.addEventListener('input', () => this.emitInspectorFeelingUpdate());
       input.addEventListener('change', () => this.emitInspectorFeelingUpdate());
     }
+
+    this.refs.inspectorManualHaltButton.addEventListener('click', () => {
+      if (this.selectedEntityId === null) {
+        return;
+      }
+      this.callbacks.onInspectorToggleManualStillness();
+    });
   }
 
   private readSouthAttractionSettings(): SouthAttractionSettings {
@@ -1148,6 +1219,8 @@ export class UIController {
       fogPreviewStrength: clampRange(parseNumber(this.refs.overlayFogPreviewStrength.value, 0.2), 0, 1),
       fogPreviewHideBelowMin: this.refs.overlayFogPreviewHideMin.checked,
       fogPreviewRings: this.refs.overlayFogRings.checked,
+      showEyes: this.refs.overlayShowEyes.checked,
+      showPovCone: this.refs.overlayShowPovCone.checked,
     };
   }
 
@@ -1306,6 +1379,16 @@ export class UIController {
     this.callbacks.onInspectorPerceptionUpdate({
       hearingSkill: clampRange(parseNumber(this.refs.inspectorHearingSkill.value, 0.5), 0, 1),
       hearingRadius: Math.max(0, parseNumber(this.refs.inspectorHearingRadius.value, 180)),
+    });
+  }
+
+  private emitInspectorEyeUpdate(): void {
+    if (this.selectedEntityId === null) {
+      return;
+    }
+
+    this.callbacks.onInspectorEyeUpdate({
+      fovDeg: clampRange(parseNumber(this.refs.inspectorEyeFov.value, 180), 60, 300),
     });
   }
 
@@ -1539,6 +1622,8 @@ function collectRefs(): InputRefs {
     overlayFogPreviewStrength: required<HTMLInputElement>('overlay-fog-preview-strength'),
     overlayFogPreviewHideMin: required<HTMLInputElement>('overlay-fog-preview-hide-min'),
     overlayFogRings: required<HTMLInputElement>('overlay-fog-rings'),
+    overlayShowEyes: required<HTMLInputElement>('overlay-show-eyes'),
+    overlayShowPovCone: required<HTMLInputElement>('overlay-show-pov-cone'),
     eventHighlightsClearButton: required<HTMLButtonElement>('event-highlights-clear'),
     flatlanderEnabled: required<HTMLInputElement>('flatlander-enabled'),
     flatlanderRays: required<HTMLSelectElement>('flatlander-rays'),
@@ -1613,6 +1698,9 @@ function collectRefs(): InputRefs {
     inspectorHearingSkill: required<HTMLInputElement>('inspector-hearing-skill'),
     inspectorHearingRadius: required<HTMLInputElement>('inspector-hearing-radius'),
     inspectorHeardSignature: required<HTMLElement>('inspector-heard-signature'),
+    inspectorEyeWorld: required<HTMLElement>('inspector-eye-world'),
+    inspectorEyeForward: required<HTMLElement>('inspector-eye-forward'),
+    inspectorEyeFov: required<HTMLInputElement>('inspector-eye-fov'),
     inspectorPeaceCryRow: required<HTMLElement>('inspector-peace-cry-row'),
     inspectorPeaceCryEnabled: required<HTMLInputElement>('inspector-peace-cry-enabled'),
     inspectorPeaceCryCadence: required<HTMLInputElement>('inspector-peace-cry-cadence'),
@@ -1620,6 +1708,15 @@ function collectRefs(): InputRefs {
     inspectorFeelingEnabled: required<HTMLInputElement>('inspector-feeling-enabled'),
     inspectorFeelCooldown: required<HTMLInputElement>('inspector-feel-cooldown'),
     inspectorApproachSpeed: required<HTMLInputElement>('inspector-approach-speed'),
+    inspectorManualHaltButton: required<HTMLButtonElement>('inspector-manual-halt'),
+    inspectorStillnessActive: required<HTMLElement>('inspector-stillness-active'),
+    inspectorStillnessMode: required<HTMLElement>('inspector-stillness-mode'),
+    inspectorStillnessReason: required<HTMLElement>('inspector-stillness-reason'),
+    inspectorStillnessTicks: required<HTMLElement>('inspector-stillness-ticks'),
+    inspectorStillnessRequestedBy: required<HTMLElement>('inspector-stillness-requested-by'),
+    inspectorFeelingState: required<HTMLElement>('inspector-feeling-state'),
+    inspectorFeelingPartner: required<HTMLElement>('inspector-feeling-partner'),
+    inspectorFeelingTicks: required<HTMLElement>('inspector-feeling-ticks'),
     inspectorKnownCount: required<HTMLElement>('inspector-known-count'),
     inspectorLastFeltTick: required<HTMLElement>('inspector-last-felt-tick'),
     inspectorKnownList: required<HTMLElement>('inspector-known-list'),

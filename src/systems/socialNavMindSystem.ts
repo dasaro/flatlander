@@ -220,6 +220,13 @@ export class SocialNavMindSystem implements System {
       if (!movement || movement.type !== 'socialNav' || world.staticObstacles.has(id)) {
         continue;
       }
+      const stillness = world.stillness.get(id);
+      if (stillness) {
+        movement.intention = 'holdStill';
+        movement.intentionTicksLeft = Math.max(1, stillness.ticksRemaining);
+        delete movement.goal;
+        continue;
+      }
       if (world.sleep.get(id)?.asleep) {
         movement.intentionTicksLeft = Math.max(0, movement.intentionTicksLeft - 1);
         continue;
@@ -291,6 +298,11 @@ export class SocialNavMindSystem implements System {
         const unknownTransform = world.transforms.get(unknown.id);
         if (unknownTransform) {
           setGoalTarget(movement, unknown.id, unknownTransform.position);
+          const feeling = world.feeling.get(id);
+          if (feeling && (feeling.state === 'idle' || feeling.state === 'approaching')) {
+            feeling.state = 'approaching';
+            feeling.partnerId = unknown.id;
+          }
         }
       } else {
         const interval = Math.max(1, movement.decisionEveryTicks);
@@ -303,6 +315,12 @@ export class SocialNavMindSystem implements System {
           heading: roamHeading,
         };
         movement.intention = 'roam';
+        const feeling = world.feeling.get(id);
+        if (feeling?.state === 'approaching') {
+          feeling.state = 'idle';
+          feeling.partnerId = null;
+          feeling.ticksLeft = 0;
+        }
       }
 
       const durationBucket = Math.floor(world.tick / Math.max(1, movement.decisionEveryTicks));

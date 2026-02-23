@@ -1,5 +1,5 @@
 import { geometryFromComponents } from '../core/entityGeometry';
-import { getEyeWorldPosition, getForwardUnitVector } from '../core/eye';
+import { eyePoseWorld } from '../core/eyePose';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
 import {
@@ -9,12 +9,11 @@ import {
   raycastSegmentCapsule,
   raycastWorldBounds,
 } from '../geometry/raycast';
-import { distance, dot, sub } from '../geometry/vector';
+import { clamp, distance, dot, sub } from '../geometry/vector';
 import type { Vec2 } from '../geometry/vector';
 import type { System } from './system';
 
 const DEFAULT_SCAN_RAY_COUNT = 11;
-const DEFAULT_SCAN_HALF_SPREAD_RAD = 0.6;
 const RAYCAST_EPS = 1e-9;
 
 interface VisionTarget {
@@ -99,6 +98,24 @@ function isBetterCandidate(next: VisionCandidate, best: VisionCandidate | null):
   return next.id < best.id;
 }
 
+function isWithinFov(forward: Vec2, toTarget: Vec2, halfFovRad: number): boolean {
+  if (halfFovRad >= Math.PI - 1e-6) {
+    return true;
+  }
+
+  const len = Math.hypot(toTarget.x, toTarget.y);
+  if (len <= 1e-9) {
+    return true;
+  }
+  const unit = {
+    x: toTarget.x / len,
+    y: toTarget.y / len,
+  };
+  const cosine = clamp(dot(unit, forward), -1, 1);
+  const angle = Math.acos(cosine);
+  return angle <= halfFovRad + 1e-6;
+}
+
 export class VisionSystem implements System {
   update(world: World): void {
     world.visionHits.clear();
@@ -117,8 +134,7 @@ export class VisionSystem implements System {
     for (const id of ids) {
       const vision = world.vision.get(id);
       const perception = world.perceptions.get(id);
-      const transform = world.transforms.get(id);
-      if (!vision || !perception || !transform || !vision.enabled || vision.range <= 0) {
+      if (!vision || !perception || !vision.enabled || vision.range <= 0) {
         continue;
       }
 
@@ -126,19 +142,20 @@ export class VisionSystem implements System {
         continue;
       }
 
-      const eye = getEyeWorldPosition(world, id);
-      if (!eye) {
+      const pose = eyePoseWorld(world, id);
+      if (!pose) {
         continue;
       }
+      const eye = pose.eyeWorld;
+      const forward = pose.forwardWorld;
+      const halfFov = clamp(pose.fovRad * 0.5, Math.PI / 12, Math.PI);
 
-      const forward = getForwardUnitVector(transform.rotation);
       const rayCount = Math.max(3, DEFAULT_SCAN_RAY_COUNT);
-      const spread = DEFAULT_SCAN_HALF_SPREAD_RAD;
       let best: VisionCandidate | null = null;
 
       for (let rayIndex = 0; rayIndex < rayCount; rayIndex += 1) {
         const t = rayCount <= 1 ? 0 : rayIndex / (rayCount - 1);
-        const offset = -spread + t * spread * 2;
+        const offset = -halfFov + t * halfFov * 2;
         const angle = Math.atan2(forward.y, forward.x) + offset;
         const rayDirection = {
           x: Math.cos(angle),
@@ -175,6 +192,9 @@ export class VisionSystem implements System {
           }
 
           const toTarget = sub(target.center, eye);
+          if (!isWithinFov(forward, toTarget, halfFov)) {
+            continue;
+          }
           const aheadDistance = dot(toTarget, rayDirection);
           if (aheadDistance <= 0) {
             continue;

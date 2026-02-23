@@ -38,6 +38,7 @@ import {
   MIN_CANON_BRAIN_ANGLE_DEG,
 } from './isosceles';
 import { initialIntelligenceForRank } from './intelligence';
+import { computeDefaultEyeComponent } from './eyePose';
 import { defaultPerceptionForRank } from './perceptionPresets';
 import { rankFromShape, Rank } from './rank';
 import type { ShapeComponent, TriangleKind } from './shapes';
@@ -186,6 +187,7 @@ export function spawnEntity(
   const transformRotation = world.rng.nextRange(0, Math.PI * 2);
 
   const shape = shapeFromConfig(world, shapeConfig);
+  const eye = computeDefaultEyeComponent(shape, world.config.defaultEyeFovDeg);
   const rank = rankFromShape(shape, {
     irregularityTolerance: world.config.irregularityTolerance,
     nearCircleThreshold: world.config.nearCircleThreshold,
@@ -208,6 +210,7 @@ export function spawnEntity(
     rotation: transformRotation,
   });
   world.shapes.set(id, shape);
+  world.eyes.set(id, eye);
   world.movements.set(id, movement);
   world.ranks.set(id, rank);
   world.southDrifts.set(id, { vy: 0 });
@@ -344,6 +347,9 @@ function feelingFromConfig(world: World, config?: SpawnFeelingConfig): FeelingCo
       Math.round(config?.feelCooldownTicks ?? world.config.defaultFeelingCooldownTicks),
     ),
     lastFeltTick: Number.NEGATIVE_INFINITY,
+    state: 'idle',
+    partnerId: null,
+    ticksLeft: 0,
   };
 }
 

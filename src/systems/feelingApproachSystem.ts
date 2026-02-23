@@ -30,6 +30,9 @@ export class FeelingApproachSystem implements System {
       if (world.staticObstacles.has(id)) {
         continue;
       }
+      if (world.stillness.has(id)) {
+        continue;
+      }
       if (world.sleep.get(id)?.asleep) {
         continue;
       }
@@ -39,6 +42,9 @@ export class FeelingApproachSystem implements System {
       const feeling = world.feeling.get(id);
       const knowledge = world.knowledge.get(id);
       if (!movement || !transform || !feeling || !knowledge || !feeling.enabled) {
+        continue;
+      }
+      if (feeling.state !== 'idle' && feeling.state !== 'approaching') {
         continue;
       }
 
@@ -78,6 +84,11 @@ export class FeelingApproachSystem implements System {
       }
 
       if (nearestId === null) {
+        if (feeling.state === 'approaching') {
+          feeling.state = 'idle';
+          feeling.partnerId = null;
+          feeling.ticksLeft = 0;
+        }
         continue;
       }
 
@@ -93,6 +104,9 @@ export class FeelingApproachSystem implements System {
       const turnLimit = Math.max(0.1, movement.turnRate * 0.35) * dt;
       movement.heading = rotateTowards(movement.heading, targetHeading, turnLimit);
       movement.speed = Math.max(0.1, Math.min(movement.speed, Math.max(0.1, feeling.approachSpeed)));
+      feeling.state = 'approaching';
+      feeling.partnerId = nearestId;
+      feeling.ticksLeft = 0;
     }
   }
 }

@@ -42,6 +42,11 @@ export class SwaySystem implements System {
         continue;
       }
 
+      const stillness = world.stillness.get(id);
+      if (stillness?.mode === 'full') {
+        continue;
+      }
+
       const heading = baseHeading(world, id);
       if (!sway.enabled) {
         transform.rotation = heading;

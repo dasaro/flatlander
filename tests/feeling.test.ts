@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { spawnEntity } from '../src/core/factory';
+import { requestStillness } from '../src/core/stillness';
 import { FixedTimestepSimulation } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { AvoidanceSteeringSystem } from '../src/systems/avoidanceSteeringSystem';
@@ -10,6 +11,7 @@ import { FeelingSystem } from '../src/systems/feelingSystem';
 import { MovementSystem } from '../src/systems/movementSystem';
 import { PeaceCrySystem } from '../src/systems/peaceCrySystem';
 import { SouthAttractionSystem } from '../src/systems/southAttractionSystem';
+import { StillnessSystem } from '../src/systems/stillnessSystem';
 import { VisionSystem } from '../src/systems/visionSystem';
 
 function runCollisionAndFeeling(worldSeed = 1) {
@@ -58,6 +60,7 @@ function knowledgeSnapshot(seed: number, ticks: number): string {
 
   const systems = [
     new SouthAttractionSystem(),
+    new StillnessSystem(),
     new PeaceCrySystem(),
     new VisionSystem(),
     new AvoidanceSteeringSystem(),
@@ -93,12 +96,13 @@ describe('recognition by feeling', () => {
   it('learns rank from safe low-speed contact', () => {
     const { world, step } = runCollisionAndFeeling(501);
     world.config.feelSpeedThreshold = 6;
-    world.tick = 1;
+    const stillness = new StillnessSystem();
+    const movement = new MovementSystem();
 
     const a = spawnEntity(
       world,
       { kind: 'polygon', sides: 4, size: 14, irregular: false },
-      { type: 'straightDrift', vx: 1, vy: 0, boundary: 'wrap' },
+      { type: 'straightDrift', vx: 0.6, vy: 0, boundary: 'wrap' },
       { x: 220, y: 210 },
     );
     const b = spawnEntity(
@@ -108,7 +112,13 @@ describe('recognition by feeling', () => {
       { x: 220, y: 210 },
     );
 
-    step();
+    const dt = 1 / world.config.tickRate;
+    for (let i = 0; i < 8; i += 1) {
+      world.tick += 1;
+      stillness.update(world);
+      movement.update(world, dt);
+      step();
+    }
 
     const aKnowledge = world.knowledge.get(a);
     const bKnowledge = world.knowledge.get(b);
@@ -180,6 +190,60 @@ describe('recognition by feeling', () => {
     expect(events.some((event) => event.type === 'handshake')).toBe(false);
     expect(world.knowledge.get(a)?.known.size ?? 0).toBe(0);
     expect(world.knowledge.get(b)?.known.size ?? 0).toBe(0);
+  });
+
+  it('requires beingFelt full stillness before knowledge update', () => {
+    const { world, step } = runCollisionAndFeeling(504);
+    world.config.feelSpeedThreshold = 8;
+    const stillness = new StillnessSystem();
+
+    const a = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 4, size: 14, irregular: false },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 260, y: 240 },
+    );
+    const b = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 5, size: 14, irregular: false },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 260, y: 240 },
+    );
+
+    const aFeeling = world.feeling.get(a);
+    const bFeeling = world.feeling.get(b);
+    if (!aFeeling || !bFeeling) {
+      throw new Error('Missing feeling state in stillness-gated knowledge test.');
+    }
+    aFeeling.state = 'feeling';
+    aFeeling.partnerId = b;
+    aFeeling.ticksLeft = 3;
+    bFeeling.state = 'beingFelt';
+    bFeeling.partnerId = a;
+    bFeeling.ticksLeft = 3;
+
+    world.tick += 1;
+    step();
+    expect(world.knowledge.get(a)?.known.has(b)).toBe(false);
+
+    requestStillness(world, {
+      entityId: b,
+      mode: 'full',
+      reason: 'beingFelt',
+      ticksRemaining: 3,
+      requestedBy: a,
+    });
+    requestStillness(world, {
+      entityId: a,
+      mode: 'translation',
+      reason: 'feeling',
+      ticksRemaining: 3,
+      requestedBy: b,
+    });
+    world.tick += 1;
+    stillness.update(world);
+    step();
+    expect(world.knowledge.get(a)?.known.has(b)).toBe(true);
   });
 
   it('produces deterministic known sets for same seed and setup', () => {

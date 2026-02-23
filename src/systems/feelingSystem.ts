@@ -1,5 +1,6 @@
 import { orderedEntityPairs } from '../core/events';
 import { rankKeyForEntity } from '../core/rankKey';
+import { requestStillness } from '../core/stillness';
 import { angleToVector } from '../geometry/vector';
 import type { Vec2 } from '../geometry/vector';
 import type { EntityId } from '../core/components';
@@ -10,10 +11,6 @@ const TOUCH_EVENTS_PER_TICK_CAP = 100;
 
 function relativeSpeed(a: Vec2, b: Vec2): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
-}
-
-function speedMagnitude(v: Vec2): number {
-  return Math.hypot(v.x, v.y);
 }
 
 function velocityForEntity(world: World, entityId: EntityId): Vec2 {
@@ -41,13 +38,21 @@ function orderedCollisionPairs(world: World): Array<{ a: EntityId; b: EntityId }
   return orderedEntityPairs(world.collisions);
 }
 
-function canFeel(world: World, entityId: EntityId): boolean {
-  if (!world.config.feelingEnabledGlobal || world.staticObstacles.has(entityId)) {
+function canInitiateFeeling(world: World, entityId: EntityId, partnerId: EntityId): boolean {
+  if (
+    !world.config.feelingEnabledGlobal ||
+    world.staticObstacles.has(entityId) ||
+    world.staticObstacles.has(partnerId)
+  ) {
     return false;
   }
 
   const feeling = world.feeling.get(entityId);
   if (!feeling || !feeling.enabled) {
+    return false;
+  }
+
+  if (feeling.state !== 'idle' && !(feeling.state === 'approaching' && feeling.partnerId === partnerId)) {
     return false;
   }
 
@@ -67,28 +72,149 @@ function midpointForPair(world: World, aId: EntityId, bId: EntityId): Vec2 | nul
   };
 }
 
-function applyHandshakeStillness(world: World, entityId: EntityId): void {
-  const configured = Math.max(0, Math.round(world.config.handshakeStillnessTicks));
-  const existing = world.stillness.get(entityId);
-  if (existing) {
-    existing.ticksRemaining = Math.max(existing.ticksRemaining, configured);
+function tickFeelingStates(world: World): void {
+  const ids = [...world.feeling.keys()].sort((a, b) => a - b);
+  for (const id of ids) {
+    const feeling = world.feeling.get(id);
+    if (!feeling) {
+      continue;
+    }
+
+    if (feeling.partnerId !== null && !world.entities.has(feeling.partnerId)) {
+      feeling.state = 'idle';
+      feeling.partnerId = null;
+      feeling.ticksLeft = 0;
+      continue;
+    }
+
+    if (feeling.state === 'idle' || feeling.state === 'approaching') {
+      continue;
+    }
+
+    if (feeling.ticksLeft > 0) {
+      feeling.ticksLeft -= 1;
+    }
+    if (feeling.ticksLeft > 0) {
+      continue;
+    }
+
+    if (feeling.state === 'cooldown') {
+      feeling.state = 'idle';
+      feeling.partnerId = null;
+      feeling.ticksLeft = 0;
+      continue;
+    }
+
+    feeling.state = 'cooldown';
+    feeling.partnerId = null;
+    feeling.ticksLeft = Math.max(0, Math.round(feeling.feelCooldownTicks));
+    if (feeling.ticksLeft <= 0) {
+      feeling.state = 'idle';
+      feeling.ticksLeft = 0;
+    }
+  }
+}
+
+function setHoldStillIntention(world: World, entityId: EntityId, ticks: number): void {
+  const movement = world.movements.get(entityId);
+  if (!movement || movement.type !== 'socialNav') {
     return;
   }
 
-  world.stillness.set(entityId, {
-    ticksRemaining: configured,
+  movement.intention = 'holdStill';
+  movement.intentionTicksLeft = Math.max(movement.intentionTicksLeft, Math.max(1, Math.round(ticks)));
+}
+
+function requestHandshakeStillness(
+  world: World,
+  feelerId: EntityId,
+  feltId: EntityId,
+  ticks: number,
+): void {
+  requestStillness(world, {
+    entityId: feltId,
+    mode: 'full',
+    reason: 'beingFelt',
+    ticksRemaining: ticks,
+    requestedBy: feelerId,
   });
+  requestStillness(world, {
+    entityId: feelerId,
+    mode: 'translation',
+    reason: 'feeling',
+    ticksRemaining: ticks,
+    requestedBy: feltId,
+  });
+  setHoldStillIntention(world, feelerId, ticks);
+  setHoldStillIntention(world, feltId, ticks);
+}
+
+function setFeelingPair(
+  world: World,
+  feelerId: EntityId,
+  feltId: EntityId,
+  ticks: number,
+): void {
+  const feeler = world.feeling.get(feelerId);
+  const felt = world.feeling.get(feltId);
+  if (!feeler || !felt) {
+    return;
+  }
+
+  feeler.state = 'feeling';
+  feeler.partnerId = feltId;
+  feeler.ticksLeft = Math.max(1, Math.round(ticks));
+  felt.state = 'beingFelt';
+  felt.partnerId = feelerId;
+  felt.ticksLeft = Math.max(1, Math.round(ticks));
+}
+
+function activeHandshakeRoles(
+  world: World,
+  aId: EntityId,
+  bId: EntityId,
+): { feelerId: EntityId; feltId: EntityId } | null {
+  const aFeeling = world.feeling.get(aId);
+  const bFeeling = world.feeling.get(bId);
+  if (!aFeeling || !bFeeling) {
+    return null;
+  }
+
+  const aFeelingB = aFeeling.partnerId === bId && aFeeling.state === 'feeling';
+  const bBeingFeltA = bFeeling.partnerId === aId && bFeeling.state === 'beingFelt';
+  if (aFeelingB && bBeingFeltA) {
+    return { feelerId: aId, feltId: bId };
+  }
+
+  const bFeelingA = bFeeling.partnerId === aId && bFeeling.state === 'feeling';
+  const aBeingFeltB = aFeeling.partnerId === bId && aFeeling.state === 'beingFelt';
+  if (bFeelingA && aBeingFeltB) {
+    return { feelerId: bId, feltId: aId };
+  }
+
+  return null;
+}
+
+function canLearnFromFeeling(world: World, feelerId: EntityId, feltId: EntityId): boolean {
+  const feltStillness = world.stillness.get(feltId);
+  if (!feltStillness) {
+    return false;
+  }
+
+  return (
+    feltStillness.mode === 'full' &&
+    feltStillness.reason === 'beingFelt' &&
+    (feltStillness.requestedBy ?? null) === feelerId
+  );
 }
 
 export class FeelingSystem implements System {
   update(world: World, _dt: number): void {
     void _dt;
+    tickFeelingStates(world);
     const pairs = orderedCollisionPairs(world);
     let touchEventsEmitted = 0;
-    const stillnessSpeedThreshold = Math.max(
-      0.05,
-      Math.min(world.config.feelSpeedThreshold * 0.25, 2),
-    );
+    const handshakeTicks = Math.max(1, Math.round(world.config.handshakeStillnessTicks));
 
     for (const pair of pairs) {
       const aRank = world.ranks.get(pair.a);
@@ -125,37 +251,89 @@ export class FeelingSystem implements System {
         touchEventsEmitted += 1;
       }
 
-      if (!canFeel(world, pair.a) || !canFeel(world, pair.b)) {
-        continue;
-      }
-
-      const aSpeed = speedMagnitude(velocityForEntity(world, pair.a));
-      const bSpeed = speedMagnitude(velocityForEntity(world, pair.b));
-      if (aSpeed > stillnessSpeedThreshold || bSpeed > stillnessSpeedThreshold) {
-        continue;
-      }
-
       const aKnowledge = world.knowledge.get(pair.a);
       const bKnowledge = world.knowledge.get(pair.b);
-      if (!aKnowledge || !bKnowledge) {
+      const aFeeling = world.feeling.get(pair.a);
+      const bFeeling = world.feeling.get(pair.b);
+      if (!aKnowledge || !bKnowledge || !aFeeling || !bFeeling) {
         continue;
       }
+
+      const activeRoles = activeHandshakeRoles(world, pair.a, pair.b);
+      if (!activeRoles) {
+        const aLearns = !aKnowledge.known.has(pair.b);
+        const bLearns = !bKnowledge.known.has(pair.a);
+
+        if (aLearns || bLearns) {
+          const canAInitiate = canInitiateFeeling(world, pair.a, pair.b);
+          const canBInitiate = canInitiateFeeling(world, pair.b, pair.a);
+          if (canAInitiate || canBInitiate) {
+            let feelerId: EntityId;
+            let feltId: EntityId;
+            if (aLearns && !bLearns) {
+              feelerId = pair.a;
+              feltId = pair.b;
+            } else if (bLearns && !aLearns) {
+              feelerId = pair.b;
+              feltId = pair.a;
+            } else if (pair.a < pair.b) {
+              feelerId = pair.a;
+              feltId = pair.b;
+            } else {
+              feelerId = pair.b;
+              feltId = pair.a;
+            }
+
+            const canInitiateChosen =
+              (feelerId === pair.a && canAInitiate) || (feelerId === pair.b && canBInitiate);
+            if (canInitiateChosen) {
+              setFeelingPair(world, feelerId, feltId, handshakeTicks);
+              requestHandshakeStillness(world, feelerId, feltId, handshakeTicks);
+            }
+          }
+        }
+      }
+
+      const currentRoles = activeHandshakeRoles(world, pair.a, pair.b);
+      if (!currentRoles) {
+        continue;
+      }
+
+      const holdTicks = Math.max(
+        1,
+        Math.max(aFeeling.ticksLeft, bFeeling.ticksLeft, handshakeTicks),
+      );
+      requestHandshakeStillness(world, currentRoles.feelerId, currentRoles.feltId, holdTicks);
 
       const aLearns = !aKnowledge.known.has(pair.b);
       const bLearns = !bKnowledge.known.has(pair.a);
+      const feltStillnessSatisfied = canLearnFromFeeling(
+        world,
+        currentRoles.feelerId,
+        currentRoles.feltId,
+      );
+      const aCanLearn = aLearns && feltStillnessSatisfied;
+      const bCanLearn = bLearns && feltStillnessSatisfied;
+      if (!aCanLearn && !bCanLearn) {
+        continue;
+      }
 
-      aKnowledge.known.set(pair.b, {
-        rank: bRank.rank,
-        learnedBy: 'feeling',
-        learnedAtTick: world.tick,
-      });
-      bKnowledge.known.set(pair.a, {
-        rank: aRank.rank,
-        learnedBy: 'feeling',
-        learnedAtTick: world.tick,
-      });
+      if (aCanLearn) {
+        aKnowledge.known.set(pair.b, {
+          rank: bRank.rank,
+          learnedBy: 'feeling',
+          learnedAtTick: world.tick,
+        });
+      }
+      if (bCanLearn) {
+        bKnowledge.known.set(pair.a, {
+          rank: aRank.rank,
+          learnedBy: 'feeling',
+          learnedAtTick: world.tick,
+        });
+      }
 
-      if (eventPos && (aLearns || bLearns)) {
+      if (eventPos && (aCanLearn || bCanLearn)) {
         world.events.push({
           type: 'handshake',
           tick: world.tick,
@@ -165,8 +343,6 @@ export class FeelingSystem implements System {
           aRankKey: rankKeyForEntity(world, pair.a),
           bRankKey: rankKeyForEntity(world, pair.b),
         });
-        applyHandshakeStillness(world, pair.a);
-        applyHandshakeStillness(world, pair.b);
         world.handshakeCounts.set(pair.a, (world.handshakeCounts.get(pair.a) ?? 0) + 1);
         world.handshakeCounts.set(pair.b, (world.handshakeCounts.get(pair.b) ?? 0) + 1);
         const aLegacy = world.legacy.get(pair.a);
@@ -179,14 +355,8 @@ export class FeelingSystem implements System {
         }
       }
 
-      const aFeeling = world.feeling.get(pair.a);
-      const bFeeling = world.feeling.get(pair.b);
-      if (aFeeling) {
-        aFeeling.lastFeltTick = world.tick;
-      }
-      if (bFeeling) {
-        bFeeling.lastFeltTick = world.tick;
-      }
+      aFeeling.lastFeltTick = world.tick;
+      bFeeling.lastFeltTick = world.tick;
     }
   }
 }

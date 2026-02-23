@@ -23,6 +23,7 @@ export class CleanupSystem implements System {
       world.transforms.delete(id);
       world.movements.delete(id);
       world.shapes.delete(id);
+      world.eyes.delete(id);
       world.ranks.delete(id);
       world.southDrifts.delete(id);
       world.staticObstacles.delete(id);

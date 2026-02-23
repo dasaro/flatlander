@@ -23,6 +23,7 @@
 - Rank/caste mapping (triangle subclasses, gentlemen, nobles, near-circles, priests, irregular/criminal).
 - Southward attraction law with zonal strength, damping, and escape clamp.
 - Fog-gated sight and a separate Flatlander 1D strip view.
+- Perimeter eye points per entity with directional, limited-FOV glance.
 - Hearing, peace-cry emissions, and isosceles voice imposture.
 - Touch/feeling-based recognition and handshake events.
 - Handshake stillness window (short stand-still lock after successful recognition).
@@ -89,7 +90,7 @@
 | Pressure kill in jams | Not explicitly stated | Implementation assumption / extrapolation | Persistent acute contact eventually kills even at low closing speed | `src/systems/lethalitySystem.ts` `world.stabPressure` logic | `pressureTicksToKill=120` | `tests/stabLethality.test.ts` |
 | Erosion / wear attrition | Injury risk is implied; explicit HP is not textual | Implementation assumption / extrapolation | Sliding/rubbing wears hp over time; severe contacts damage more | `src/systems/erosionSystem.ts` `applyWear`, `applyDirectDamage` | `wearEnabled=true`, `wearRate=0.11`, `wearToHpStep=7.5`, `stabHpDamageScale=0.85` | `tests/erosion.test.ts` |
 | Touch / feeling recognition | Part I, Sec. 5 | Directly stated in the novel | Safe low-speed contact produces touch events and can update knowledge | `src/systems/feelingSystem.ts` `update`, `canFeel`, `orderedCollisionPairs` | `feelSpeedThreshold=7.5`; per-entity `FeelingComponent` | `tests/feeling.test.ts` |
-| Handshake stillness protocol | Part I, Sec. 5 (“felt should stand perfectly still”) | Strongly implied by the novel (partial implementation) | On successful new recognition, both entities get temporary stillness lock | `src/systems/feelingSystem.ts` `applyHandshakeStillness`; `src/systems/stillnessSystem.ts`; `src/systems/movementSystem.ts` stillness skip | `handshakeStillnessTicks=12` | `tests/stillnessHandshake.test.ts` |
+| Handshake stillness protocol | Part I, Sec. 5 (“felt should stand perfectly still”) | Strongly implied by the novel (partial implementation) | On successful new recognition, both entities get temporary stillness lock | `src/systems/feelingSystem.ts` `requestHandshakeStillness`; `src/systems/stillnessControllerSystem.ts`; `src/systems/movementSystem.ts` stillness skip | `handshakeStillnessTicks=12` | `tests/stillnessHandshake.test.ts`, `tests/stillnessController.test.ts` |
 | Peace-cry | Part I, Sec. 4 | Directly stated in the novel | Moving women emit periodic pings; stronger/faster in southern zone | `src/systems/peaceCrySystem.ts` `update`, `isMoving` | `peaceCryEnabled=true`, cadence/radius defaults; south stringency knobs | `tests/peaceCry.test.ts` |
 | Hearing + hearing-hit selection | Part I, Sec. 5 | Strongly implied by the novel | Listener stores nearest audible signature/direction deterministically | `src/systems/hearingSystem.ts` `heardSignature`, `update` | `PerceptionComponent` (`hearingSkill`, `hearingRadius`) | `tests/hearingSystem.test.ts` |
 | Isosceles voice imposture | Part I, Sec. 5 (hearing weakness, imposture theme) | Strongly implied by the novel | Isosceles can mimic a claimed signature (`Square/Pentagon/HighOrder`) | `src/core/voice.ts`; `src/core/factory.ts` `voiceFromConfig`; `src/systems/hearingSystem.ts` | Spawn UI `#spawn-mimicry-enabled`, `#spawn-mimicry-signature`; Inspector voice row | `tests/hearingSystem.test.ts` |
@@ -107,7 +108,8 @@
 | Isosceles brain-angle generational law (+0.5°/generation; cap 60°) | Part I, Sec. 3 | Directly stated in the novel | Isosceles father begets isosceles son with brain-angle +0.5°; at 60° child is equilateral | `src/core/isosceles.ts`; `src/core/reproduction/offspringPolicy.ts`; `src/core/factory.ts` (`brainAngleDeg` spawn metadata); `src/core/world.ts` (`brainAngles`) | Canon step and cap are fixed in code (`CANON_BRAIN_ANGLE_STEP_DEG=0.5`, `MAX_CANON_BRAIN_ANGLE_DEG=60`) | `tests/offspringPolicy.test.ts` |
 | Reproduction + lineage + dynasty/legacy | Generational hierarchy is strongly implied; exact fertility math is not | Implementation assumption / extrapolation | Pregnancy countdown, deterministic births, parent links, generation/dynasty, legacy counts | `src/systems/reproductionSystem.ts`; `src/core/genealogy.ts`; `src/systems/cleanupSystem.ts` | Reproduction panel keys (`gestationTicks`, `matingRadius`, etc.) | `tests/reproduction.test.ts`, `tests/genealogy.test.ts` |
 | Non-canon compensation (time/intelligence blunting) | No direct textual numeric law | Implementation assumption / extrapolation | Optional system widens isosceles base over time; used as non-canon smoothing mode | `src/systems/compensationSystem.ts`; intelligence from `src/systems/intelligenceGrowthSystem.ts` | `compensationEnabled=false` by default, `compensationRate=0.4` | `tests/compensation.test.ts` |
-| 1D Flatlander retina strip | Part I, Sec. 6 | Strongly implied by the novel | Ray-based strip with nearest-hit occlusion, fog intensity, endpoint/closest markers | `src/render/flatlanderScan.ts` `computeFlatlanderScan` & `extractFlatlanderSegments`; `src/render/flatlanderViewRenderer.ts` | Flatlander panel controls (`rays`, `fov`, `fogDensity`, grayscale, include boundaries) | `tests/flatlanderScan.test.ts`, `tests/raycast.test.ts` |
+| Perimeter eyes + directional glance (limited FOV) | Part I, Sec. 4; Part I, Sec. 6; Part II (Sphere dialogue) | Directly stated (eye on perimeter), directional FOV angle is implementation assumption | Each figure has one perimeter eye and forward glance; scan/vision only sample within eye FOV | `src/core/eyePose.ts` `computeDefaultEyeComponent`, `eyePoseWorld`; `src/core/factory.ts` spawn eye assignment; `src/systems/visionSystem.ts` eye/FOV-gated rays | `defaultEyeFovDeg=180`; Inspector `#inspector-eye-fov` | `tests/eyePose.test.ts`, `tests/visionFog.test.ts` |
+| 1D Flatlander retina strip | Part I, Sec. 6 | Strongly implied by the novel | Ray-based strip with nearest-hit occlusion, fog intensity, endpoint/closest markers, using selected eye origin/FOV | `src/render/flatlanderScan.ts` `computeFlatlanderScan` & `extractFlatlanderSegments`; `src/render/flatlanderViewRenderer.ts` | Flatlander panel controls (`rays`, `lookOffset`, `fogDensity`, grayscale, include boundaries); effective FOV from eye | `tests/flatlanderScan.test.ts`, `tests/raycast.test.ts` |
 | Event effects + legend + timeline | No direct narrative requirement | Implementation assumption / extrapolation | Distinct glyphs (touch/handshake/peaceCry/stab/death/birth/regularized), sparse eventful timeline | `src/core/events.ts`; `src/render/effects.ts`; `src/ui/eventAnalytics.ts`; `src/render/eventTimelineRenderer.ts` | Event panel toggles + legend/timeline controls | `tests/eventsEffects.test.ts`, `tests/eventAnalytics.test.ts`, `tests/eventDrainPipeline.test.ts` |
 | Contact network overlay | No direct textual analog | Implementation assumption / extrapolation | Selected entity shows parent/known edges, with deterministic known-edge selection | `src/render/canvasRenderer.ts` `drawContactNetworkOverlay`; `src/render/contactNetwork.ts` | Overlay toggles under Event/Overlays panel | `tests/contactNetwork.test.ts` |
 | Age + deterioration dimming; fog preview | No direct textual requirement (fog preview is interpretive aid) | Implementation assumption / extrapolation | Optional alpha dimming by age/hp; selected-observer fog preview/rings in God view | `src/render/viewModifiers.ts`; `src/render/canvasRenderer.ts` | Overlay toggles (`dim*`, `fogPreview*`) | `tests/viewModifiers.test.ts` |
@@ -219,7 +221,7 @@ Part I, Section 5: tactile recognition is central; safe feeling requires care.
 - Knowledge is represented as discrete rank learning, not richer social identification.
 
 **Code pointers**  
-- `src/systems/feelingSystem.ts` `update`, `canFeel`, `applyHandshakeStillness`  
+- `src/systems/feelingSystem.ts` `update`, `canInitiateFeeling`, `requestHandshakeStillness`  
 - `src/core/components.ts` `KnowledgeComponent`, `FeelingComponent`
 
 ---
@@ -242,8 +244,8 @@ Part I, Section 5: felt must be perfectly still for safe feeling.
 - Stillness is post-recognition enforcement, not strict precondition of all feeling attempts.
 
 **Code pointers**  
-- `src/systems/feelingSystem.ts` `applyHandshakeStillness`  
-- `src/systems/stillnessSystem.ts` `update`  
+- `src/systems/feelingSystem.ts` `requestHandshakeStillness`  
+- `src/systems/stillnessControllerSystem.ts` `update`  
 - `src/systems/movementSystem.ts` (stillness check)
 
 ---
@@ -298,7 +300,7 @@ Part I, Section 6: recognition by sight depends on comparative dimness under fog
 - Set fog density to `0`: entities still get sight presence hits, but distance-aware sight recognition collapses; hearing still works and dominates avoidance.
 
 **Known divergences/assumptions**  
-- Core sight is a limited forward cone, not full ring strip.
+- Core sight and 1D strip both use the same eye pose and per-eye FOV.
 
 **Code pointers**  
 - `src/systems/visionSystem.ts` `update`  
@@ -478,11 +480,12 @@ Part I, Section 6: others seen as line-like appearances with dimness gradient by
 
 **How the app implements it**  
 - Pure scan module computes nearest hit per ray and fog intensity.
+- Scan origin is the selected entity eye point, and angular span is capped by that entity’s eye FOV.
 - Groups contiguous hit IDs into segments and marks left endpoint / nearest point / right endpoint.
 - Renderer draws tick strip plus marker dots and heading indicator.
 
 **Key defaults**  
-- `rays=720`, `fov=360°`, `maxDistance=400`, `fogDensity=0.012`, grayscale ON.
+- `rays=720`, default eye FOV `180°`, `maxDistance=400`, `fogDensity=0.012`, grayscale ON.
 
 **Observe in app**  
 - Select any entity; view strip below world canvas.
@@ -492,6 +495,7 @@ Part I, Section 6: others seen as line-like appearances with dimness gradient by
 
 **Code pointers**  
 - `src/render/flatlanderScan.ts` `computeFlatlanderScan`, `extractFlatlanderSegments`  
+- `src/core/eyePose.ts` `eyePoseWorld`  
 - `src/render/flatlanderViewRenderer.ts` `render`
 
 ---
@@ -596,9 +600,9 @@ Part I, Section 2 contains explicit house orientation and law-like constraints.
 
 ### 3.18 System order, deterministic invariants, and narrative-vs-engine split
 **Tick order (from `src/main.ts` `systems` array):**
-1. `SouthAttractionSystem`
-2. `IntelligenceGrowthSystem`
-3. `StillnessSystem`
+1. `StillnessControllerSystem`
+2. `SouthAttractionSystem`
+3. `IntelligenceGrowthSystem`
 4. `SleepSystem`
 5. `PeaceCrySystem`
 6. `HearingSystem`
@@ -625,7 +629,7 @@ Part I, Section 2 contains explicit house orientation and law-like constraints.
 |---|---|---|---|
 | `SouthAttractionSystem` | `transforms`, `shapes`, `movements`, `config.south*` | `southDrifts` | Computes damped south drift and escapability clamp. |
 | `IntelligenceGrowthSystem` | `ranks`, `handshakeCounts`, `config.intelligence*` | `intelligence`, clears `handshakeCounts` | Intelligence grows by time + handshake bonus. |
-| `StillnessSystem` | `stillness` | `stillness` | Decrements/removes stillness timers. |
+| `StillnessControllerSystem` | `stillness`, `stillnessRequests` | `stillness` | Decrements/removes stillness timers and applies prioritized stillness requests. |
 | `SleepSystem` | `movements`, `lastCorrections`, `manifolds`, `config.sleep*` | `sleep` | Sleep/wake state machine for anti-jitter. |
 | `PeaceCrySystem` | `ranks`, `peaceCry`, `movements`, `transforms`, `config.peaceCry*`, south zone | `audiblePings`, `events` (`peaceCry`), `peaceCry.lastEmitTick` | Women-only emissions when moving. |
 | `HearingSystem` | `perceptions`, `transforms`, `voices`, `ranks`, `audiblePings` | `hearingHits` | Nearest heard signature with deterministic tie-break. |

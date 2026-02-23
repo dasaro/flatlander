@@ -88,6 +88,20 @@ function accumulateCorrection(world: World, entityId: EntityId, amount: number):
   world.lastCorrections.set(entityId, next);
 }
 
+function isActiveHandshakePair(world: World, aId: EntityId, bId: EntityId): boolean {
+  const aFeeling = world.feeling.get(aId);
+  const bFeeling = world.feeling.get(bId);
+  if (!aFeeling || !bFeeling) {
+    return false;
+  }
+
+  const aFeelsB = aFeeling.state === 'feeling' && aFeeling.partnerId === bId;
+  const bBeingFeltByA = bFeeling.state === 'beingFelt' && bFeeling.partnerId === aId;
+  const bFeelsA = bFeeling.state === 'feeling' && bFeeling.partnerId === aId;
+  const aBeingFeltByB = aFeeling.state === 'beingFelt' && aFeeling.partnerId === bId;
+  return (aFeelsB && bBeingFeltByA) || (bFeelsA && aBeingFeltByB);
+}
+
 export class CollisionResolutionSystem implements System {
   update(world: World, _dt: number): void {
     void _dt;
@@ -125,8 +139,13 @@ export class CollisionResolutionSystem implements System {
           continue;
         }
 
+        const handshakePair = isActiveHandshakePair(world, aId, bId);
+        const localSlop = handshakePair
+          ? slop + Math.max(0, world.config.vertexContactEpsilon) * 0.75
+          : slop;
+        const localPercent = handshakePair ? percent * 0.2 : percent;
         const penetration = Math.max(0, manifold.penetration);
-        const correctionMagnitude = Math.max(0, penetration - slop) * percent;
+        const correctionMagnitude = Math.max(0, penetration - localSlop) * localPercent;
         if (correctionMagnitude <= 0) {
           resolveVelocityAgainstNormal(world, aId, manifold.normal);
           resolveVelocityAgainstNormal(world, bId, mul(manifold.normal, -1));

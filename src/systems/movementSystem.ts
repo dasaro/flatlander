@@ -31,6 +31,7 @@ export class MovementSystem implements System {
       }
 
       if (world.stillness.has(id)) {
+        // Stillness overrides all locomotion integration paths.
         continue;
       }
 

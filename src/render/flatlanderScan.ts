@@ -1,5 +1,5 @@
 import { geometryFromComponents } from '../core/entityGeometry';
-import { getEyeWorldPosition } from '../core/eye';
+import { eyePoseWorld } from '../core/eyePose';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
 import {
@@ -29,6 +29,7 @@ export type FlatlanderSegment = {
 export type FlatlanderScanResult = {
   samples: FlatlanderSample[];
   segments: FlatlanderSegment[];
+  fovRad: number;
 };
 
 export type FlatlanderViewConfig = {
@@ -71,6 +72,7 @@ function emptyScan(rays: number, fovRad: number): FlatlanderScanResult {
   return {
     samples,
     segments: [],
+    fovRad: fov,
   };
 }
 
@@ -228,16 +230,17 @@ export function computeFlatlanderScan(
   cfg: FlatlanderViewConfig,
 ): FlatlanderScanResult {
   const rays = Math.max(16, Math.round(cfg.rays));
-  const fovRad = Math.max(Math.PI / 6, Math.min(Math.PI * 2, cfg.fovRad));
+  const panelFovRad = Math.max(Math.PI / 6, Math.min(Math.PI * 2, cfg.fovRad));
   const maxDistance = Math.max(1, cfg.maxDistance);
 
-  const viewerTransform = world.transforms.get(viewerId);
-  if (!viewerTransform) {
-    return emptyScan(rays, fovRad);
+  const pose = eyePoseWorld(world, viewerId);
+  if (!pose) {
+    return emptyScan(rays, panelFovRad);
   }
 
-  const eye = getEyeWorldPosition(world, viewerId) ?? viewerTransform.position;
-  const baseHeading = viewerTransform.rotation + cfg.lookOffsetRad;
+  const fovRad = Math.max(Math.PI / 6, Math.min(panelFovRad, pose.fovRad));
+  const eye = pose.eyeWorld;
+  const baseHeading = Math.atan2(pose.forwardWorld.y, pose.forwardWorld.x) + cfg.lookOffsetRad;
   const candidates = collectCandidates(world, viewerId, maxDistance, cfg.includeObstacles);
 
   const samples: FlatlanderSample[] = [];
@@ -337,5 +340,6 @@ export function computeFlatlanderScan(
   return {
     samples,
     segments: extractFlatlanderSegments(samples),
+    fovRad,
   };
 }

@@ -36,6 +36,7 @@ describe('handshake stillness protocol', () => {
     world.tick = 1;
     collision.update(world);
     feeling.update(world, 1 / world.config.tickRate);
+    stillness.update(world);
 
     expect(world.stillness.has(womanId)).toBe(true);
     expect(world.stillness.has(manId)).toBe(true);
@@ -46,9 +47,9 @@ describe('handshake stillness protocol', () => {
       throw new Error('Missing transforms in stillness protocol test.');
     }
 
-    for (let i = 0; i < 3; i += 1) {
+    for (let i = 0; i < 2; i += 1) {
       world.tick += 1;
-      stillness.update(world, 1 / world.config.tickRate);
+      stillness.update(world);
       movement.update(world, 1);
 
       const womanNow = world.transforms.get(womanId)?.position;
@@ -60,7 +61,7 @@ describe('handshake stillness protocol', () => {
     }
 
     world.tick += 1;
-    stillness.update(world, 1 / world.config.tickRate);
+    stillness.update(world);
     movement.update(world, 1);
 
     const womanAfter = world.transforms.get(womanId)?.position;

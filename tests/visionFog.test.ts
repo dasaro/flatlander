@@ -32,6 +32,37 @@ function setupViewer(worldSeed: number, overrides: Parameters<typeof createWorld
 }
 
 describe('fog-gated sight recognition', () => {
+  it('respects per-eye FOV (can see ahead, not behind)', () => {
+    const { world, viewerId } = setupViewer(10, {
+      fogDensity: 0.006,
+      sightEnabled: true,
+    });
+
+    const eye = world.eyes.get(viewerId);
+    if (!eye) {
+      throw new Error('Missing eye component in FOV gating test.');
+    }
+    eye.fovRad = Math.PI / 2;
+
+    const frontId = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 4, size: 16, irregular: false },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 170, y: 120 },
+    );
+    spawnEntity(
+      world,
+      { kind: 'polygon', sides: 4, size: 16, irregular: false },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 70, y: 120 },
+    );
+
+    const system = new VisionSystem();
+    system.update(world);
+    const hit = world.visionHits.get(viewerId);
+    expect(hit?.hitId).toBe(frontId);
+  });
+
   it('keeps presence hits when fogDensity is zero but without dimness-based distance reliability', () => {
     const { world, viewerId } = setupViewer(11, {
       fogDensity: 0,

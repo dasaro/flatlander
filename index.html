@@ -172,6 +172,14 @@
             <label for="overlay-fog-rings">Show Fog Rings</label>
             <input id="overlay-fog-rings" type="checkbox" checked />
           </div>
+          <div class="row">
+            <label for="overlay-show-eyes">Show Eyes</label>
+            <input id="overlay-show-eyes" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="overlay-show-pov-cone">Show POV Cone (Selected)</label>
+            <input id="overlay-show-pov-cone" type="checkbox" />
+          </div>
           <p class="hint">Network legend: solid=parent, dashed=known</p>
           <p class="hint">Kill stroke legend: 0 / 1-2 / 3-5 / 6+</p>
           <div class="button-row">
@@ -196,8 +204,8 @@
           <div class="row">
             <label for="flatlander-fov">FOV</label>
             <select id="flatlander-fov">
-              <option value="180">180°</option>
-              <option value="360" selected>360°</option>
+              <option value="180" selected>180°</option>
+              <option value="360">360°</option>
             </select>
           </div>
           <div class="row">
@@ -229,7 +237,7 @@
             <label for="fog-sight-density">Fog Density</label>
             <input id="fog-sight-density" type="number" min="0" step="0.001" value="0.012" />
           </div>
-          <p class="hint">Fog=0 disables sight recognition (novel rule).</p>
+          <p class="hint">Fog=0 keeps presence sight, but removes dimness-based distance cues.</p>
         </section>
 
         <section class="panel" id="legend-panel">
@@ -546,6 +554,18 @@
               <strong id="inspector-heard-signature">None</strong>
             </div>
             <div class="row">
+              <span>Eye (World)</span>
+              <strong id="inspector-eye-world">N/A</strong>
+            </div>
+            <div class="row">
+              <span>Eye Forward</span>
+              <strong id="inspector-eye-forward">N/A</strong>
+            </div>
+            <div class="row">
+              <label for="inspector-eye-fov">Eye FOV (°)</label>
+              <input id="inspector-eye-fov" type="number" min="60" max="300" step="1" value="180" />
+            </div>
+            <div class="row">
               <span>Known Count</span>
               <strong id="inspector-known-count">0</strong>
             </div>
@@ -590,6 +610,41 @@
             <div class="row">
               <label for="inspector-approach-speed">Approach Speed</label>
               <input id="inspector-approach-speed" type="number" min="0" step="0.1" value="10" />
+            </div>
+            <div class="row">
+              <span>Feeling State</span>
+              <strong id="inspector-feeling-state">idle</strong>
+            </div>
+            <div class="row">
+              <span>Feeling Partner</span>
+              <strong id="inspector-feeling-partner">None</strong>
+            </div>
+            <div class="row">
+              <span>Feeling Ticks</span>
+              <strong id="inspector-feeling-ticks">0</strong>
+            </div>
+            <div class="row">
+              <span>Stillness Active</span>
+              <strong id="inspector-stillness-active">No</strong>
+            </div>
+            <div class="row">
+              <span>Stillness Mode</span>
+              <strong id="inspector-stillness-mode">N/A</strong>
+            </div>
+            <div class="row">
+              <span>Stillness Reason</span>
+              <strong id="inspector-stillness-reason">N/A</strong>
+            </div>
+            <div class="row">
+              <span>Stillness Ticks</span>
+              <strong id="inspector-stillness-ticks">0</strong>
+            </div>
+            <div class="row">
+              <span>Stillness RequestedBy</span>
+              <strong id="inspector-stillness-requested-by">N/A</strong>
+            </div>
+            <div class="button-row" style="margin-top: 6px">
+              <button id="inspector-manual-halt" type="button">Toggle Halt (manual)</button>
             </div>
             <div id="inspector-peace-cry-row">
               <div class="row">

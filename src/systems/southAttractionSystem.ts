@@ -32,6 +32,9 @@ export class SouthAttractionSystem implements System {
       if (!transform || !shape || !drift) {
         continue;
       }
+      if (world.stillness.has(id)) {
+        continue;
+      }
 
       let effectiveAcceleration = 0;
       if (world.config.southAttractionEnabled && world.config.southAttractionStrength > 0) {

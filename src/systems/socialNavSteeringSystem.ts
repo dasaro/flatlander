@@ -24,9 +24,14 @@ function targetSpeedForIntention(world: World, entityId: number): number {
   if (!movement || movement.type !== 'socialNav') {
     return 0;
   }
+  if (world.stillness.has(entityId)) {
+    return 0;
+  }
 
   const feeling = world.feeling.get(entityId);
   switch (movement.intention) {
+    case 'holdStill':
+      return 0;
     case 'avoid':
       return movement.maxSpeed * 0.92;
     case 'yield':
@@ -51,7 +56,15 @@ export class SocialNavSteeringSystem implements System {
       if (!movement || movement.type !== 'socialNav' || !transform || world.staticObstacles.has(id)) {
         continue;
       }
+      const stillness = world.stillness.get(id);
       if (world.sleep.get(id)?.asleep) {
+        continue;
+      }
+      if (stillness?.mode === 'full') {
+        movement.speed = 0;
+        movement.smoothSpeed = 0;
+        movement.intention = 'holdStill';
+        movement.intentionTicksLeft = Math.max(1, stillness.ticksRemaining);
         continue;
       }
 

@@ -15,7 +15,8 @@ export type SocialIntention =
   | 'avoid'
   | 'yield'
   | 'approachMate'
-  | 'approachForFeeling';
+  | 'approachForFeeling'
+  | 'holdStill';
 
 export interface SocialNavGoal {
   type: 'point' | 'direction';
@@ -154,6 +155,9 @@ export interface FeelingComponent {
   approachSpeed: number;
   feelCooldownTicks: number;
   lastFeltTick: number;
+  state: 'idle' | 'approaching' | 'beingFelt' | 'feeling' | 'cooldown';
+  partnerId: EntityId | null;
+  ticksLeft: number;
 }
 
 export interface AgeComponent {
@@ -206,8 +210,25 @@ export interface SwayComponent {
   phase: number;
 }
 
+export interface EyeComponent {
+  localEye: Vec2;
+  localForward: Vec2;
+  fovRad: number;
+}
+
 export interface StillnessComponent {
+  mode: 'translation' | 'full';
+  reason: 'beingFelt' | 'feeling' | 'yieldToLady' | 'waitForBearing' | 'manual';
   ticksRemaining: number;
+  requestedBy?: EntityId | null;
+}
+
+export interface StillnessRequest {
+  entityId: EntityId;
+  mode: 'translation' | 'full';
+  reason: 'beingFelt' | 'feeling' | 'yieldToLady' | 'waitForBearing' | 'manual';
+  ticksRemaining: number;
+  requestedBy?: EntityId | null;
 }
 
 export interface IntelligenceComponent {

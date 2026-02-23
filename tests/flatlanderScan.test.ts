@@ -52,6 +52,51 @@ function setupViewerAndTarget(targetX: number): { world: ReturnType<typeof creat
 }
 
 describe('flatlander scan', () => {
+  it('uses the selected eye FOV and origin (no rear panoramic hits)', () => {
+    const world = createWorld(777, {
+      southAttractionEnabled: false,
+      reproductionEnabled: false,
+    });
+
+    const viewerId = spawnEntity(
+      world,
+      { kind: 'segment', size: 20 },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 100, y: 120 },
+    );
+    const viewerTransform = world.transforms.get(viewerId);
+    const eye = world.eyes.get(viewerId);
+    if (!viewerTransform || !eye) {
+      throw new Error('Missing viewer setup in eye-origin scan test.');
+    }
+    viewerTransform.rotation = 0;
+    eye.fovRad = Math.PI / 2;
+
+    const frontId = spawnEntity(
+      world,
+      { kind: 'circle', size: 8 },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 145, y: 120 },
+    );
+    const rearId = spawnEntity(
+      world,
+      { kind: 'circle', size: 8 },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 70, y: 120 },
+    );
+
+    const result = computeFlatlanderScan(world, viewerId, {
+      ...BASE_SCAN_CONFIG,
+      fovRad: Math.PI * 2,
+      maxDistance: 300,
+      minVisibleIntensity: 0,
+    });
+
+    expect(result.fovRad).toBeCloseTo(Math.PI / 2, 8);
+    expect(result.samples.some((sample) => sample.hitId === frontId)).toBe(true);
+    expect(result.samples.some((sample) => sample.hitId === rearId)).toBe(false);
+  });
+
   it('returns no hits when maxDistance is too small', () => {
     const { world, viewerId } = setupViewerAndTarget(170);
     const result = computeFlatlanderScan(world, viewerId, {

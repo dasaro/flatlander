@@ -9,6 +9,7 @@ import type {
   CombatStatsComponent,
   DurabilityComponent,
   EntityId,
+  EyeComponent,
   FemaleStatusComponent,
   FeelingComponent,
   FertilityComponent,
@@ -24,6 +25,7 @@ import type {
   PeaceCryComponent,
   PregnancyComponent,
   SleepComponent,
+  StillnessRequest,
   StillnessComponent,
   SouthDriftComponent,
   SwayComponent,
@@ -87,6 +89,7 @@ export interface WorldConfig {
   fogMinIntensity: number;
   fogMaxDistance: number;
   sightEnabled: boolean;
+  defaultEyeFovDeg: number;
   lineRadius: number;
   collisionSlop: number;
   collisionResolvePercent: number;
@@ -153,6 +156,7 @@ export interface World {
   staticObstacles: Map<EntityId, StaticObstacleComponent>;
   houses: Map<EntityId, HouseComponent>;
   vision: Map<EntityId, VisionComponent>;
+  eyes: Map<EntityId, EyeComponent>;
   visionHits: Map<EntityId, VisionHitComponent>;
   perceptions: Map<EntityId, PerceptionComponent>;
   voices: Map<EntityId, VoiceComponent>;
@@ -170,6 +174,7 @@ export interface World {
   femaleStatus: Map<EntityId, FemaleStatusComponent>;
   sway: Map<EntityId, SwayComponent>;
   stillness: Map<EntityId, StillnessComponent>;
+  stillnessRequests: StillnessRequest[];
   sleep: Map<EntityId, SleepComponent>;
   intelligence: Map<EntityId, IntelligenceComponent>;
   brainAngles: Map<EntityId, BrainAngleComponent>;
@@ -237,6 +242,7 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   fogMinIntensity: 0.1,
   fogMaxDistance: 450,
   sightEnabled: true,
+  defaultEyeFovDeg: 180,
   lineRadius: 1,
   collisionSlop: 0.2,
   collisionResolvePercent: 0.8,
@@ -296,6 +302,7 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     staticObstacles: new Map(),
     houses: new Map(),
     vision: new Map(),
+    eyes: new Map(),
     visionHits: new Map(),
     perceptions: new Map(),
     voices: new Map(),
@@ -313,6 +320,7 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     femaleStatus: new Map(),
     sway: new Map(),
     stillness: new Map(),
+    stillnessRequests: [],
     sleep: new Map(),
     intelligence: new Map(),
     brainAngles: new Map(),

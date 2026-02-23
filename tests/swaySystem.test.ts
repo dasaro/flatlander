@@ -80,4 +80,47 @@ describe('women back-motion sway', () => {
     const highOffset = Math.abs((world.transforms.get(highId)?.rotation ?? 0) - highMovement.heading);
     expect(highOffset).toBeGreaterThan(lowOffset);
   });
+
+  it('translation stillness allows sway but full stillness freezes rotation', () => {
+    const world = createWorld(307);
+    const womanId = spawnEntity(
+      world,
+      { kind: 'segment', size: 24 },
+      { type: 'randomWalk', speed: 0, turnRate: 0, boundary: 'wrap' },
+      { x: 120, y: 100 },
+    );
+
+    const movement = world.movements.get(womanId);
+    const sway = world.sway.get(womanId);
+    if (!movement || movement.type === 'straightDrift' || !sway) {
+      throw new Error('Missing movement/sway in stillness sway test.');
+    }
+    movement.heading = 0;
+    sway.phase = 0;
+
+    const system = new SwaySystem();
+    const dt = 1 / world.config.tickRate;
+
+    world.stillness.set(womanId, {
+      mode: 'translation',
+      reason: 'manual',
+      ticksRemaining: 10,
+      requestedBy: null,
+    });
+    const beforeTranslation = world.transforms.get(womanId)?.rotation ?? 0;
+    system.update(world, dt);
+    const afterTranslation = world.transforms.get(womanId)?.rotation ?? 0;
+    expect(Math.abs(afterTranslation - beforeTranslation)).toBeGreaterThan(0);
+
+    world.stillness.set(womanId, {
+      mode: 'full',
+      reason: 'beingFelt',
+      ticksRemaining: 10,
+      requestedBy: 999,
+    });
+    const beforeFull = world.transforms.get(womanId)?.rotation ?? 0;
+    system.update(world, dt);
+    const afterFull = world.transforms.get(womanId)?.rotation ?? 0;
+    expect(afterFull).toBeCloseTo(beforeFull, 9);
+  });
 });

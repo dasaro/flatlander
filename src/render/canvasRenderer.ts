@@ -1,4 +1,5 @@
 import { geometryFromComponents } from '../core/entityGeometry';
+import { eyePoseWorld } from '../core/eyePose';
 import { getEyeWorldPosition } from '../core/eye';
 import { Rank } from '../core/rank';
 import { getSortedEntityIds } from '../core/world';
@@ -29,6 +30,9 @@ export interface RenderOptions {
   fogPreviewStrength?: number;
   fogPreviewHideBelowMin?: boolean;
   fogPreviewRings?: boolean;
+  showEyes?: boolean;
+  showPovCone?: boolean;
+  flatlanderHoverEntityId?: number | null;
 }
 
 export class CanvasRenderer {
@@ -89,6 +93,7 @@ export class CanvasRenderer {
 
     const ids = getSortedEntityIds(world);
     const ageHalfLifeTicks = 6_000;
+    const showEyes = options.showEyes ?? true;
     for (const id of ids) {
       const shape = world.shapes.get(id);
       const transform = world.transforms.get(id);
@@ -109,6 +114,11 @@ export class CanvasRenderer {
       }
 
       const isSelected = selectedEntityId === id;
+      const isFlatlanderHovered =
+        !isSelected &&
+        options.flatlanderHoverEntityId !== null &&
+        options.flatlanderHoverEntityId !== undefined &&
+        options.flatlanderHoverEntityId === id;
       const fillColor = colorForRank(rank.rank);
       const kills = world.combatStats.get(id)?.kills ?? 0;
       const killStrokeColor = colorForKillCount(kills);
@@ -151,10 +161,12 @@ export class CanvasRenderer {
       this.ctx.fillStyle = fillColor;
       this.ctx.strokeStyle = isSelected
         ? '#111111'
-        : options.strokeByKills
-          ? killStrokeColor
-          : defaultStroke;
-      this.ctx.lineWidth = (isSelected ? 3 : 1.5) / camera.zoom;
+        : isFlatlanderHovered
+          ? '#d88a1f'
+          : options.strokeByKills
+            ? killStrokeColor
+            : defaultStroke;
+      this.ctx.lineWidth = (isSelected ? 3 : isFlatlanderHovered ? 2.8 : 1.5) / camera.zoom;
 
       if (geometry.kind === 'circle') {
         this.ctx.beginPath();
@@ -196,8 +208,19 @@ export class CanvasRenderer {
 
       this.ctx.restore();
 
+      if (isFlatlanderHovered) {
+        const center = geometryCenter(geometry);
+        this.ctx.save();
+        this.ctx.strokeStyle = 'rgba(216, 138, 31, 0.9)';
+        this.ctx.lineWidth = 1.6 / camera.zoom;
+        this.ctx.beginPath();
+        this.ctx.arc(center.x, center.y, 10 / camera.zoom, 0, Math.PI * 2);
+        this.ctx.stroke();
+        this.ctx.restore();
+      }
+
       const eye = getEyeWorldPosition(world, id);
-      if (eye) {
+      if (showEyes && eye) {
         this.ctx.save();
         this.ctx.globalAlpha = Math.max(0.35, entityAlpha);
         this.ctx.fillStyle = isSelected ? '#111111' : '#f7f3ea';
@@ -209,6 +232,10 @@ export class CanvasRenderer {
         this.ctx.stroke();
         this.ctx.restore();
       }
+    }
+
+    if ((options.showPovCone ?? false) && selectedEntityId !== null) {
+      this.drawSelectedPovCone(world, selectedEntityId, camera);
     }
 
     if (options.showContactNetwork && selectedEntityId !== null) {
@@ -312,6 +339,36 @@ export class CanvasRenderer {
       }
     }
 
+    this.ctx.restore();
+  }
+
+  private drawSelectedPovCone(world: World, selectedEntityId: number, camera: Camera): void {
+    const pose = eyePoseWorld(world, selectedEntityId);
+    if (!pose) {
+      return;
+    }
+
+    const visionRange = world.vision.get(selectedEntityId)?.range ?? 120;
+    const radius = Math.max(20, visionRange);
+    const baseAngle = Math.atan2(pose.forwardWorld.y, pose.forwardWorld.x);
+    const halfFov = Math.max(Math.PI / 12, Math.min(Math.PI, pose.fovRad * 0.5));
+
+    this.ctx.save();
+    this.ctx.strokeStyle = 'rgba(34, 33, 30, 0.55)';
+    this.ctx.fillStyle = 'rgba(34, 33, 30, 0.06)';
+    this.ctx.lineWidth = 1.2 / camera.zoom;
+    this.ctx.beginPath();
+    this.ctx.moveTo(pose.eyeWorld.x, pose.eyeWorld.y);
+    this.ctx.arc(
+      pose.eyeWorld.x,
+      pose.eyeWorld.y,
+      radius,
+      baseAngle - halfFov,
+      baseAngle + halfFov,
+    );
+    this.ctx.closePath();
+    this.ctx.fill();
+    this.ctx.stroke();
     this.ctx.restore();
   }
 

@@ -1,10 +1,12 @@
 import './styles.css';
 
 import type { BoundaryMode, MovementComponent } from './core/components';
+import { computeDefaultEyeComponent, eyePoseWorld } from './core/eyePose';
 import { countLivingDescendants, getAncestors } from './core/genealogy';
 import type { EventType } from './ui/eventAnalytics';
 import { EventAnalytics } from './ui/eventAnalytics';
 import { spawnFromRequest, type SpawnMovementConfig, type SpawnRequest } from './core/factory';
+import { requestStillness } from './core/stillness';
 import { FixedTimestepSimulation } from './core/simulation';
 import { boundaryFromTopology, type WorldTopology } from './core/topology';
 import { createWorld, type WorldConfig } from './core/world';
@@ -13,6 +15,10 @@ import { Camera } from './render/camera';
 import { CanvasRenderer } from './render/canvasRenderer';
 import { EffectsManager } from './render/effects';
 import { EventTimelineRenderer } from './render/eventTimelineRenderer';
+import {
+  normalizedXFromClientX,
+  pickFlatlanderSampleAtNormalizedX,
+} from './render/flatlanderPicking';
 import { computeFlatlanderScan, type FlatlanderScanResult } from './render/flatlanderScan';
 import { FlatlanderViewRenderer } from './render/flatlanderViewRenderer';
 import { PopulationHistogram } from './render/populationHistogram';
@@ -32,7 +38,7 @@ import { ReproductionSystem } from './systems/reproductionSystem';
 import { SocialNavMindSystem } from './systems/socialNavMindSystem';
 import { SocialNavSteeringSystem } from './systems/socialNavSteeringSystem';
 import { SouthAttractionSystem } from './systems/southAttractionSystem';
-import { StillnessSystem } from './systems/stillnessSystem';
+import { StillnessControllerSystem } from './systems/stillnessControllerSystem';
 import { SleepSystem } from './systems/sleepSystem';
 import { SwaySystem } from './systems/swaySystem';
 import { VisionSystem } from './systems/visionSystem';
@@ -77,10 +83,11 @@ const hasEventTimelineUi =
   eventTimelineCanvas instanceof HTMLCanvasElement &&
   eventTimelineTooltip instanceof HTMLElement &&
   eventTimelineLegend instanceof HTMLElement;
-const flatlanderCanvas = document.getElementById('flatlander-canvas');
-if (!(flatlanderCanvas instanceof HTMLCanvasElement)) {
+const flatlanderCanvasNode = document.getElementById('flatlander-canvas');
+if (!(flatlanderCanvasNode instanceof HTMLCanvasElement)) {
   throw new Error('Missing #flatlander-canvas canvas element.');
 }
+const flatlanderCanvas: HTMLCanvasElement = flatlanderCanvasNode;
 
 const initialSeedInput = document.getElementById('seed-input');
 if (!(initialSeedInput instanceof HTMLInputElement)) {
@@ -97,9 +104,10 @@ const appShell = document.getElementById('app-shell');
 const primaryRunBtn = document.getElementById('run-btn');
 
 const systems = [
+  // Keep stillness first so every downstream force/steering/movement stage sees the same lock state.
+  new StillnessControllerSystem(),
   new SouthAttractionSystem(),
   new IntelligenceGrowthSystem(),
-  new StillnessSystem(),
   new SleepSystem(),
   new PeaceCrySystem(),
   new HearingSystem(),
@@ -113,6 +121,7 @@ const systems = [
   new CompensationSystem(),
   new RegularizationSystem(),
   new CollisionSystem(),
+  // Feeling consumes fresh collision contacts and can request stillness before separation correction.
   new FeelingSystem(),
   new CollisionResolutionSystem(),
   new ErosionSystem(),
@@ -161,11 +170,13 @@ let eventHighlightsSettings: EventHighlightsSettings = {
   fogPreviewStrength: 0.5,
   fogPreviewHideBelowMin: false,
   fogPreviewRings: true,
+  showEyes: true,
+  showPovCone: false,
 };
 let flatlanderViewSettings: FlatlanderViewSettings = {
   enabled: true,
   rays: 720,
-  fovRad: Math.PI * 2,
+  fovRad: Math.PI,
   lookOffsetRad: 0,
   maxDistance: 400,
   fogDensity: 0.012,
@@ -224,6 +235,9 @@ let lastFlatlanderScanViewerId: number | null = null;
 let lastFlatlanderScanConfigKey = '';
 let cachedFlatlanderScan: FlatlanderScanResult | null = null;
 let flatlanderScanDirty = true;
+let flatlanderHoverEntityId: number | null = null;
+let flatlanderHoverSampleIndex: number | null = null;
+let flatlanderHoverNormalizedX: number | null = null;
 const eventDrainPipeline = new EventDrainPipeline(
   world.tick,
   () => world.events.drain(),
@@ -284,6 +298,7 @@ const ui = new UIController({
     lastFlatlanderScanTick = -1;
     lastFlatlanderScanViewerId = null;
     lastFlatlanderScanConfigKey = '';
+    clearFlatlanderHover();
     debugClickPoint = null;
     lastRenderTimeMs = 0;
     renderSelection();
@@ -412,6 +427,26 @@ const ui = new UIController({
     });
     renderSelection();
   },
+  onInspectorEyeUpdate: (eyeConfig) => {
+    const selectedId = selectionState.selectedId;
+    if (selectedId === null) {
+      return;
+    }
+
+    const shape = world.shapes.get(selectedId);
+    if (!shape) {
+      return;
+    }
+
+    const current = world.eyes.get(selectedId) ?? computeDefaultEyeComponent(shape, world.config.defaultEyeFovDeg);
+    const clampedFovDeg = Math.max(60, Math.min(300, eyeConfig.fovDeg));
+    world.eyes.set(selectedId, {
+      ...current,
+      fovRad: (clampedFovDeg * Math.PI) / 180,
+    });
+    flatlanderScanDirty = true;
+    renderSelection();
+  },
   onInspectorVoiceUpdate: (voiceConfig) => {
     const selectedId = selectionState.selectedId;
     if (selectedId === null) {
@@ -474,10 +509,31 @@ const ui = new UIController({
     });
     renderSelection();
   },
+  onInspectorToggleManualStillness: () => {
+    const selectedId = selectionState.selectedId;
+    if (selectedId === null || !world.entities.has(selectedId)) {
+      return;
+    }
+
+    const current = world.stillness.get(selectedId);
+    if (current?.reason === 'manual') {
+      world.stillness.delete(selectedId);
+    } else {
+      requestStillness(world, {
+        entityId: selectedId,
+        mode: 'full',
+        reason: 'manual',
+        ticksRemaining: 120,
+        requestedBy: null,
+      });
+    }
+    renderSelection();
+  },
 });
 
 selectionState.subscribe(() => {
   flatlanderScanDirty = true;
+  clearFlatlanderHover();
   renderSelection();
 });
 
@@ -496,6 +552,12 @@ const pickingController = new PickingController({
   dragThresholdPx: 7,
 });
 pickingController.attach();
+flatlanderCanvas.addEventListener('pointermove', (event) => {
+  updateFlatlanderHoverPointer(event.clientX);
+});
+flatlanderCanvas.addEventListener('pointerleave', () => {
+  clearFlatlanderHover();
+});
 
 function frame(now: number): void {
   const dtVisualSeconds = lastRenderTimeMs === 0 ? 0 : Math.max(0, Math.min(0.25, (now - lastRenderTimeMs) / 1000));
@@ -506,10 +568,14 @@ function frame(now: number): void {
   effectsManager.update(dtVisualSeconds);
   populationHistogram.record(world);
   ensureSelectionStillAlive();
+  if (flatlanderHoverEntityId !== null && !world.entities.has(flatlanderHoverEntityId)) {
+    setFlatlanderHover(null, null);
+  }
 
   const clickPoint = debugClickPoint;
   debugClickPoint = null;
 
+  renderFlatlanderView();
   renderer.render(world, camera, selectionState.selectedId, {
     showSouthZoneOverlay: southAttractionSettings.showSouthZoneOverlay,
     debugClickPoint: southAttractionSettings.showClickDebug ? clickPoint : null,
@@ -530,8 +596,10 @@ function frame(now: number): void {
     fogPreviewStrength: eventHighlightsSettings.fogPreviewStrength,
     fogPreviewHideBelowMin: eventHighlightsSettings.fogPreviewHideBelowMin,
     fogPreviewRings: eventHighlightsSettings.fogPreviewRings,
+    showEyes: eventHighlightsSettings.showEyes,
+    showPovCone: eventHighlightsSettings.showPovCone,
+    flatlanderHoverEntityId,
   });
-  renderFlatlanderView();
   populationHistogram.render();
   renderEventTimeline();
   ui.renderStats(world);
@@ -569,6 +637,10 @@ function renderSelection(): void {
       null,
       null,
       null,
+      null,
+      null,
+      null,
+      null,
       'N/A',
     );
     return;
@@ -579,6 +651,12 @@ function renderSelection(): void {
   const rank = world.ranks.get(selectedId) ?? null;
   const vision = world.vision.get(selectedId) ?? null;
   const perception = world.perceptions.get(selectedId) ?? null;
+  const eyePose = eyePoseWorld(world, selectedId);
+  const eyeForwardDeg =
+    eyePose === null
+      ? null
+      : (((Math.atan2(eyePose.forwardWorld.y, eyePose.forwardWorld.x) * 180) / Math.PI) + 360) % 360;
+  const eyeFovDeg = eyePose === null ? null : (eyePose.fovRad * 180) / Math.PI;
   const voice = world.voices.get(selectedId) ?? null;
   const hearingHit = world.hearingHits.get(selectedId) ?? null;
   const peaceCry = world.peaceCry.get(selectedId) ?? null;
@@ -594,6 +672,7 @@ function renderSelection(): void {
   const lineage = world.lineage.get(selectedId) ?? null;
   const legacy = world.legacy.get(selectedId) ?? null;
   const durability = world.durability.get(selectedId) ?? null;
+  const stillness = world.stillness.get(selectedId) ?? null;
   const ancestorEntries = getAncestors(world, selectedId, 4);
   const ancestorsLabel =
     ancestorEntries.length > 0
@@ -630,6 +709,10 @@ function renderSelection(): void {
       null,
       null,
       null,
+      null,
+      null,
+      null,
+      null,
       'N/A',
     );
     return;
@@ -642,6 +725,9 @@ function renderSelection(): void {
     rank,
     vision,
     perception,
+    eyePose?.eyeWorld ?? null,
+    eyeForwardDeg,
+    eyeFovDeg,
     voice,
     hearingHit,
     peaceCry,
@@ -657,6 +743,7 @@ function renderSelection(): void {
     lineage,
     legacy,
     durability,
+    stillness,
     ancestorsLabel,
   );
 }
@@ -699,24 +786,34 @@ function flatlanderConfigKey(settings: FlatlanderViewSettings): string {
 
 function renderFlatlanderView(): void {
   if (!flatlanderViewSettings.enabled) {
+    clearFlatlanderHover();
     flatlanderViewRenderer.clearWithMessage('Flatlander view disabled');
     return;
   }
 
   const selectedId = selectionState.selectedId;
   if (selectedId === null) {
+    clearFlatlanderHover();
     flatlanderViewRenderer.clearWithMessage('Select an entity');
     return;
   }
 
   if (!world.entities.has(selectedId)) {
+    clearFlatlanderHover();
     flatlanderViewRenderer.clearWithMessage('Selected entity removed');
     return;
   }
 
   const transform = world.transforms.get(selectedId);
   if (!transform) {
+    clearFlatlanderHover();
     flatlanderViewRenderer.clearWithMessage('No transform for selection');
+    return;
+  }
+  const selectedEyePose = eyePoseWorld(world, selectedId);
+  if (!selectedEyePose) {
+    clearFlatlanderHover();
+    flatlanderViewRenderer.clearWithMessage('No eye pose for selection');
     return;
   }
 
@@ -735,15 +832,64 @@ function renderFlatlanderView(): void {
   }
 
   if (!cachedFlatlanderScan) {
+    clearFlatlanderHover();
     flatlanderViewRenderer.clearWithMessage('No scan');
     return;
   }
+  syncFlatlanderHoverFromScan(cachedFlatlanderScan);
 
   flatlanderViewRenderer.render(
     cachedFlatlanderScan,
     flatlanderViewSettings,
-    transform.rotation + flatlanderViewSettings.lookOffsetRad,
+    Math.atan2(selectedEyePose.forwardWorld.y, selectedEyePose.forwardWorld.x) +
+      flatlanderViewSettings.lookOffsetRad,
+    flatlanderHoverEntityId,
+    flatlanderHoverSampleIndex,
   );
+}
+
+function setFlatlanderHover(entityId: number | null, sampleIndex: number | null): void {
+  flatlanderHoverEntityId = entityId;
+  flatlanderHoverSampleIndex = sampleIndex;
+  flatlanderCanvas.style.cursor = entityId !== null ? 'pointer' : 'default';
+}
+
+function clearFlatlanderHover(): void {
+  flatlanderHoverNormalizedX = null;
+  setFlatlanderHover(null, null);
+}
+
+function updateFlatlanderHoverPointer(clientX: number): void {
+  if (!flatlanderViewSettings.enabled || selectionState.selectedId === null) {
+    clearFlatlanderHover();
+    return;
+  }
+
+  const rect = flatlanderCanvas.getBoundingClientRect();
+  const normalizedX = normalizedXFromClientX(clientX, rect.left, rect.width);
+  if (normalizedX === null) {
+    clearFlatlanderHover();
+    return;
+  }
+  flatlanderHoverNormalizedX = normalizedX;
+  if (cachedFlatlanderScan) {
+    syncFlatlanderHoverFromScan(cachedFlatlanderScan);
+  }
+}
+
+function syncFlatlanderHoverFromScan(scan: FlatlanderScanResult): void {
+  if (flatlanderHoverNormalizedX === null) {
+    setFlatlanderHover(null, null);
+    return;
+  }
+
+  const pick = pickFlatlanderSampleAtNormalizedX(scan.samples, flatlanderHoverNormalizedX);
+  if (!pick || pick.hitId === null || pick.hitId < 0 || !world.entities.has(pick.hitId)) {
+    setFlatlanderHover(null, pick?.sampleIndex ?? null);
+    return;
+  }
+
+  setFlatlanderHover(pick.hitId, pick.sampleIndex);
 }
 
 function processTickEvents(): void {
