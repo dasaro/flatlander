@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { spawnEntity } from '../src/core/factory';
-import { eyePoseWorld } from '../src/core/eyePose';
+import { computeDefaultEyeComponent, eyePoseWorld } from '../src/core/eyePose';
 import { createWorld } from '../src/core/world';
 import { clamp, normalize, sub } from '../src/geometry/vector';
 import type { Vec2 } from '../src/geometry/vector';
@@ -117,5 +117,50 @@ describe('eye pose', () => {
       Math.abs(apex.y - eye.localEye.y) <= 1e-9;
     expect(eyeIsApex).toBe(false);
   });
-});
 
+  it('keeps eye attached to evolving shape geometry', () => {
+    const world = createWorld(1004);
+    const triangleId = spawnEntity(
+      world,
+      {
+        kind: 'polygon',
+        sides: 3,
+        size: 18,
+        irregular: false,
+        triangleKind: 'Isosceles',
+        isoscelesBaseRatio: 0.08,
+      },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 200, y: 180 },
+    );
+
+    const initialPose = eyePoseWorld(world, triangleId);
+    expect(initialPose).not.toBeNull();
+
+    const shape = world.shapes.get(triangleId);
+    if (!shape || shape.kind !== 'polygon') {
+      throw new Error('Missing polygon shape for eye attachment test.');
+    }
+
+    // Simulate shape evolution (e.g. compensation/regularization) by mutating local vertices.
+    shape.vertices = shape.vertices.map((vertex) =>
+      ({ x: vertex.x * 0.72, y: vertex.y * 0.72 }),
+    );
+    const recomputedEye = computeDefaultEyeComponent(shape, world.config.defaultEyeFovDeg);
+    const transform = world.transforms.get(triangleId);
+    if (!transform) {
+      throw new Error('Missing transform for eye attachment test.');
+    }
+    const cos = Math.cos(transform.rotation);
+    const sin = Math.sin(transform.rotation);
+    const expectedWorldEye = {
+      x: transform.position.x + recomputedEye.localEye.x * cos - recomputedEye.localEye.y * sin,
+      y: transform.position.y + recomputedEye.localEye.x * sin + recomputedEye.localEye.y * cos,
+    };
+
+    const updatedPose = eyePoseWorld(world, triangleId);
+    expect(updatedPose).not.toBeNull();
+    expect(updatedPose?.eyeWorld.x).toBeCloseTo(expectedWorldEye.x, 6);
+    expect(updatedPose?.eyeWorld.y).toBeCloseTo(expectedWorldEye.y, 6);
+  });
+});

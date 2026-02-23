@@ -822,7 +822,7 @@
         </section>
         <section class="timeline-panel" aria-label="Population histogram panel">
           <h2>Population Histogram</h2>
-          <canvas id="population-histogram" aria-label="Population, kills, and new inhabitants histogram"></canvas>
+          <canvas id="population-histogram" aria-label="Population composition histogram"></canvas>
         </section>
         <section class="timeline-panel" aria-label="Event timeline panel">
           <h2>Event Timeline</h2>
@@ -831,9 +831,7 @@
             <label><input id="timeline-show-legend" type="checkbox" checked /> Show timeline legend</label>
           </div>
           <div class="timeline-controls timeline-type-controls">
-            <label><input id="timeline-type-touch" type="checkbox" checked /> touch</label>
             <label><input id="timeline-type-handshake" type="checkbox" checked /> handshake</label>
-            <label><input id="timeline-type-peaceCry" type="checkbox" checked /> peace-cry</label>
             <label><input id="timeline-type-stab" type="checkbox" checked /> stab</label>
             <label><input id="timeline-type-death" type="checkbox" checked /> death</label>
             <label><input id="timeline-type-birth" type="checkbox" checked /> birth</label>
@@ -855,7 +853,7 @@
             </div>
           </details>
           <canvas id="event-timeline-canvas" aria-label="Event timeline"></canvas>
-          <div id="event-timeline-legend" class="hint">Touch / Handshake / Peace-Cry / Stab / Death / Birth / Regularized</div>
+          <div id="event-timeline-legend" class="hint">Handshake / Stab / Death / Birth / Regularized</div>
           <div id="event-timeline-tooltip" class="hint">Hover bars for tick details.</div>
         </section>
       </main>

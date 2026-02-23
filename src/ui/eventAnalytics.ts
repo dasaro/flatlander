@@ -31,9 +31,7 @@ export interface TimelineFilter {
 }
 
 const EVENT_TYPES: EventType[] = [
-  'touch',
   'handshake',
-  'peaceCry',
   'stab',
   'death',
   'birth',
@@ -103,6 +101,10 @@ export class EventAnalytics {
 
     const byTick = new Map<number, StoredEvent[]>();
     for (const event of events) {
+      if (event.type === 'peaceCry' || event.type === 'touch') {
+        // Peace-cry and touch events are too dense for timeline analysis; keep them in visual effects only.
+        continue;
+      }
       const storedEvents = byTick.get(event.tick) ?? [];
       storedEvents.push({
         type: event.type,

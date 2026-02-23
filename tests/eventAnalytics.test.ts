@@ -12,15 +12,15 @@ describe('event analytics', () => {
     ]);
 
     const summaries = analytics.getFilteredSummaries({
-      selectedTypes: new Set(['touch', 'death', 'handshake']),
+      selectedTypes: new Set(['handshake', 'death']),
       selectedRankKeys: new Set<string>(),
       splitByRank: false,
       focusEntityId: null,
     });
 
-    expect(summaries.map((summary) => summary.tick)).toEqual([10, 12]);
-    expect(summaries[0]?.countsByType.touch).toBe(1);
-    expect(summaries[1]?.countsByType.death).toBe(1);
+    expect(summaries.map((summary) => summary.tick)).toEqual([12]);
+    const tickTwelve = summaries.find((summary) => summary.tick === 12);
+    expect(tickTwelve?.countsByType.death).toBe(1);
   });
 
   it('supports focus filtering by selected id', () => {
@@ -33,16 +33,37 @@ describe('event analytics', () => {
     ]);
 
     const focused = analytics.getFilteredSummaries({
-      selectedTypes: new Set(['touch', 'stab', 'death', 'peaceCry']),
+      selectedTypes: new Set(['stab', 'death', 'handshake']),
       selectedRankKeys: new Set<string>(),
       splitByRank: false,
       focusEntityId: 7,
     });
 
-    expect(focused.map((summary) => summary.tick)).toEqual([2, 3]);
+    expect(focused.map((summary) => summary.tick)).toEqual([3]);
     const tickThreeSummary = focused.find((summary) => summary.tick === 3);
     expect(tickThreeSummary?.countsByType.stab).toBe(1);
     expect(tickThreeSummary?.countsByType.death).toBe(0);
+  });
+
+  it('ignores peace-cry and touch events in timeline summaries', () => {
+    const analytics = new EventAnalytics();
+    analytics.ingest([
+      { type: 'peaceCry', tick: 4, emitterId: 1, pos: { x: 3, y: 3 }, radius: 100 },
+      { type: 'touch', tick: 5, aId: 1, bId: 2, pos: { x: 1, y: 1 } },
+      { type: 'handshake', tick: 6, aId: 1, bId: 2, pos: { x: 1, y: 1 } },
+    ]);
+
+    const summaries = analytics.getFilteredSummaries({
+      selectedTypes: new Set(['handshake', 'stab', 'death', 'birth', 'regularized']),
+      selectedRankKeys: new Set<string>(),
+      splitByRank: false,
+      focusEntityId: null,
+    });
+
+    expect(summaries.map((summary) => summary.tick)).toEqual([6]);
+    expect(summaries[0]?.countsByType.handshake).toBe(1);
+    expect(summaries[0]?.countsByType.touch).toBe(0);
+    expect(summaries[0]?.countsByType.peaceCry).toBe(0);
   });
 
   it('filters by rank keys deterministically', () => {

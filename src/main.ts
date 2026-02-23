@@ -58,10 +58,8 @@ import {
 import { EventDrainPipeline } from './ui/eventDrainPipeline';
 import { APP_VERSION } from './version';
 
-const TIMELINE_TYPE_CONTROL_IDS: Record<EventType, string> = {
-  touch: 'timeline-type-touch',
+const TIMELINE_TYPE_CONTROL_IDS: Partial<Record<EventType, string>> = {
   handshake: 'timeline-type-handshake',
-  peaceCry: 'timeline-type-peaceCry',
   stab: 'timeline-type-stab',
   death: 'timeline-type-death',
   birth: 'timeline-type-birth',
@@ -1464,9 +1462,9 @@ function readCheckbox(id: string): boolean {
 
 function readSelectedTimelineTypes(): Set<EventType> {
   const selected = new Set<EventType>();
-  for (const [eventType, id] of Object.entries(TIMELINE_TYPE_CONTROL_IDS) as Array<[EventType, string]>) {
+  for (const [eventType, id] of Object.entries(TIMELINE_TYPE_CONTROL_IDS)) {
     if (readCheckbox(id)) {
-      selected.add(eventType);
+      selected.add(eventType as EventType);
     }
   }
   return selected;

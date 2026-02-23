@@ -124,8 +124,16 @@ export function eyePoseWorld(
     return null;
   }
 
-  const eyeComponent =
-    world.eyes.get(entityId) ?? computeDefaultEyeComponent(shape, world.config.defaultEyeFovDeg);
+  // Always derive the attachment point from current shape geometry so eyes stay glued to the body
+  // even when polygon parameters evolve (regularization/compensation/reproduction updates).
+  const shapeAnchoredEye = computeDefaultEyeComponent(shape, world.config.defaultEyeFovDeg);
+  const storedEye = world.eyes.get(entityId);
+  const eyeComponent = {
+    localEye: shapeAnchoredEye.localEye,
+    localForward: shapeAnchoredEye.localForward,
+    fovRad: storedEye?.fovRad ?? shapeAnchoredEye.fovRad,
+  };
+
   const localForward = normalizeOrFallback(eyeComponent.localForward, vec(1, 0));
   const eyeWorld = add(transform.position, rotate(eyeComponent.localEye, transform.rotation));
   const rotatedForward = rotate(localForward, transform.rotation);
@@ -137,4 +145,3 @@ export function eyePoseWorld(
     fovRad: clamp(eyeComponent.fovRad, (MIN_EYE_FOV_DEG * Math.PI) / 180, (MAX_EYE_FOV_DEG * Math.PI) / 180),
   };
 }
-
