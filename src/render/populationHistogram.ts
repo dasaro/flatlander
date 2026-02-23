@@ -45,7 +45,6 @@ export class PopulationHistogram {
   reset(world: World): void {
     this.samples.length = 0;
     this.lastTick = world.tick;
-    this.samples.push(this.snapshot(world));
     this.dirty = true;
   }
 
@@ -59,7 +58,16 @@ export class PopulationHistogram {
       return;
     }
 
-    this.samples.push(this.snapshot(world));
+    const latest = this.snapshot(world);
+    const startTick = this.lastTick + 1;
+    const endTick = world.tick;
+    for (let tick = startTick; tick <= endTick; tick += 1) {
+      this.samples.push({
+        tick,
+        population: latest.population,
+        groups: [...latest.groups],
+      });
+    }
     this.lastTick = world.tick;
     this.dirty = true;
   }
@@ -91,7 +99,7 @@ export class PopulationHistogram {
     this.ctx.lineTo(left + 0.5, bottom);
     this.ctx.stroke();
 
-    if (this.samples.length === 0) {
+    if (this.samples.length < 2) {
       this.ctx.fillStyle = '#736a5b';
       this.ctx.font = '12px Trebuchet MS, sans-serif';
       this.ctx.fillText('No tick history yet', left + 8, top + 14);
@@ -166,8 +174,8 @@ export class PopulationHistogram {
         .reverse();
 
       this.ctx.beginPath();
-      this.traceCardinal(forward, false);
-      this.traceCardinal(backward, true);
+      this.tracePolyline(forward, false);
+      this.tracePolyline(backward, true);
       this.ctx.closePath();
       this.ctx.fillStyle = COMPOSITION_GROUPS[groupIndex]?.color ?? '#888888';
       this.ctx.fill();
@@ -193,7 +201,7 @@ export class PopulationHistogram {
     this.dirty = false;
   }
 
-  private traceCardinal(points: Array<{ x: number; y: number }>, lineToStart: boolean): void {
+  private tracePolyline(points: Array<{ x: number; y: number }>, lineToStart: boolean): void {
     if (points.length === 0) {
       return;
     }
@@ -209,23 +217,12 @@ export class PopulationHistogram {
       this.ctx.moveTo(first.x, first.y);
     }
 
-    if (points.length === 1) {
-      return;
-    }
-
-    const tension = 1;
-    const fallback = first;
-    for (let i = 0; i < points.length - 1; i += 1) {
-      const p0 = points[Math.max(0, i - 1)] ?? fallback;
-      const p1 = points[i] ?? fallback;
-      const p2 = points[i + 1] ?? fallback;
-      const p3 = points[Math.min(points.length - 1, i + 2)] ?? fallback;
-
-      const cp1x = p1.x + ((p2.x - p0.x) / 6) * tension;
-      const cp1y = p1.y + ((p2.y - p0.y) / 6) * tension;
-      const cp2x = p2.x - ((p3.x - p1.x) / 6) * tension;
-      const cp2y = p2.y - ((p3.y - p1.y) / 6) * tension;
-      this.ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+    for (let i = 1; i < points.length; i += 1) {
+      const point = points[i];
+      if (!point) {
+        continue;
+      }
+      this.ctx.lineTo(point.x, point.y);
     }
   }
 
