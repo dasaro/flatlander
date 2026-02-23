@@ -101,7 +101,8 @@ export class CanvasRenderer {
         continue;
       }
 
-      const geometry = world.geometries.get(id) ?? geometryFromComponents(shape, transform);
+      // Always draw from current transform+shape state. Cached collision geometries are built pre-resolution.
+      const geometry = geometryFromComponents(shape, transform);
       const house = world.houses.get(id);
       if (house && geometry.kind === 'polygon') {
         this.drawHouse(geometry.vertices, house.doorEastWorld, house.doorWestWorld, camera);
@@ -304,15 +305,8 @@ export class CanvasRenderer {
     }
 
     const listenerEye = getEyeWorldPosition(world, selectedEntityId) ?? listenerTransform.position;
-    const speakerGeometry =
-      world.geometries.get(hearingHit.otherId) ??
-      (() => {
-        const shape = world.shapes.get(hearingHit.otherId);
-        if (!shape) {
-          return null;
-        }
-        return geometryFromComponents(shape, speakerTransform);
-      })();
+    const speakerShape = world.shapes.get(hearingHit.otherId);
+    const speakerGeometry = speakerShape ? geometryFromComponents(speakerShape, speakerTransform) : null;
     if (!speakerGeometry) {
       return;
     }
@@ -496,7 +490,7 @@ export class CanvasRenderer {
       return null;
     }
 
-    const geometry = world.geometries.get(entityId) ?? geometryFromComponents(shape, transform);
+    const geometry = geometryFromComponents(shape, transform);
     return geometryCenter(geometry);
   }
 

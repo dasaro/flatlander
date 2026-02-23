@@ -1,6 +1,7 @@
 import type { EyeComponent } from './components';
 import type { ShapeComponent } from './shapes';
 import type { World } from './world';
+import { radialPolygonVertices } from '../geometry/polygon';
 import { add, angleToVector, clamp, normalize, rotate, vec } from '../geometry/vector';
 import type { Vec2 } from '../geometry/vector';
 
@@ -64,7 +65,19 @@ function smallestAngleVertexIndex(vertices: Vec2[]): number {
 }
 
 function eyeForPolygon(shape: ShapeComponent): { localEye: Vec2; localForward: Vec2 } {
-  if (shape.kind !== 'polygon' || shape.vertices.length === 0) {
+  if (shape.kind !== 'polygon') {
+    return {
+      localEye: vec(1, 0),
+      localForward: vec(1, 0),
+    };
+  }
+  const localVertices =
+    shape.radial &&
+    shape.baseRadius !== undefined &&
+    shape.radial.length === shape.sides
+      ? radialPolygonVertices(shape.sides, shape.baseRadius, shape.radial)
+      : shape.vertices;
+  if (localVertices.length === 0) {
     return {
       localEye: vec(1, 0),
       localForward: vec(1, 0),
@@ -72,13 +85,13 @@ function eyeForPolygon(shape: ShapeComponent): { localEye: Vec2; localForward: V
   }
 
   let eyeVertexIndex = 0;
-  if (shape.sides === 3 && shape.triangleKind === 'Isosceles' && shape.vertices.length === 3) {
+  if (shape.sides === 3 && shape.triangleKind === 'Isosceles' && localVertices.length === 3) {
     // Keep the eye on a base vertex, not the acute apex, per novel texture.
-    const apexIndex = smallestAngleVertexIndex(shape.vertices);
+    const apexIndex = smallestAngleVertexIndex(localVertices);
     eyeVertexIndex = (apexIndex + 1) % 3;
   }
 
-  const localEye = vertexAt(shape.vertices, eyeVertexIndex);
+  const localEye = vertexAt(localVertices, eyeVertexIndex);
   const localForward = normalizeOrFallback(localEye, vec(1, 0));
   return { localEye, localForward };
 }
