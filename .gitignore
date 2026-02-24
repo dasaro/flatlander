@@ -1,5 +1,34 @@
-node_modules
-dist
-.vite
-coverage
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+.vite/
+coverage/
+*.tsbuildinfo
+
+# Logs and runtime artifacts
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment/local config
+.env
+.env.*
+!.env.example
+
+# Editor / OS files
 .DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local media/captures (not needed for deployment)
+*.mov
+*.mp4
+*.webm
+captures/
+recordings/
