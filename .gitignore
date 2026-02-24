@@ -32,3 +32,7 @@ pnpm-debug.log*
 *.webm
 captures/
 recordings/
+
+# Internal-only docs (not part of public repo/deploy)
+AGENTS.md
+UX_BETA_AUDIT.md
