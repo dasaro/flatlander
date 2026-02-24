@@ -141,6 +141,11 @@ export interface CollisionRecord {
   b: EntityId;
 }
 
+export interface DeathTypeCounts {
+  kill: number;
+  attrition: number;
+}
+
 export interface CollisionManifoldRecord extends CollisionManifold {
   aId: EntityId;
   bId: EntityId;
@@ -201,6 +206,8 @@ export interface World {
   collisions: CollisionRecord[];
   manifolds: CollisionManifoldRecord[];
   deathsThisTick: number;
+  deathTypesThisTick: DeathTypeCounts;
+  deathTypesTotal: DeathTypeCounts;
   houseDoorContactsThisTick: number;
   houseEntriesThisTick: number;
   regularizedThisTick: number;
@@ -371,6 +378,14 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     collisions: [],
     manifolds: [],
     deathsThisTick: 0,
+    deathTypesThisTick: {
+      kill: 0,
+      attrition: 0,
+    },
+    deathTypesTotal: {
+      kill: 0,
+      attrition: 0,
+    },
     houseDoorContactsThisTick: 0,
     houseEntriesThisTick: 0,
     regularizedThisTick: 0,

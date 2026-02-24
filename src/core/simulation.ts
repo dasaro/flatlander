@@ -74,6 +74,8 @@ export class FixedTimestepSimulation {
     this.world.collisions = [];
     this.world.manifolds = [];
     this.world.deathsThisTick = 0;
+    this.world.deathTypesThisTick.kill = 0;
+    this.world.deathTypesThisTick.attrition = 0;
     this.world.houseDoorContactsThisTick = 0;
     this.world.houseEntriesThisTick = 0;
     this.world.regularizedThisTick = 0;

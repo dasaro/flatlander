@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.8.1] - 2026-02-24
+
+### Added
+- Death accounting by type in core world telemetry:
+  - `kill` deaths (lethality system),
+  - `attrition` deaths (erosion system),
+  - per-tick and cumulative counters surfaced in the Stats panel.
+- New invariant tests for death accounting:
+  - per-tick `deathsThisTick === kill + attrition`,
+  - cumulative totals remain consistent across lethality and erosion scenarios.
+
+### Changed
+- Event timeline rendering now uses dedicated rows per selected event type (handshake start, handshake, death, birth, regularized) for immediate visual separation.
+- Event marker color intensity now reflects per-tick volume per event type (darker markers indicate more events at that tick for that row).
+
 ## [0.8.0] - 2026-02-24
 
 ### Added

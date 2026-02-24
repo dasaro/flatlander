@@ -104,6 +104,8 @@ function markDeath(world: World, entityId: number): void {
   }
 
   world.pendingDeaths.add(entityId);
+  world.deathTypesThisTick.attrition += 1;
+  world.deathTypesTotal.attrition += 1;
   const transform = world.transforms.get(entityId);
   if (!transform) {
     return;

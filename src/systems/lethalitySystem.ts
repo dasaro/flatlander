@@ -56,6 +56,8 @@ function registerKill(world: World, killerId: number, victimId: number): void {
   }
 
   world.pendingDeaths.add(victimId);
+  world.deathTypesThisTick.kill += 1;
+  world.deathTypesTotal.kill += 1;
   const stats = world.combatStats.get(killerId);
   if (stats) {
     stats.kills += 1;

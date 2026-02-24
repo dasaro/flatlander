@@ -353,6 +353,10 @@ interface InputRefs {
   tickValue: HTMLElement;
   seedValue: HTMLElement;
   deathsValue: HTMLElement;
+  deathsKillTickValue: HTMLElement;
+  deathsAttritionTickValue: HTMLElement;
+  deathsKillTotalValue: HTMLElement;
+  deathsAttritionTotalValue: HTMLElement;
   regularizedValue: HTMLElement;
   stillnessActiveValue: HTMLElement;
   handshakeActiveValue: HTMLElement;
@@ -426,6 +430,10 @@ export class UIController {
     this.refs.tickValue.textContent = String(world.tick);
     this.refs.seedValue.textContent = String(world.seed);
     this.refs.deathsValue.textContent = String(world.deathsThisTick);
+    this.refs.deathsKillTickValue.textContent = String(world.deathTypesThisTick.kill);
+    this.refs.deathsAttritionTickValue.textContent = String(world.deathTypesThisTick.attrition);
+    this.refs.deathsKillTotalValue.textContent = String(world.deathTypesTotal.kill);
+    this.refs.deathsAttritionTotalValue.textContent = String(world.deathTypesTotal.attrition);
     this.refs.regularizedValue.textContent = String(world.regularizedThisTick);
     this.refs.stillnessActiveValue.textContent = String(world.stillness.size);
     this.refs.handshakeStartedValue.textContent = String(world.handshakeStartedThisTick);
@@ -1963,6 +1971,10 @@ function collectRefs(): InputRefs {
     tickValue: required<HTMLElement>('stat-tick'),
     seedValue: required<HTMLElement>('stat-seed'),
     deathsValue: required<HTMLElement>('stat-deaths'),
+    deathsKillTickValue: required<HTMLElement>('stat-deaths-kill-tick'),
+    deathsAttritionTickValue: required<HTMLElement>('stat-deaths-attrition-tick'),
+    deathsKillTotalValue: required<HTMLElement>('stat-deaths-kill-total'),
+    deathsAttritionTotalValue: required<HTMLElement>('stat-deaths-attrition-total'),
     regularizedValue: required<HTMLElement>('stat-regularized'),
     stillnessActiveValue: required<HTMLElement>('stat-stillness-active'),
     handshakeActiveValue: required<HTMLElement>('stat-handshake-active'),

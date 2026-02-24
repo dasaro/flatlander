@@ -790,6 +790,10 @@
           <div class="row"><span>Tick</span><strong id="stat-tick">0</strong></div>
           <div class="row"><span>Seed</span><strong id="stat-seed">42</strong></div>
           <div class="row"><span>Deaths This Tick</span><strong id="stat-deaths">0</strong></div>
+          <div class="row"><span>Deaths (Kill, tick)</span><strong id="stat-deaths-kill-tick">0</strong></div>
+          <div class="row"><span>Deaths (Attrition, tick)</span><strong id="stat-deaths-attrition-tick">0</strong></div>
+          <div class="row"><span>Deaths (Kill, total)</span><strong id="stat-deaths-kill-total">0</strong></div>
+          <div class="row"><span>Deaths (Attrition, total)</span><strong id="stat-deaths-attrition-total">0</strong></div>
           <div class="row"><span>Regularized This Tick</span><strong id="stat-regularized">0</strong></div>
           <div class="row"><span>Stillness Active</span><strong id="stat-stillness-active">0</strong></div>
           <div class="row"><span>Handshake Pairs Active</span><strong id="stat-handshake-active">0</strong></div>
@@ -858,7 +862,7 @@
           </details>
           <canvas id="event-timeline-canvas" aria-label="Event timeline"></canvas>
           <div id="event-timeline-legend" class="hint">HandshakeStart / Handshake / Death / Birth / Regularized</div>
-          <div id="event-timeline-tooltip" class="hint">Hover or click diamonds for tick details.</div>
+          <div id="event-timeline-tooltip" class="hint">Hover or click markers for tick details.</div>
         </section>
       </main>
     </div>
