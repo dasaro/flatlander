@@ -88,6 +88,11 @@ export class AvoidanceSteeringSystem implements System {
       }
 
       const vision = world.vision.get(id);
+      const feeling = world.feeling.get(id);
+      const deliberateApproach =
+        feeling?.state === 'approaching' &&
+        feeling.partnerId !== null &&
+        world.entities.has(feeling.partnerId);
       const forward = getForwardUnitVector(movement.heading);
       const avoidTurnRate = Math.max(0, vision?.avoidTurnRate ?? world.config.defaultVisionAvoidTurnRate);
       if (avoidTurnRate <= 0) {
@@ -129,7 +134,7 @@ export class AvoidanceSteeringSystem implements System {
         turnDelta -= sideSign * avoidTurnRate * 0.2 * dt;
       }
 
-      const hearingHit = usedSight
+      const hearingHit = usedSight || deliberateApproach
         ? null
         : (world.hearingHits.get(id) ?? nearestAudiblePing(world, id, eye));
       if (hearingHit) {

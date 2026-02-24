@@ -96,7 +96,14 @@ export class RandomWalkBehavior implements MovementBehaviorStrategy<RandomWalkMo
     world: World,
     dt: number,
   ): void {
-    const turnDelta = world.rng.nextRange(-movement.turnRate, movement.turnRate) * dt;
+    const feeling = world.feeling.get(entityId);
+    const deliberateApproach =
+      feeling?.state === 'approaching' &&
+      feeling.partnerId !== null &&
+      world.entities.has(feeling.partnerId);
+    const turnDelta = deliberateApproach
+      ? 0
+      : world.rng.nextRange(-movement.turnRate, movement.turnRate) * dt;
     movement.heading = normalizeAngle(movement.heading + turnDelta);
 
     const baseVelocity = angleToVector(movement.heading);

@@ -58,8 +58,30 @@ export class FeelingApproachSystem implements System {
 
       let nearestId: number | null = null;
       let nearestDistance = Number.POSITIVE_INFINITY;
+      const lockRadius = world.config.introductionRadius * 1.25;
+
+      if (
+        feeling.state === 'approaching' &&
+        feeling.partnerId !== null &&
+        world.entities.has(feeling.partnerId) &&
+        !knowledge.known.has(feeling.partnerId)
+      ) {
+        const lockedTransform = world.transforms.get(feeling.partnerId);
+        if (lockedTransform) {
+          const dx = lockedTransform.position.x - transform.position.x;
+          const dy = lockedTransform.position.y - transform.position.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist <= lockRadius) {
+            nearestId = feeling.partnerId;
+            nearestDistance = dist;
+          }
+        }
+      }
 
       for (const otherId of ids) {
+        if (nearestId !== null) {
+          break;
+        }
         if (otherId === id || world.staticObstacles.has(otherId) || knowledge.known.has(otherId)) {
           continue;
         }
