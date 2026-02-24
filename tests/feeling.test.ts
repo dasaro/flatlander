@@ -231,6 +231,44 @@ describe('recognition by feeling', () => {
     expect(world.knowledge.get(b)?.known.size ?? 0).toBe(0);
   });
 
+  it('emits unsuccessful handshake attempt when feeling window expires without recognition', () => {
+    const { world, step } = runCollisionAndFeeling(530);
+    world.tick = 20;
+
+    const a = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 4, size: 14, irregular: false },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 120, y: 120 },
+    );
+    const b = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 5, size: 14, irregular: false },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 220, y: 220 },
+    );
+
+    const aFeeling = world.feeling.get(a);
+    const bFeeling = world.feeling.get(b);
+    if (!aFeeling || !bFeeling) {
+      throw new Error('Missing feeling state in unsuccessful handshake test.');
+    }
+    aFeeling.state = 'feeling';
+    aFeeling.partnerId = b;
+    aFeeling.ticksLeft = 1;
+    bFeeling.state = 'beingFelt';
+    bFeeling.partnerId = a;
+    bFeeling.ticksLeft = 1;
+
+    step();
+
+    const events = world.events.drain();
+    expect(events.some((event) => event.type === 'handshakeAttemptFailed')).toBe(true);
+    expect(events.some((event) => event.type === 'handshake')).toBe(false);
+    expect(world.knowledge.get(a)?.known.has(b)).toBe(false);
+    expect(world.knowledge.get(b)?.known.has(a)).toBe(false);
+  });
+
   it('requires beingFelt full stillness before knowledge update', () => {
     const { world, step } = runCollisionAndFeeling(504);
     world.config.feelSpeedThreshold = 8;

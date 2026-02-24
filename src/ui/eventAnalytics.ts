@@ -31,7 +31,7 @@ export interface TimelineFilter {
 }
 
 const EVENT_TYPES: EventType[] = [
-  'handshakeStart',
+  'handshakeAttemptFailed',
   'handshake',
   'death',
   'birth',
@@ -41,6 +41,7 @@ const EVENT_TYPES: EventType[] = [
 function emptyCountsByType(): Record<EventType, number> {
   return {
     handshakeStart: 0,
+    handshakeAttemptFailed: 0,
     touch: 0,
     handshake: 0,
     peaceCry: 0,
@@ -54,6 +55,7 @@ function emptyCountsByType(): Record<EventType, number> {
 function emptyByTypeByRank(): Record<EventType, Record<string, number>> {
   return {
     handshakeStart: {},
+    handshakeAttemptFailed: {},
     touch: {},
     handshake: {},
     peaceCry: {},
@@ -67,6 +69,7 @@ function emptyByTypeByRank(): Record<EventType, Record<string, number>> {
 function rankKeysForEvent(event: WorldEvent): string[] {
   switch (event.type) {
     case 'handshakeStart':
+    case 'handshakeAttemptFailed':
     case 'touch':
     case 'handshake':
       return [event.aRankKey ?? 'Unknown', event.bRankKey ?? 'Unknown'];
@@ -104,8 +107,14 @@ export class EventAnalytics {
 
     const byTick = new Map<number, StoredEvent[]>();
     for (const event of events) {
-      if (event.type === 'peaceCry' || event.type === 'touch' || event.type === 'stab') {
-        // Peace-cry, touch, and stab events are too dense for timeline analysis; keep them in visual effects only.
+      if (
+        event.type === 'peaceCry' ||
+        event.type === 'touch' ||
+        event.type === 'stab' ||
+        event.type === 'handshakeStart'
+      ) {
+        // Peace-cry, touch, stab, and handshake-start are too dense/redundant for timeline analysis.
+        // We keep completed handshakes and failed attempts in the timeline.
         continue;
       }
       const storedEvents = byTick.get(event.tick) ?? [];

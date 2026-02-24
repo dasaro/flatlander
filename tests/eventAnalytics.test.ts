@@ -7,18 +7,21 @@ describe('event analytics', () => {
     const analytics = new EventAnalytics(20);
     analytics.ingest([
       { type: 'touch', tick: 10, aId: 1, bId: 2, pos: { x: 0, y: 0 }, aRankKey: 'Woman:Middle', bRankKey: 'Gentleman' },
+      { type: 'handshakeAttemptFailed', tick: 11, aId: 1, bId: 4, pos: { x: 1, y: 1 }, aRankKey: 'Woman:Middle', bRankKey: 'Gentleman' },
       { type: 'death', tick: 12, entityId: 2, pos: { x: 2, y: 2 }, rankKey: 'Gentleman' },
       { type: 'handshake', tick: 12, aId: 1, bId: 3, pos: { x: 1, y: 1 }, aRankKey: 'Woman:Middle', bRankKey: 'Triangle:Equilateral' },
     ]);
 
     const summaries = analytics.getFilteredSummaries({
-      selectedTypes: new Set(['handshake', 'death']),
+      selectedTypes: new Set(['handshake', 'handshakeAttemptFailed', 'death']),
       selectedRankKeys: new Set<string>(),
       splitByRank: false,
       focusEntityId: null,
     });
 
-    expect(summaries.map((summary) => summary.tick)).toEqual([12]);
+    expect(summaries.map((summary) => summary.tick)).toEqual([11, 12]);
+    const tickEleven = summaries.find((summary) => summary.tick === 11);
+    expect(tickEleven?.countsByType.handshakeAttemptFailed).toBe(1);
     const tickTwelve = summaries.find((summary) => summary.tick === 12);
     expect(tickTwelve?.countsByType.death).toBe(1);
   });
@@ -47,17 +50,18 @@ describe('event analytics', () => {
     expect(tickThreeSummary?.countsByType.death).toBe(0);
   });
 
-  it('ignores peace-cry, touch, and stab events in timeline summaries', () => {
+  it('ignores peace-cry, touch, stab, and handshake-start events in timeline summaries', () => {
     const analytics = new EventAnalytics();
     analytics.ingest([
       { type: 'peaceCry', tick: 4, emitterId: 1, pos: { x: 3, y: 3 }, radius: 100 },
       { type: 'touch', tick: 5, aId: 1, bId: 2, pos: { x: 1, y: 1 } },
       { type: 'stab', tick: 5, attackerId: 1, victimId: 2, pos: { x: 1, y: 1 }, sharpness: 0.6 },
+      { type: 'handshakeStart', tick: 6, aId: 1, bId: 2, pos: { x: 1, y: 1 } },
       { type: 'handshake', tick: 6, aId: 1, bId: 2, pos: { x: 1, y: 1 } },
     ]);
 
     const summaries = analytics.getFilteredSummaries({
-      selectedTypes: new Set(['handshake', 'death', 'birth', 'regularized']),
+      selectedTypes: new Set(['handshake', 'handshakeAttemptFailed', 'death', 'birth', 'regularized']),
       selectedRankKeys: new Set<string>(),
       splitByRank: false,
       focusEntityId: null,
@@ -68,6 +72,7 @@ describe('event analytics', () => {
     expect(summaries[0]?.countsByType.touch).toBe(0);
     expect(summaries[0]?.countsByType.peaceCry).toBe(0);
     expect(summaries[0]?.countsByType.stab).toBe(0);
+    expect(summaries[0]?.countsByType.handshakeStart).toBe(0);
   });
 
   it('filters by rank keys deterministically', () => {

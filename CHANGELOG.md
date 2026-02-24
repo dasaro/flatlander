@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.8.2] - 2026-02-24
+
+### Added
+- New `handshakeAttemptFailed` domain event emitted when a started feeling introduction does not complete into recognition.
+
+### Changed
+- Event timeline now visualizes handshake outcomes as:
+  - `handshake` (successful recognition),
+  - `unsuccessful handshake` (failed attempt),
+  replacing `handshake start` in the timeline lanes.
+- Timeline analytics now ignore `handshakeStart` as a redundant phase signal while keeping it available for internal instrumentation.
+
+### Tests
+- Added feeling-system regression coverage for failed handshake-attempt emission.
+- Updated timeline analytics tests for the new handshake outcome event set.
+
 ## [0.8.1] - 2026-02-24
 
 ### Added

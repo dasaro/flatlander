@@ -70,7 +70,7 @@ import { EventDrainPipeline } from './ui/eventDrainPipeline';
 import { APP_VERSION } from './version';
 
 const TIMELINE_TYPE_CONTROL_IDS: Partial<Record<EventType, string>> = {
-  handshakeStart: 'timeline-type-handshake-start',
+  handshakeAttemptFailed: 'timeline-type-handshake-failed',
   handshake: 'timeline-type-handshake',
   death: 'timeline-type-death',
   birth: 'timeline-type-birth',

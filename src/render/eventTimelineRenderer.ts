@@ -19,6 +19,7 @@ const MAX_DIAMOND_RADIUS = 6.8;
 
 const TYPE_COLORS: Record<EventType, string> = {
   handshakeStart: '#5f9aa2',
+  handshakeAttemptFailed: '#8e5b2d',
   touch: '#c99d4c',
   handshake: '#2b7760',
   peaceCry: '#3a678c',
@@ -29,7 +30,7 @@ const TYPE_COLORS: Record<EventType, string> = {
 };
 
 const TIMELINE_TYPE_ORDER: EventType[] = [
-  'handshakeStart',
+  'handshakeAttemptFailed',
   'handshake',
   'death',
   'birth',
@@ -38,8 +39,8 @@ const TIMELINE_TYPE_ORDER: EventType[] = [
 
 function typeLabel(type: EventType): string {
   switch (type) {
-    case 'handshakeStart':
-      return 'Start';
+    case 'handshakeAttemptFailed':
+      return 'Handshake Failed';
     case 'handshake':
       return 'Handshake';
     case 'death':

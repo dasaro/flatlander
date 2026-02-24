@@ -108,6 +108,40 @@ function midpointForPair(world: World, aId: EntityId, bId: EntityId): Vec2 | nul
   };
 }
 
+function endpointPosition(world: World, entityId: EntityId): Vec2 | null {
+  const transform = world.transforms.get(entityId);
+  if (!transform) {
+    return null;
+  }
+  return transform.position;
+}
+
+function emitUnsuccessfulHandshakeAttempt(
+  world: World,
+  feelerId: EntityId,
+  feltId: EntityId,
+  pos: Vec2 | null,
+): void {
+  if (!pos) {
+    return;
+  }
+  world.events.push({
+    type: 'handshakeAttemptFailed',
+    tick: world.tick,
+    aId: feelerId,
+    bId: feltId,
+    pos,
+    aRankKey: rankKeyForEntity(world, feelerId),
+    bRankKey: rankKeyForEntity(world, feltId),
+  });
+}
+
+function pairKnowledgeEstablished(world: World, aId: EntityId, bId: EntityId): boolean {
+  const aKnows = world.knowledge.get(aId)?.known.has(bId) ?? false;
+  const bKnows = world.knowledge.get(bId)?.known.has(aId) ?? false;
+  return aKnows && bKnows;
+}
+
 function tickFeelingStates(world: World): void {
   const ids = [...world.feeling.keys()].sort((a, b) => a - b);
   for (const id of ids) {
@@ -116,7 +150,31 @@ function tickFeelingStates(world: World): void {
       continue;
     }
 
+    const partnerId = feeling.partnerId;
+    const currentState = feeling.state;
+
     if (feeling.partnerId !== null && !world.entities.has(feeling.partnerId)) {
+      if (currentState === 'feeling') {
+        const completed = pairKnowledgeEstablished(world, id, feeling.partnerId);
+        if (!completed) {
+          emitUnsuccessfulHandshakeAttempt(
+            world,
+            id,
+            feeling.partnerId,
+            endpointPosition(world, id),
+          );
+        }
+      } else if (currentState === 'beingFelt') {
+        const knowsFeeler = world.knowledge.get(id)?.known.has(feeling.partnerId) ?? false;
+        if (!knowsFeeler) {
+          emitUnsuccessfulHandshakeAttempt(
+            world,
+            feeling.partnerId,
+            id,
+            endpointPosition(world, id),
+          );
+        }
+      }
       feeling.state = 'idle';
       feeling.partnerId = null;
       feeling.ticksLeft = 0;
@@ -139,6 +197,13 @@ function tickFeelingStates(world: World): void {
       feeling.partnerId = null;
       feeling.ticksLeft = 0;
       continue;
+    }
+
+    if (currentState === 'feeling' && partnerId !== null) {
+      const completed = pairKnowledgeEstablished(world, id, partnerId);
+      if (!completed) {
+        emitUnsuccessfulHandshakeAttempt(world, id, partnerId, midpointForPair(world, id, partnerId));
+      }
     }
 
     feeling.state = 'cooldown';
