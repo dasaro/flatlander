@@ -1,8 +1,8 @@
-# NOVEL_FAITHFULNESS AUDIT (Flatlander v0.7.5)
+# NOVEL_FAITHFULNESS AUDIT (Flatlander v0.8.2)
 
 ## 0. Repo snapshot
-- Commit: `71576155663a816b54ac5d3e4276db9859a4a05b`
-- App version: `0.7.5` (`package.json`)
+- Commit: `b05c607` (baseline before current demography patch)
+- App version: `0.8.2` (`package.json`)
 - Runtime: browser-only Vite/TS app (`src/main.ts`, `src/core/world.ts`)
 - Run commands:
   - `npm run dev`
@@ -78,6 +78,31 @@
    - Severity: **high**.
 10. **Priest doctrinal/political mechanics are not modeled beyond rank/perception defaults**.
    - Severity: **medium**.
+
+### Demography hooks update (current patch)
+- **Rain periodic forcing for shelter/crowding cycles**  
+  - Novel anchor: Part I, Section 2 (*Of the Climate and Houses in Flatland*).  
+  - Canon status: **Directly stated principle**, implementation uses deterministic tick counters (`rainPeriodTicks`, `rainDurationTicks`) as simulation scaling assumptions.
+- **High-order fertility decreases with rank**  
+  - Novel anchor: Part I, Section 11 (*Concerning our Priests*).  
+  - Canon status: **Strongly implied by the novel**.  
+  - Implementation: `maleBirthHighRankPenaltyPerSide`/`conceptionHighRankPenaltyPerSide` plus high-order multipliers in `src/core/reproduction/offspringPolicy.ts`.
+- **High-order developmental jumps (rare sons can overleap sides)**  
+  - Novel anchor: Part I, Section 11 (*Concerning our Priests*).  
+  - Canon status: **Strongly implied by the novel** (scaled).  
+  - Implementation: deterministic bounded jump for high-order polygon fathers in `src/core/reproduction/offspringPolicy.ts`.
+- **Neo-therapeutic gymnasium (high mortality, courtesy promotion)**  
+  - Novel anchor: Part I, Section 11 (*Concerning our Priests*).  
+  - Canon status: **Implementation assumption / extrapolation**, canon-inspired and explicitly scaled to capped side counts.  
+  - Implementation: `src/systems/neoTherapySystem.ts` with deterministic enrollment, timed institutional isolation, ~10% survival default, promotion to NearCircle/Priest by courtesy.
+- **Crowd-caused irregularity and mortality pressure**  
+  - Novel anchor: Part I, Section 7 and Section 11 (irregularity in crowds and institutional consequences).  
+  - Canon status: **Strongly implied by the novel**, with quantitative thresholds as assumptions.  
+  - Implementation: `src/systems/crowdStressSystem.ts` applies density-driven wear, irregularization, and attritional deaths.
+- **Priest-arranged intermarriage generalized as rarity-biased partner selection**  
+  - Novel anchor: Part I, Section 3 (arranged intermarriage for isosceles), generalized.  
+  - Canon status: **Implementation assumption / extrapolation** (mild bias, clamped).  
+  - Implementation: deterministic rarity weighting in `src/systems/reproductionSystem.ts` (`rarityBoostForShare`).
 
 ---
 

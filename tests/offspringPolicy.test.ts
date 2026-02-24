@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { spawnEntity } from '../src/core/factory';
 import { baseRatioFromBrainAngleDeg } from '../src/core/isosceles';
 import {
+  conceptionChanceForFather,
   determineChildSex,
   determineMaleChildShapeFromParents,
 } from '../src/core/reproduction/offspringPolicy';
@@ -107,6 +108,74 @@ describe('offspring policy (canon laws)', () => {
         sequence.push(determineChildSex(world, father));
       }
       return sequence.join(',');
+    };
+
+    expect(sample()).toBe(sample());
+  });
+
+  it('applies stronger high-order fertility penalties monotonically', () => {
+    const world = createWorld(804, {
+      reproductionEnabled: true,
+      femaleBirthProbability: 0.4,
+      conceptionChancePerTick: 0.008,
+      highOrderThresholdSides: 12,
+      highOrderMaleBirthPenaltyMultiplier: 2.2,
+      highOrderConceptionPenaltyMultiplier: 2.4,
+    });
+
+    const order8 = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 8, size: 20, irregular: false },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 80, y: 80 },
+    );
+    const order12 = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 12, size: 20, irregular: false },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 110, y: 80 },
+    );
+    const order16 = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 16, size: 20, irregular: false },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 140, y: 80 },
+    );
+
+    expect(conceptionChanceForFather(world, order8)).toBeGreaterThan(conceptionChanceForFather(world, order12));
+    expect(conceptionChanceForFather(world, order12)).toBeGreaterThanOrEqual(
+      conceptionChanceForFather(world, order16),
+    );
+  });
+
+  it('uses deterministic high-order side jumps for male children', () => {
+    const sample = (): number => {
+      const world = createWorld(805, {
+        reproductionEnabled: true,
+        maxPolygonSides: 20,
+        highOrderThresholdSides: 12,
+        highOrderDevelopmentJumpMax: 4,
+      });
+      const mother = spawnEntity(
+        world,
+        { kind: 'segment', size: 24 },
+        { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+        { x: 200, y: 200 },
+      );
+      const father = spawnEntity(
+        world,
+        { kind: 'polygon', sides: 16, size: 20, irregular: false },
+        { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+        { x: 200, y: 200 },
+      );
+      const child = determineMaleChildShapeFromParents(world, mother, father);
+      expect(child.kind).toBe('polygon');
+      if (child.kind !== 'polygon') {
+        return 0;
+      }
+      expect(child.sides).toBeGreaterThanOrEqual(17);
+      expect(child.sides).toBeLessThanOrEqual(world.config.maxPolygonSides);
+      return child.sides;
     };
 
     expect(sample()).toBe(sample());

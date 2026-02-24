@@ -44,6 +44,7 @@ import { CollisionResolutionSystem } from './systems/collisionResolutionSystem';
 import { AvoidanceSteeringSystem } from './systems/avoidanceSteeringSystem';
 import { MovementSystem } from './systems/movementSystem';
 import { ReproductionSystem } from './systems/reproductionSystem';
+import { NeoTherapySystem } from './systems/neoTherapySystem';
 import { SocialNavMindSystem } from './systems/socialNavMindSystem';
 import { SocialNavSteeringSystem } from './systems/socialNavSteeringSystem';
 import { SouthAttractionSystem } from './systems/southAttractionSystem';
@@ -53,6 +54,7 @@ import { SwaySystem } from './systems/swaySystem';
 import { VisionSystem } from './systems/visionSystem';
 import { CompensationSystem } from './systems/compensationSystem';
 import { RegularizationSystem } from './systems/regularizationSystem';
+import { CrowdStressSystem } from './systems/crowdStressSystem';
 import { PickingController } from './ui/pickingController';
 import { SelectionState } from './ui/selectionState';
 import { getVisibleLegendItems, type LegendVisibilityState } from './ui/legendModel';
@@ -134,6 +136,7 @@ const systems = [
   new AvoidanceSteeringSystem(),
   new MovementSystem(),
   new SwaySystem(),
+  new CrowdStressSystem(),
   new CompensationSystem(),
   new RegularizationSystem(),
   new CollisionSystem(),
@@ -146,6 +149,7 @@ const systems = [
   new LethalitySystem(),
   new CleanupSystem(),
   new ReproductionSystem(),
+  new NeoTherapySystem(),
 ];
 
 let worldTopology: WorldTopology = topologyInput.value === 'bounded' ? 'bounded' : 'torus';

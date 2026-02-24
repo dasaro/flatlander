@@ -33,7 +33,10 @@ function maleBirthProbability(world: World, fatherId: number): number {
   }
 
   const penaltyPerSide = Math.max(0, world.config.maleBirthHighRankPenaltyPerSide);
-  const penalty = (order - 5) * penaltyPerSide;
+  const highOrderThreshold = Math.max(6, Math.round(world.config.highOrderThresholdSides));
+  const highOrderMultiplier = Math.max(1, world.config.highOrderMaleBirthPenaltyMultiplier);
+  const extraSides = Math.max(0, order - highOrderThreshold + 1);
+  const penalty = (order - 5) * penaltyPerSide + extraSides * penaltyPerSide * (highOrderMultiplier - 1);
   return clamp(baseMale * Math.max(0.03, 1 - penalty), 0, 1);
 }
 
@@ -44,7 +47,11 @@ export function conceptionChanceForFather(world: World, fatherId: number): numbe
     return base;
   }
 
-  const penalty = Math.max(0, world.config.conceptionHighRankPenaltyPerSide) * (order - 5);
+  const penaltyPerSide = Math.max(0, world.config.conceptionHighRankPenaltyPerSide);
+  const highOrderThreshold = Math.max(6, Math.round(world.config.highOrderThresholdSides));
+  const highOrderMultiplier = Math.max(1, world.config.highOrderConceptionPenaltyMultiplier);
+  const extraSides = Math.max(0, order - highOrderThreshold + 1);
+  const penalty = penaltyPerSide * (order - 5) + extraSides * penaltyPerSide * (highOrderMultiplier - 1);
   return clamp(base * Math.max(0.04, 1 - penalty), 0, 1);
 }
 
@@ -90,7 +97,19 @@ export function determineMaleChildShapeFromParents(
     }
 
     // Canon law: regular male polygons beget sons with one additional side.
-    const childSides = Math.max(3, Math.min(world.config.maxPolygonSides, fatherShape.sides + 1));
+    const canonicalNextSides = fatherShape.sides + 1;
+    const highOrderThreshold = Math.max(6, Math.round(world.config.highOrderThresholdSides));
+    const jumpCapByOrder =
+      fatherShape.sides >= highOrderThreshold
+        ? Math.floor((fatherShape.sides - highOrderThreshold) / 2) + 1
+        : 0;
+    const configuredJumpCap = Math.max(0, Math.round(world.config.highOrderDevelopmentJumpMax));
+    const jumpCap = Math.max(0, Math.min(jumpCapByOrder, configuredJumpCap));
+    const jump = jumpCap <= 0 ? 0 : Math.floor(world.rng.next() * (jumpCap + 1));
+    const childSides = Math.max(
+      3,
+      Math.min(world.config.maxPolygonSides, canonicalNextSides + jump),
+    );
     return {
       kind: 'polygon',
       sides: childSides,

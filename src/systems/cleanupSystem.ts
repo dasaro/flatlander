@@ -47,6 +47,7 @@ export class CleanupSystem implements System {
       world.ages.delete(id);
       world.fertility.delete(id);
       world.pregnancies.delete(id);
+      world.neoTherapy.delete(id);
       world.combatStats.delete(id);
       world.durability.delete(id);
       world.femaleStatus.delete(id);

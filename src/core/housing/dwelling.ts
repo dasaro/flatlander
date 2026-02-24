@@ -2,6 +2,9 @@ import type { EntityId } from '../components';
 import type { World } from '../world';
 
 export function isEntityOutside(world: World, entityId: EntityId): boolean {
+  if (world.neoTherapy.get(entityId)?.enrolled) {
+    return false;
+  }
   const dwelling = world.dwellings.get(entityId);
   return !dwelling || dwelling.state === 'outside';
 }

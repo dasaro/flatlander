@@ -198,6 +198,12 @@ export interface PregnancyComponent {
   ticksRemaining: number;
 }
 
+export interface NeoTherapyComponent {
+  enrolled: boolean;
+  ticksRemaining: number;
+  target: 'NearCircle' | 'Priest';
+}
+
 export interface LineageComponent {
   id: EntityId;
   birthTick: number;

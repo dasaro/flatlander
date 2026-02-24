@@ -32,6 +32,7 @@ pnpm-debug.log*
 *.webm
 captures/
 recordings/
+.artifacts/
 
 # Internal-only docs (not part of public repo/deploy)
 AGENTS.md

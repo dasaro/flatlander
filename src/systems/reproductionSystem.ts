@@ -1,6 +1,7 @@
 import { spawnEntity, type SpawnMovementConfig, type SpawnShapeConfig } from '../core/factory';
 import { getLineagePathToRoot } from '../core/genealogy';
 import { rankKeyForEntity } from '../core/rankKey';
+import type { Rank } from '../core/rank';
 import {
   conceptionChanceForFather,
   determineChildSex,
@@ -73,10 +74,56 @@ function irregularBirthChance(world: World, motherId: number, fatherId: number):
   return clamp(base + inherited, 0, 1);
 }
 
-function nearestFatherId(world: World, motherId: number, motherPosition: Vec2, ids: number[]): number | null {
+export function rarityBoostForShare(share: number, strength: number): number {
+  const safeShare = Math.max(0, Math.min(1, share));
+  const safeStrength = Math.max(0, strength);
+  if (safeShare <= 0) {
+    return 1 + Math.min(1.25, safeStrength);
+  }
+  const inverse = 1 / safeShare;
+  const raw = 1 + safeStrength * (inverse - 1);
+  return Math.max(1, Math.min(2.5, raw));
+}
+
+function buildMaleRankShares(world: World, ids: number[]): Map<Rank, number> {
+  const counts = new Map<Rank, number>();
+  let total = 0;
+
+  for (const id of ids) {
+    const shape = world.shapes.get(id);
+    if (!shape || !isMaleShape(shape.kind) || world.staticObstacles.has(id)) {
+      continue;
+    }
+    const rank = world.ranks.get(id)?.rank;
+    if (!rank) {
+      continue;
+    }
+    total += 1;
+    counts.set(rank, (counts.get(rank) ?? 0) + 1);
+  }
+
+  const shares = new Map<Rank, number>();
+  if (total <= 0) {
+    return shares;
+  }
+  for (const [rank, count] of counts) {
+    shares.set(rank, count / total);
+  }
+  return shares;
+}
+
+function nearestFatherId(
+  world: World,
+  motherId: number,
+  motherPosition: Vec2,
+  ids: number[],
+  maleRankShares: Map<Rank, number>,
+): number | null {
   const radius = Math.max(0, world.config.matingRadius);
   let bestId: number | null = null;
-  let bestDistance = Number.POSITIVE_INFINITY;
+  let bestScore = Number.POSITIVE_INFINITY;
+  const rarityBiasEnabled = world.config.rarityMarriageBiasEnabled;
+  const rarityStrength = Math.max(0, world.config.rarityMarriageBiasStrength);
 
   for (const candidateId of ids) {
     if (candidateId === motherId || world.staticObstacles.has(candidateId)) {
@@ -94,11 +141,17 @@ function nearestFatherId(world: World, motherId: number, motherPosition: Vec2, i
       continue;
     }
 
+    const rank = world.ranks.get(candidateId)?.rank;
+    const share = rank ? (maleRankShares.get(rank) ?? 0) : 0;
+    const rarityBoost =
+      rarityBiasEnabled && rank ? rarityBoostForShare(share, rarityStrength) : 1;
+    const score = candidateDistance / rarityBoost;
+
     if (
-      candidateDistance < bestDistance ||
-      (candidateDistance === bestDistance && (bestId === null || candidateId < bestId))
+      score < bestScore ||
+      (score === bestScore && (bestId === null || candidateId < bestId))
     ) {
-      bestDistance = candidateDistance;
+      bestScore = score;
       bestId = candidateId;
     }
   }
@@ -272,6 +325,8 @@ export class ReproductionSystem implements System {
       return;
     }
 
+    const maleRankShares = buildMaleRankShares(world, ids);
+
     for (const motherId of ids) {
       if (world.entities.size >= maxPopulation) {
         break;
@@ -304,7 +359,13 @@ export class ReproductionSystem implements System {
         continue;
       }
 
-      const fatherId = nearestFatherId(world, motherId, motherTransform.position, ids);
+      const fatherId = nearestFatherId(
+        world,
+        motherId,
+        motherTransform.position,
+        ids,
+        maleRankShares,
+      );
       if (fatherId === null) {
         continue;
       }

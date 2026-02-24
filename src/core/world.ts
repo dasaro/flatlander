@@ -22,6 +22,7 @@ import type {
   LegacyComponent,
   LineageComponent,
   MovementComponent,
+  NeoTherapyComponent,
   PerceptionComponent,
   PeaceCryComponent,
   PregnancyComponent,
@@ -64,6 +65,17 @@ export interface WorldConfig {
   femaleBirthProbability: number;
   maleBirthHighRankPenaltyPerSide: number;
   conceptionHighRankPenaltyPerSide: number;
+  highOrderThresholdSides: number;
+  highOrderMaleBirthPenaltyMultiplier: number;
+  highOrderConceptionPenaltyMultiplier: number;
+  highOrderDevelopmentJumpMax: number;
+  rarityMarriageBiasEnabled: boolean;
+  rarityMarriageBiasStrength: number;
+  neoTherapyEnabled: boolean;
+  neoTherapyEnrollmentThresholdSides: number;
+  neoTherapyAmbitionProbability: number;
+  neoTherapyDurationTicks: number;
+  neoTherapySurvivalProbability: number;
   maxPopulation: number;
   handshakeStillnessTicks: number;
   handshakeCooldownTicks: number;
@@ -129,6 +141,12 @@ export interface WorldConfig {
   defaultVisionRange: number;
   defaultVisionAvoidDistance: number;
   defaultVisionAvoidTurnRate: number;
+  crowdStressEnabled: boolean;
+  crowdStressRadius: number;
+  crowdStressThreshold: number;
+  crowdStressWearScale: number;
+  crowdStressIrregularChance: number;
+  crowdStressExecutionChance: number;
   sleepEnabled: boolean;
   sleepSpeedEps: number;
   sleepCorrectionEps: number;
@@ -187,6 +205,7 @@ export interface World {
   ages: Map<EntityId, AgeComponent>;
   fertility: Map<EntityId, FertilityComponent>;
   pregnancies: Map<EntityId, PregnancyComponent>;
+  neoTherapy: Map<EntityId, NeoTherapyComponent>;
   lineage: Map<EntityId, LineageComponent>;
   legacy: Map<EntityId, LegacyComponent>;
   combatStats: Map<EntityId, CombatStatsComponent>;
@@ -243,6 +262,17 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   femaleBirthProbability: 0.54,
   maleBirthHighRankPenaltyPerSide: 0.085,
   conceptionHighRankPenaltyPerSide: 0.13,
+  highOrderThresholdSides: 12,
+  highOrderMaleBirthPenaltyMultiplier: 1.9,
+  highOrderConceptionPenaltyMultiplier: 2.1,
+  highOrderDevelopmentJumpMax: 3,
+  rarityMarriageBiasEnabled: true,
+  rarityMarriageBiasStrength: 0.35,
+  neoTherapyEnabled: true,
+  neoTherapyEnrollmentThresholdSides: 16,
+  neoTherapyAmbitionProbability: 0.12,
+  neoTherapyDurationTicks: 320,
+  neoTherapySurvivalProbability: 0.1,
   maxPopulation: 500,
   handshakeStillnessTicks: 12,
   handshakeCooldownTicks: 40,
@@ -308,6 +338,12 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   defaultVisionRange: 120,
   defaultVisionAvoidDistance: 40,
   defaultVisionAvoidTurnRate: 2.5,
+  crowdStressEnabled: true,
+  crowdStressRadius: 42,
+  crowdStressThreshold: 8,
+  crowdStressWearScale: 0.22,
+  crowdStressIrregularChance: 0.00055,
+  crowdStressExecutionChance: 0.00025,
   sleepEnabled: true,
   sleepSpeedEps: 0.15,
   sleepCorrectionEps: 0.08,
@@ -359,6 +395,7 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     ages: new Map(),
     fertility: new Map(),
     pregnancies: new Map(),
+    neoTherapy: new Map(),
     lineage: new Map(),
     legacy: new Map(),
     combatStats: new Map(),
