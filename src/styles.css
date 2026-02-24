@@ -191,6 +191,20 @@ button:active {
   transform: translateY(1px);
 }
 
+button:disabled,
+button[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.55;
+  background: #70848b;
+  border-color: #5e737a;
+  color: #eef2f3;
+}
+
+button:disabled:hover,
+button[aria-disabled='true']:hover {
+  background: #70848b;
+}
+
 .hint {
   margin: 0;
   color: #6f6554;
@@ -221,6 +235,12 @@ button:active {
 }
 
 .legend-list svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+.legend-list canvas {
   width: 22px;
   height: 22px;
   display: block;

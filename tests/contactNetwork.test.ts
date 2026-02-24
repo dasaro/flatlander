@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { KnownInfo } from '../src/core/components';
 import { Rank } from '../src/core/rank';
-import { selectTopKnownIds } from '../src/render/contactNetwork';
+import { contactCurveControlPoint, selectTopKnownIds } from '../src/render/contactNetwork';
 
 describe('contact network known selection', () => {
   it('selects top known ids deterministically by learned tick, distance, then id', () => {
@@ -42,5 +42,18 @@ describe('contact network known selection', () => {
     const selected = { x: 0, y: 0 };
     const ids = selectTopKnownIds(known, positions, selected, 2, 30);
     expect(ids).toEqual([1, 2]);
+  });
+
+  it('computes deterministic curve control points for the same ids and endpoints', () => {
+    const from = { x: 120, y: 100 };
+    const to = { x: 260, y: 160 };
+    const first = contactCurveControlPoint(from, to, 11, 27);
+    const second = contactCurveControlPoint(from, to, 11, 27);
+    const swapped = contactCurveControlPoint(from, to, 27, 11);
+
+    expect(first).toEqual(second);
+    expect(Number.isFinite(first.x)).toBe(true);
+    expect(Number.isFinite(first.y)).toBe(true);
+    expect(swapped).not.toEqual(first);
   });
 });

@@ -7,6 +7,36 @@ export interface KnownCandidate {
   distance: number;
 }
 
+export function contactCurveControlPoint(
+  from: Vec2,
+  to: Vec2,
+  sourceId: number,
+  targetId: number,
+): Vec2 {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const length = Math.hypot(dx, dy);
+  if (length < 1e-6) {
+    return { x: from.x, y: from.y };
+  }
+
+  const normalX = -dy / length;
+  const normalY = dx / length;
+  const minId = Math.min(sourceId, targetId);
+  const maxId = Math.max(sourceId, targetId);
+  const paritySign = ((minId * 31 + maxId * 17) & 1) === 0 ? 1 : -1;
+  const sourceSign = sourceId <= targetId ? 1 : -1;
+  const bendSign = paritySign * sourceSign;
+  const offset = Math.max(12, Math.min(64, length * 0.22));
+  const midX = from.x + dx * 0.5;
+  const midY = from.y + dy * 0.5;
+
+  return {
+    x: midX + normalX * offset * bendSign,
+    y: midY + normalY * offset * bendSign,
+  };
+}
+
 export function selectTopKnownIds(
   known: Map<number, KnownInfo>,
   positions: Map<number, Vec2>,

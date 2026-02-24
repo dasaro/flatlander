@@ -37,6 +37,7 @@ import { boundaryFromTopology, type WorldTopology } from '../core/topology';
 import type { World } from '../core/world';
 import type { Vec2 } from '../geometry/vector';
 import type { FlatlanderViewConfig } from '../render/flatlanderScan';
+import { setButtonEnabled } from './buttonState';
 
 export interface SouthAttractionSettings {
   enabled: boolean;
@@ -114,6 +115,7 @@ interface UiCallbacks {
   onToggleRun: () => boolean;
   onStep: () => void;
   onReset: (seed: number) => void;
+  onSimulationSpeedUpdate: (scale: number) => void;
   onSpawn: (request: SpawnRequest) => void;
   onTopologyUpdate: (topology: WorldTopology) => void;
   onEnvironmentUpdate: (settings: EnvironmentSettings) => void;
@@ -142,6 +144,7 @@ interface InputRefs {
   runButton: HTMLButtonElement;
   stepButton: HTMLButtonElement;
   resetButton: HTMLButtonElement;
+  speedSelect: HTMLSelectElement;
   novelSafetyPresetButton: HTMLButtonElement;
   harmonicMotionPresetButton: HTMLButtonElement;
   seedInput: HTMLInputElement;
@@ -369,6 +372,7 @@ export class UIController {
     this.callbacks.onFlatlanderViewUpdate(this.readFlatlanderViewSettings());
     this.callbacks.onFogSightUpdate(this.readFogSightSettings());
     this.callbacks.onSouthAttractionUpdate(this.readSouthAttractionSettings());
+    this.callbacks.onSimulationSpeedUpdate(this.readSimulationSpeed());
     this.renderSelected(
       null,
       null,
@@ -397,6 +401,7 @@ export class UIController {
       null,
       'N/A',
     );
+    this.syncInspectorActionButtons();
   }
 
   renderStats(world: World): void {
@@ -571,6 +576,7 @@ export class UIController {
       this.refs.inspectorFemaleRankRow.hidden = true;
       this.refs.inspectorSwayRow.hidden = true;
       this.refs.inspectorPeaceCryRow.hidden = true;
+      this.syncInspectorActionButtons();
       return;
     }
 
@@ -782,6 +788,7 @@ export class UIController {
     }
 
     this.updateInspectorFieldVisibility();
+    this.syncInspectorActionButtons();
   }
 
   private renderKnownList(knowledge: KnowledgeComponent): void {
@@ -825,6 +832,10 @@ export class UIController {
       const seed = parseInteger(this.refs.seedInput.value, 1);
       this.refs.runButton.textContent = 'Start';
       this.callbacks.onReset(seed);
+    });
+
+    this.refs.speedSelect.addEventListener('change', () => {
+      this.callbacks.onSimulationSpeedUpdate(this.readSimulationSpeed());
     });
 
     this.refs.novelSafetyPresetButton.addEventListener('click', () => {
@@ -1126,6 +1137,20 @@ export class UIController {
       showSouthZoneOverlay: this.refs.southShowZone.checked,
       showClickDebug: this.refs.southShowClickDebug.checked,
     };
+  }
+
+  private readSimulationSpeed(): number {
+    return clampRange(parseNumber(this.refs.speedSelect.value, 1), 0.5, 2);
+  }
+
+  private syncInspectorActionButtons(): void {
+    applyInspectorActionButtonState(
+      {
+        introductionButton: this.refs.inspectorIntroductionButton,
+        manualHaltButton: this.refs.inspectorManualHaltButton,
+      },
+      this.selectedEntityId,
+    );
   }
 
   private applyNovelSafetyPresetInputs(): void {
@@ -1570,6 +1595,21 @@ export class UIController {
   }
 }
 
+export interface InspectorActionButtons {
+  introductionButton: HTMLButtonElement;
+  manualHaltButton: HTMLButtonElement;
+}
+
+export function applyInspectorActionButtonState(
+  buttons: InspectorActionButtons,
+  selectedEntityId: number | null,
+): void {
+  const hasSelection = selectedEntityId !== null;
+  const disabledReason = 'Select an entity in the world view first.';
+  setButtonEnabled(buttons.introductionButton, hasSelection, disabledReason);
+  setButtonEnabled(buttons.manualHaltButton, hasSelection, disabledReason);
+}
+
 function rankLabel(rank: RankComponent, shape: ShapeComponent): string {
   if (rank.rank === Rank.Triangle && shape.kind === 'polygon') {
     return shape.triangleKind === 'Isosceles' ? 'Triangle (Isosceles)' : 'Triangle (Equilateral)';
@@ -1623,6 +1663,7 @@ function collectRefs(): InputRefs {
     runButton: required<HTMLButtonElement>('run-btn'),
     stepButton: required<HTMLButtonElement>('step-btn'),
     resetButton: required<HTMLButtonElement>('reset-btn'),
+    speedSelect: required<HTMLSelectElement>('speed-select'),
     novelSafetyPresetButton: required<HTMLButtonElement>('novel-safety-preset-btn'),
     harmonicMotionPresetButton: required<HTMLButtonElement>('harmonic-motion-preset-btn'),
     seedInput: required<HTMLInputElement>('seed-input'),

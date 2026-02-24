@@ -1,5 +1,6 @@
 import type { World } from '../core/world';
 import { rankKeyForEntity } from '../core/rankKey';
+import { PopulationHistoryStore } from '../ui/populationHistoryStore';
 
 interface PopulationSample {
   tick: number;
@@ -10,6 +11,10 @@ interface PopulationSample {
 const MIN_CANVAS_WIDTH = 320;
 const MIN_CANVAS_HEIGHT = 120;
 const MAX_GROUPS = 9;
+const CONTENT_LEFT = 38;
+const CONTENT_RIGHT_PADDING = 12;
+const CONTENT_TOP = 12;
+const CONTENT_BOTTOM_PADDING = 34;
 
 interface CompositionGroup {
   label: string;
@@ -86,45 +91,79 @@ export function resamplePopulationSamples(
 
 export class PopulationHistogram {
   private readonly ctx: CanvasRenderingContext2D;
-  private readonly samples: PopulationSample[] = [];
-  private lastTick = -1;
+  private readonly history = new PopulationHistoryStore();
   private dirty = true;
+  private hoveredSliceIndex: number | null = null;
+  private pinnedSliceIndex: number | null = null;
 
-  constructor(private readonly canvas: HTMLCanvasElement) {
+  constructor(
+    private readonly canvas: HTMLCanvasElement,
+    private readonly tooltipElement?: HTMLElement,
+  ) {
     const ctx = canvas.getContext('2d');
     if (!ctx) {
       throw new Error('Population histogram canvas context unavailable.');
     }
     this.ctx = ctx;
+
+    this.canvas.addEventListener('mousemove', (event) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const chartWidth = Math.max(1, this.canvas.width - CONTENT_LEFT - CONTENT_RIGHT_PADDING);
+      const xInChart = x * (this.canvas.width / Math.max(1, rect.width)) - CONTENT_LEFT;
+      if (xInChart < 0 || xInChart > chartWidth) {
+        this.hoveredSliceIndex = null;
+      } else {
+        this.hoveredSliceIndex = this.history.getNearestSliceIndexAtCanvasX(xInChart, chartWidth);
+      }
+      this.updateTooltip();
+      this.dirty = true;
+    });
+
+    this.canvas.addEventListener('mouseleave', () => {
+      this.hoveredSliceIndex = null;
+      this.updateTooltip();
+      this.dirty = true;
+    });
+
+    this.canvas.addEventListener('click', (event) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const chartWidth = Math.max(1, this.canvas.width - CONTENT_LEFT - CONTENT_RIGHT_PADDING);
+      const xInChart = x * (this.canvas.width / Math.max(1, rect.width)) - CONTENT_LEFT;
+      if (xInChart < 0 || xInChart > chartWidth) {
+        this.pinnedSliceIndex = null;
+      } else {
+        const picked = this.history.getNearestSliceIndexAtCanvasX(xInChart, chartWidth);
+        this.pinnedSliceIndex = this.pinnedSliceIndex === picked ? null : picked;
+      }
+      this.updateTooltip();
+      this.dirty = true;
+    });
   }
 
-  reset(world: World): void {
-    this.samples.length = 0;
-    this.lastTick = world.tick;
+  clearSelection(): void {
+    this.pinnedSliceIndex = null;
+    this.hoveredSliceIndex = null;
+    this.updateTooltip();
     this.dirty = true;
   }
 
+  reset(world: World): void {
+    this.history.reset(world.tick);
+    this.pinnedSliceIndex = null;
+    this.hoveredSliceIndex = null;
+    this.dirty = true;
+    this.updateTooltip();
+  }
+
   record(world: World): void {
-    if (this.lastTick < 0) {
-      this.reset(world);
-      return;
+    const countsByRank: Record<string, number> = {};
+    for (const entityId of world.entities) {
+      const key = rankKeyForEntity(world, entityId);
+      countsByRank[key] = (countsByRank[key] ?? 0) + 1;
     }
-
-    if (world.tick === this.lastTick) {
-      return;
-    }
-
-    const latest = this.snapshot(world);
-    const startTick = this.lastTick + 1;
-    const endTick = world.tick;
-    for (let tick = startTick; tick <= endTick; tick += 1) {
-      this.samples.push({
-        tick,
-        population: latest.population,
-        groups: [...latest.groups],
-      });
-    }
-    this.lastTick = world.tick;
+    this.history.ingest(world.tick, countsByRank);
     this.dirty = true;
   }
 
@@ -139,10 +178,10 @@ export class PopulationHistogram {
     this.ctx.fillStyle = '#fffdf8';
     this.ctx.fillRect(0, 0, width, height);
 
-    const left = 38;
-    const right = width - 12;
-    const top = 12;
-    const bottom = height - 34;
+    const left = CONTENT_LEFT;
+    const right = width - CONTENT_RIGHT_PADDING;
+    const top = CONTENT_TOP;
+    const bottom = height - CONTENT_BOTTOM_PADDING;
     const chartHeight = Math.max(1, bottom - top);
     const chartWidth = Math.max(1, right - left);
 
@@ -155,29 +194,30 @@ export class PopulationHistogram {
     this.ctx.lineTo(left + 0.5, bottom);
     this.ctx.stroke();
 
-    if (this.samples.length < 2) {
+    const allSlices = this.history.slices;
+    const samples = this.toSamples(allSlices);
+
+    if (samples.length < 2) {
       this.ctx.fillStyle = '#736a5b';
       this.ctx.font = '12px Trebuchet MS, sans-serif';
       this.ctx.fillText('No tick history yet', left + 8, top + 14);
       this.dirty = false;
+      this.updateTooltip();
       return;
     }
 
-    const firstTick = this.samples[0]?.tick ?? 0;
-    const latest = this.samples[this.samples.length - 1];
-    const lastTick = latest?.tick ?? firstTick;
-    const sampled = resamplePopulationSamples(this.samples, Math.floor(chartWidth), MAX_GROUPS);
-    if (sampled.length < 2) {
+    const sampled = resamplePopulationSamples(samples, Math.floor(chartWidth), MAX_GROUPS);
+    const latest = samples[samples.length - 1];
+    if (!latest || sampled.length < 2) {
       this.ctx.fillStyle = '#736a5b';
       this.ctx.font = '12px Trebuchet MS, sans-serif';
       this.ctx.fillText('No tick history yet', left + 8, top + 14);
       this.dirty = false;
+      this.updateTooltip();
       return;
     }
-    const maxPopulation = Math.max(
-      1,
-      ...sampled.map((point) => point.population),
-    );
+
+    const maxPopulation = Math.max(1, ...sampled.map((point) => point.population));
     this.drawPopulationScaleGrid(left, right, top, bottom, maxPopulation);
     const envelopeHeights = sampled.map((point) =>
       point.population > 0 ? (point.population / maxPopulation) * chartHeight : 0,
@@ -240,22 +280,85 @@ export class PopulationHistogram {
 
     this.ctx.restore();
 
+    const effectiveIndex = this.pinnedSliceIndex ?? this.hoveredSliceIndex;
+    if (effectiveIndex !== null && allSlices.length > 0) {
+      const normalized = allSlices.length <= 1 ? 0 : effectiveIndex / (allSlices.length - 1);
+      const x = left + normalized * chartWidth;
+      this.ctx.save();
+      this.ctx.strokeStyle = this.pinnedSliceIndex !== null ? 'rgba(33, 30, 25, 0.85)' : 'rgba(33, 30, 25, 0.55)';
+      this.ctx.lineWidth = this.pinnedSliceIndex !== null ? 2 : 1;
+      this.ctx.beginPath();
+      this.ctx.moveTo(x + 0.5, top);
+      this.ctx.lineTo(x + 0.5, bottom);
+      this.ctx.stroke();
+      this.ctx.restore();
+    }
+
     this.ctx.fillStyle = '#2b2721';
     this.ctx.font = '11px Trebuchet MS, sans-serif';
-    if (latest) {
-      const peakPopulation = this.samples.reduce(
-        (max, sample) => Math.max(max, sample.population),
-        latest.population,
-      );
-      this.ctx.fillText(`Pop ${latest.population}`, right - 74, top + 10);
-      this.ctx.fillText(`Peak ${peakPopulation}`, right - 74, top + 22);
-      const ticksLabel = `Tick 0..${lastTick}`;
-      const ticksWidth = this.ctx.measureText(ticksLabel).width;
-      this.ctx.fillText(ticksLabel, right - ticksWidth, height - 8);
-    }
+    const peakPopulation = samples.reduce((max, sample) => Math.max(max, sample.population), latest.population);
+    this.ctx.fillText(`Pop ${latest.population}`, right - 74, top + 10);
+    this.ctx.fillText(`Peak ${peakPopulation}`, right - 74, top + 22);
+    const ticksLabel = `Tick 0..${latest.tick}`;
+    const ticksWidth = this.ctx.measureText(ticksLabel).width;
+    this.ctx.fillText(ticksLabel, right - ticksWidth, height - 8);
 
     this.drawLegend(left, height - 20, right);
     this.dirty = false;
+    this.updateTooltip();
+  }
+
+  private toSamples(slices: ReadonlyArray<{ tick: number; countsByRankKey: Record<string, number>; total: number }>): PopulationSample[] {
+    return slices.map((slice) => {
+      const groups = new Array<number>(MAX_GROUPS).fill(0);
+      for (const [rankKey, value] of Object.entries(slice.countsByRankKey)) {
+        const groupIndex = this.compositionGroupIndexFromRankKey(rankKey);
+        groups[groupIndex] = (groups[groupIndex] ?? 0) + value;
+      }
+      return {
+        tick: slice.tick,
+        population: slice.total,
+        groups,
+      };
+    });
+  }
+
+  private updateTooltip(): void {
+    if (!this.tooltipElement) {
+      return;
+    }
+
+    const slices = this.history.slices;
+    const effectiveIndex = this.pinnedSliceIndex ?? this.hoveredSliceIndex;
+    if (effectiveIndex === null || slices.length === 0) {
+      this.tooltipElement.textContent = 'Hover the chart to inspect a slice. Click to pin.';
+      return;
+    }
+
+    const slice = slices[Math.max(0, Math.min(slices.length - 1, effectiveIndex))];
+    if (!slice) {
+      this.tooltipElement.textContent = 'Hover the chart to inspect a slice. Click to pin.';
+      return;
+    }
+
+    const samples = this.toSamples([slice]);
+    const sample = samples[0];
+    if (!sample) {
+      this.tooltipElement.textContent = 'Hover the chart to inspect a slice. Click to pin.';
+      return;
+    }
+
+    const parts: string[] = [];
+    for (let i = 0; i < COMPOSITION_GROUPS.length; i += 1) {
+      const count = Math.round(sample.groups[i] ?? 0);
+      if (count <= 0) {
+        continue;
+      }
+      parts.push(`${COMPOSITION_GROUPS[i]?.label ?? `g${i}`}:${count}`);
+    }
+
+    const pinLabel = this.pinnedSliceIndex !== null ? ' [pinned]' : '';
+    this.tooltipElement.textContent = `tick ${slice.tick}${pinLabel} | total ${slice.total} | ${parts.join('  ') || 'no population'}`;
   }
 
   private tracePolyline(points: Array<{ x: number; y: number }>, lineToStart: boolean): void {
@@ -309,22 +412,7 @@ export class PopulationHistogram {
     this.ctx.restore();
   }
 
-  private snapshot(world: World): PopulationSample {
-    const groups = new Array<number>(MAX_GROUPS).fill(0);
-    for (const entityId of world.entities) {
-      const groupIndex = this.compositionGroupIndex(world, entityId);
-      groups[groupIndex] = (groups[groupIndex] ?? 0) + 1;
-    }
-
-    return {
-      tick: world.tick,
-      population: world.entities.size,
-      groups,
-    };
-  }
-
-  private compositionGroupIndex(world: World, entityId: number): number {
-    const rankKey = rankKeyForEntity(world, entityId);
+  private compositionGroupIndexFromRankKey(rankKey: string): number {
     if (rankKey.startsWith('Woman:')) {
       return 0;
     }

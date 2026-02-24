@@ -5,6 +5,7 @@ export class FixedTimestepSimulation {
   private accumulator = 0;
   private lastTimeMs = 0;
   private running = false;
+  private timeScale = 1;
 
   constructor(
     public world: World,
@@ -31,6 +32,13 @@ export class FixedTimestepSimulation {
     this.lastTimeMs = 0;
   }
 
+  setTimeScale(scale: number): void {
+    if (!Number.isFinite(scale)) {
+      return;
+    }
+    this.timeScale = Math.max(0.5, Math.min(2, scale));
+  }
+
   frame(nowMs: number): number {
     if (this.lastTimeMs === 0) {
       this.lastTimeMs = nowMs;
@@ -44,7 +52,8 @@ export class FixedTimestepSimulation {
       return 0;
     }
 
-    const deltaSeconds = Math.min(this.maxFrameDeltaSeconds, rawDeltaSeconds);
+    const scaledDeltaSeconds = rawDeltaSeconds * this.timeScale;
+    const deltaSeconds = Math.min(this.maxFrameDeltaSeconds, scaledDeltaSeconds);
     this.accumulator += deltaSeconds;
 
     const tickDuration = 1 / this.world.config.tickRate;

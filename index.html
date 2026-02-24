@@ -32,6 +32,15 @@
             </select>
           </div>
           <div class="row">
+            <label for="speed-select">Speed</label>
+            <select id="speed-select">
+              <option value="0.5">0.5x</option>
+              <option value="1" selected>1x</option>
+              <option value="1.5">1.5x</option>
+              <option value="2">2x</option>
+            </select>
+          </div>
+          <div class="row">
             <label for="south-enabled">South Attraction</label>
             <input id="south-enabled" type="checkbox" checked />
           </div>
@@ -180,7 +189,7 @@
             <label for="overlay-show-pov-cone">Show POV Cone (Selected)</label>
             <input id="overlay-show-pov-cone" type="checkbox" />
           </div>
-          <p class="hint">Network legend: solid=parent, dashed=known</p>
+          <p class="hint">Network links: parent=curved solid, known=curved dotted.</p>
           <p class="hint">Kill stroke legend: 0 / 1-2 / 3-5 / 6+</p>
           <div class="button-row">
             <button id="event-highlights-clear" type="button">Clear Effects</button>
@@ -242,57 +251,8 @@
 
         <section class="panel" id="legend-panel">
           <h2>Legend</h2>
-          <ul class="legend-list">
-            <li>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="2.1" fill="#c99d4c"></circle>
-                <circle cx="12" cy="12" r="6" fill="none" stroke="#c99d4c" stroke-opacity="0.65" stroke-width="1.4"></circle>
-              </svg>
-              <span>Touch (feeling)</span>
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <line x1="8" y1="7" x2="8" y2="17" stroke="#2c2a24" stroke-width="2"></line>
-                <line x1="16" y1="7" x2="16" y2="17" stroke="#2c2a24" stroke-width="2"></line>
-              </svg>
-              <span>Handshake (recognized)</span>
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="7.5" fill="none" stroke="#3a678c" stroke-width="1.5" stroke-dasharray="3 2"></circle>
-              </svg>
-              <span>Peace-cry</span>
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <line x1="12" y1="4.5" x2="12" y2="19.5" stroke="#b84040" stroke-width="1.8"></line>
-                <line x1="5.5" y1="8" x2="18.5" y2="16" stroke="#b84040" stroke-width="1.8"></line>
-                <line x1="18.5" y1="8" x2="5.5" y2="16" stroke="#b84040" stroke-width="1.8"></line>
-              </svg>
-              <span>Stab</span>
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <line x1="6.5" y1="6.5" x2="17.5" y2="17.5" stroke="#2c2a24" stroke-width="2"></line>
-                <line x1="17.5" y1="6.5" x2="6.5" y2="17.5" stroke="#2c2a24" stroke-width="2"></line>
-              </svg>
-              <span>Death</span>
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="6.5" fill="none" stroke="#60845c" stroke-width="1.5"></circle>
-                <circle cx="12" cy="12" r="2.1" fill="#60845c"></circle>
-              </svg>
-              <span>Birth</span>
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <line x1="6" y1="12" x2="18" y2="12" stroke="#2c2a24" stroke-width="1.8"></line>
-                <line x1="12" y1="6" x2="12" y2="18" stroke="#2c2a24" stroke-width="1.8"></line>
-              </svg>
-              <span>Regularized</span>
-            </li>
-          </ul>
+          <ul class="legend-list" id="legend-list"></ul>
+          <p class="hint" id="legend-empty-hint">Legend updates from active overlays and observed events.</p>
         </section>
 
         <section class="panel">
@@ -829,7 +789,11 @@
         </section>
         <section class="timeline-panel" aria-label="Population histogram panel">
           <h2>Population Histogram</h2>
+          <div class="timeline-controls">
+            <button id="population-clear-selection" type="button">Clear Selection</button>
+          </div>
           <canvas id="population-histogram" aria-label="Population composition histogram"></canvas>
+          <div id="population-histogram-tooltip" class="hint">Hover the chart to inspect a slice. Click to pin.</div>
         </section>
         <section class="timeline-panel" aria-label="Event timeline panel">
           <h2>Event Timeline</h2>
@@ -861,7 +825,7 @@
           </details>
           <canvas id="event-timeline-canvas" aria-label="Event timeline"></canvas>
           <div id="event-timeline-legend" class="hint">HandshakeStart / Handshake / Death / Birth / Regularized</div>
-          <div id="event-timeline-tooltip" class="hint">Hover bars for tick details.</div>
+          <div id="event-timeline-tooltip" class="hint">Hover or click diamonds for tick details.</div>
         </section>
       </main>
     </div>

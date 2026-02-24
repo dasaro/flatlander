@@ -2,6 +2,7 @@ import './styles.css';
 
 import type { BoundaryMode, MovementComponent } from './core/components';
 import { computeDefaultEyeComponent, eyePoseWorld } from './core/eyePose';
+import type { WorldEvent } from './core/events';
 import { countLivingDescendants, getAncestors } from './core/genealogy';
 import type { EventType } from './ui/eventAnalytics';
 import { EventAnalytics } from './ui/eventAnalytics';
@@ -50,6 +51,7 @@ import { CompensationSystem } from './systems/compensationSystem';
 import { RegularizationSystem } from './systems/regularizationSystem';
 import { PickingController } from './ui/pickingController';
 import { SelectionState } from './ui/selectionState';
+import { getVisibleLegendItems, type LegendVisibilityState } from './ui/legendModel';
 import {
   type EventHighlightsSettings,
   type FlatlanderViewSettings,
@@ -81,6 +83,10 @@ if (!(histogramCanvas instanceof HTMLCanvasElement)) {
 const eventTimelineCanvas = document.getElementById('event-timeline-canvas');
 const eventTimelineTooltip = document.getElementById('event-timeline-tooltip');
 const eventTimelineLegend = document.getElementById('event-timeline-legend');
+const legendList = document.getElementById('legend-list');
+const legendEmptyHint = document.getElementById('legend-empty-hint');
+const populationTooltip = document.getElementById('population-histogram-tooltip');
+const populationClearSelectionButton = document.getElementById('population-clear-selection');
 const hasEventTimelineUi =
   eventTimelineCanvas instanceof HTMLCanvasElement &&
   eventTimelineTooltip instanceof HTMLElement &&
@@ -223,7 +229,10 @@ renderer.setAppVersion(APP_VERSION);
 const effectsManager = new EffectsManager();
 effectsManager.setSettings(eventHighlightsSettings);
 const flatlanderViewRenderer = new FlatlanderViewRenderer(flatlanderCanvas);
-const populationHistogram = new PopulationHistogram(histogramCanvas);
+const populationHistogram =
+  populationTooltip instanceof HTMLElement
+    ? new PopulationHistogram(histogramCanvas, populationTooltip)
+    : new PopulationHistogram(histogramCanvas);
 const eventAnalytics = new EventAnalytics(Number.POSITIVE_INFINITY);
 const eventTimelineRenderer = hasEventTimelineUi
   ? new EventTimelineRenderer(eventTimelineCanvas, eventTimelineTooltip)
@@ -244,13 +253,19 @@ let flatlanderHoverNormalizedX: number | null = null;
 const eventDrainPipeline = new EventDrainPipeline(
   world.tick,
   () => world.events.drain(),
-  [(events) => effectsManager.ingest(events), (events) => eventAnalytics.ingest(events)],
+  [
+    (events) => effectsManager.ingest(events),
+    (events) => eventAnalytics.ingest(events),
+    (events) => recordLegendEvents(events),
+  ],
 );
 
 const selectedTimelineTypes = readSelectedTimelineTypes();
 const selectedTimelineRanks = readSelectedTimelineRankKeys();
 let timelineSplitByRank = readCheckbox('timeline-split-by-rank');
 let timelineShowLegend = readCheckbox('timeline-show-legend');
+let lastLegendSignature = '';
+const recentLegendEvents: Array<{ tick: number; type: EventType }> = [];
 
 document.title = `Flatlander ${APP_VERSION}`;
 if (versionBadge instanceof HTMLElement) {
@@ -294,6 +309,8 @@ const ui = new UIController({
     eventAnalytics.clear();
     populationHistogram.reset(world);
     eventDrainPipeline.reset(world.tick);
+    recentLegendEvents.length = 0;
+    lastLegendSignature = '';
     selectionState.setSelected(null);
     camera.reset(world.config.width, world.config.height);
     cachedFlatlanderScan = null;
@@ -305,6 +322,9 @@ const ui = new UIController({
     debugClickPoint = null;
     lastRenderTimeMs = 0;
     renderSelection();
+  },
+  onSimulationSpeedUpdate: (scale) => {
+    simulation.setTimeScale(scale);
   },
   onSpawn: (request) => {
     const normalizedRequest = applyBoundaryToSpawnRequest(request, boundaryFromTopology(worldTopology));
@@ -542,6 +562,12 @@ const ui = new UIController({
   },
 });
 
+if (populationClearSelectionButton instanceof HTMLButtonElement) {
+  populationClearSelectionButton.addEventListener('click', () => {
+    populationHistogram.clearSelection();
+  });
+}
+
 selectionState.subscribe(() => {
   flatlanderScanDirty = true;
   clearFlatlanderHover();
@@ -614,6 +640,7 @@ function frame(now: number): void {
   });
   populationHistogram.render();
   renderEventTimeline();
+  renderDynamicLegend();
   ui.renderStats(world);
   if (quickRunBtn instanceof HTMLButtonElement && primaryRunBtn instanceof HTMLButtonElement) {
     syncQuickRunButton(quickRunBtn, primaryRunBtn);
@@ -935,6 +962,75 @@ function renderEventTimeline(): void {
     tickEnd: world.tick,
   });
   eventTimelineLegend.hidden = !timelineShowLegend;
+}
+
+function recordLegendEvents(events: WorldEvent[]): void {
+  if (events.length === 0) {
+    return;
+  }
+  for (const event of events) {
+    recentLegendEvents.push({ tick: event.tick, type: event.type });
+  }
+}
+
+function observedLegendEventTypes(currentTick: number): Set<EventType> {
+  const minTick = Math.max(0, currentTick - 5_000);
+  while (recentLegendEvents.length > 0 && recentLegendEvents[0] && recentLegendEvents[0].tick < minTick) {
+    recentLegendEvents.shift();
+  }
+  const observed = new Set<EventType>();
+  for (const record of recentLegendEvents) {
+    observed.add(record.type);
+  }
+  return observed;
+}
+
+function renderDynamicLegend(): void {
+  if (!(legendList instanceof HTMLElement)) {
+    return;
+  }
+
+  const state: LegendVisibilityState = {
+    eventHighlightsEnabled: eventHighlightsSettings.enabled,
+    showFeeling: eventHighlightsSettings.showFeeling,
+    showHearingOverlay: eventHighlightsSettings.showHearingOverlay,
+    showContactNetwork: eventHighlightsSettings.showContactNetwork,
+    showNetworkParents: eventHighlightsSettings.networkShowParents,
+    showNetworkKnown: eventHighlightsSettings.networkShowKnown,
+    observedEventTypes: observedLegendEventTypes(world.tick),
+    hasSelectedEntity: selectionState.selectedId !== null && world.entities.has(selectionState.selectedId),
+    hasAnyStillness: world.stillness.size > 0,
+  };
+
+  const items = getVisibleLegendItems(state);
+  const signature = items.map((item) => item.id).join('|');
+  if (signature === lastLegendSignature) {
+    if (legendEmptyHint instanceof HTMLElement) {
+      legendEmptyHint.hidden = items.length > 0;
+    }
+    return;
+  }
+  lastLegendSignature = signature;
+  legendList.innerHTML = '';
+
+  for (const item of items) {
+    const row = document.createElement('li');
+    const icon = document.createElement('canvas');
+    icon.width = 22;
+    icon.height = 22;
+    const ctx = icon.getContext('2d');
+    if (ctx) {
+      item.drawIcon(ctx, 22);
+    }
+    const label = document.createElement('span');
+    label.textContent = item.label;
+    row.append(icon, label);
+    legendList.appendChild(row);
+  }
+
+  if (legendEmptyHint instanceof HTMLElement) {
+    legendEmptyHint.hidden = items.length > 0;
+  }
 }
 
 function readInitialSeed(raw: string): number {

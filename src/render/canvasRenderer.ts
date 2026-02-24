@@ -6,7 +6,7 @@ import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
 import type { Vec2 } from '../geometry/vector';
 import type { Camera } from './camera';
-import { selectTopKnownIds } from './contactNetwork';
+import { contactCurveControlPoint, selectTopKnownIds } from './contactNetwork';
 import type { EffectsManager } from './effects';
 import { fogIntensityAtDistance, fogRingRadiusForLevel, visualAlpha } from './viewModifiers';
 
@@ -515,35 +515,41 @@ export class CanvasRenderer {
       return screen.x >= 0 && screen.x <= this.canvas.width && screen.y >= 0 && screen.y <= this.canvas.height;
     };
 
-    const drawEdge = (toId: number, dashed: boolean): void => {
+    const drawEdge = (
+      toId: number,
+      style: { dotted: boolean; stroke: string; width: number },
+    ): void => {
       const toCenter = this.entityCenter(world, toId);
       if (!toCenter || !visible(toId)) {
         return;
       }
+      const control = contactCurveControlPoint(selectedCenter, toCenter, selectedEntityId, toId);
       this.ctx.beginPath();
       this.ctx.moveTo(selectedCenter.x, selectedCenter.y);
-      this.ctx.lineTo(toCenter.x, toCenter.y);
-      if (dashed) {
-        this.ctx.setLineDash([5 / camera.zoom, 4 / camera.zoom]);
-      } else {
-        this.ctx.setLineDash([]);
-      }
+      this.ctx.quadraticCurveTo(control.x, control.y, toCenter.x, toCenter.y);
+      this.ctx.strokeStyle = style.stroke;
+      this.ctx.lineWidth = style.width / camera.zoom;
+      this.ctx.setLineDash(style.dotted ? [1.5 / camera.zoom, 3 / camera.zoom] : []);
       this.ctx.stroke();
       this.ctx.setLineDash([]);
     };
 
     this.ctx.save();
     this.ctx.lineCap = 'round';
-    this.ctx.strokeStyle = 'rgba(34, 49, 71, 0.62)';
-    this.ctx.lineWidth = 1.7 / camera.zoom;
     for (const parentId of parentIds) {
-      drawEdge(parentId, false);
+      drawEdge(parentId, {
+        dotted: false,
+        stroke: 'rgba(49, 92, 170, 0.78)',
+        width: 1.9,
+      });
     }
 
-    this.ctx.strokeStyle = 'rgba(45, 45, 45, 0.42)';
-    this.ctx.lineWidth = 1.2 / camera.zoom;
     for (const knownId of knownIds) {
-      drawEdge(knownId, true);
+      drawEdge(knownId, {
+        dotted: true,
+        stroke: 'rgba(121, 80, 150, 0.72)',
+        width: 1.35,
+      });
     }
     this.ctx.restore();
 
@@ -563,10 +569,10 @@ export class CanvasRenderer {
 
     drawNodeRing(selectedEntityId, 'rgba(17, 17, 17, 0.9)', 9.8, 2.8);
     for (const parentId of parentIds) {
-      drawNodeRing(parentId, 'rgba(56, 73, 115, 0.82)', 8, 2);
+      drawNodeRing(parentId, 'rgba(49, 92, 170, 0.82)', 8, 2);
     }
     for (const knownId of knownIds) {
-      drawNodeRing(knownId, 'rgba(52, 52, 52, 0.56)', 6.8, 1.5);
+      drawNodeRing(knownId, 'rgba(121, 80, 150, 0.72)', 6.8, 1.5);
     }
   }
 
