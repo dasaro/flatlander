@@ -1,5 +1,6 @@
 import type { MovementComponent, TransformComponent } from '../core/components';
 import type { EntityId } from '../core/components';
+import { isEntityOutside } from '../core/housing/dwelling';
 import type { World } from '../core/world';
 import { EPSILON, clamp, dot, length, mul, sub, wrap } from '../geometry/vector';
 import type { Vec2 } from '../geometry/vector';
@@ -72,6 +73,7 @@ function correctWorldBounds(world: World, transform: TransformComponent): void {
 function resolveVelocityAgainstNormal(world: World, entityId: EntityId, normal: Vec2): void {
   if (
     world.staticObstacles.has(entityId) ||
+    !isEntityOutside(world, entityId) ||
     world.pendingDeaths.has(entityId) ||
     world.sleep.get(entityId)?.asleep ||
     world.stillness.has(entityId)
@@ -139,6 +141,9 @@ export class CollisionResolutionSystem implements System {
       for (const manifold of manifolds) {
         const { aId, bId } = manifold;
         if (world.pendingDeaths.has(aId) || world.pendingDeaths.has(bId)) {
+          continue;
+        }
+        if (!isEntityOutside(world, aId) || !isEntityOutside(world, bId)) {
           continue;
         }
 

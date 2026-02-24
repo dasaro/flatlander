@@ -3,6 +3,7 @@ import type { GeometryShape } from '../geometry/intersections';
 import { clamp, dot, normalize, sub } from '../geometry/vector';
 import type { Vec2 } from '../geometry/vector';
 import { rankKeyForEntity } from '../core/rankKey';
+import { isEntityOutside } from '../core/housing/dwelling';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
 import type { System } from './system';
@@ -64,7 +65,7 @@ function velocityForEntity(world: World, entityId: number): Vec2 {
 }
 
 function applyWear(world: World, entityId: number, deltaWear: number): void {
-  if (deltaWear <= 0 || world.staticObstacles.has(entityId)) {
+  if (deltaWear <= 0 || world.staticObstacles.has(entityId) || !isEntityOutside(world, entityId)) {
     return;
   }
 
@@ -85,7 +86,7 @@ function applyWear(world: World, entityId: number, deltaWear: number): void {
 }
 
 function applyDirectDamage(world: World, entityId: number, damage: number): void {
-  if (damage <= 0 || world.staticObstacles.has(entityId)) {
+  if (damage <= 0 || world.staticObstacles.has(entityId) || !isEntityOutside(world, entityId)) {
     return;
   }
 
@@ -132,6 +133,9 @@ export class ErosionSystem implements System {
     for (const manifold of world.manifolds) {
       const { aId, bId, normal } = manifold;
       if (!idSet.has(aId) || !idSet.has(bId)) {
+        continue;
+      }
+      if (!isEntityOutside(world, aId) || !isEntityOutside(world, bId)) {
         continue;
       }
 

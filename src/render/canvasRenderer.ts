@@ -1,9 +1,12 @@
 import { geometryFromComponents } from '../core/entityGeometry';
 import { eyePoseWorld } from '../core/eyePose';
 import { getEyeWorldPosition } from '../core/eye';
+import { isEntityOutside } from '../core/housing/dwelling';
+import { doorPoseWorld } from '../core/housing/houseFactory';
 import { Rank } from '../core/rank';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
+import type { HouseComponent, TransformComponent } from '../core/components';
 import type { Vec2 } from '../geometry/vector';
 import type { Camera } from './camera';
 import { contactCurveControlPoint, selectTopKnownIds } from './contactNetwork';
@@ -34,6 +37,8 @@ export interface RenderOptions {
   showPovCone?: boolean;
   showStillnessCues?: boolean;
   flatlanderHoverEntityId?: number | null;
+  showHouseDoors?: boolean;
+  showHouseOccupancy?: boolean;
 }
 
 export class CanvasRenderer {
@@ -97,17 +102,31 @@ export class CanvasRenderer {
     const showEyes = options.showEyes ?? true;
     const showStillnessCues = options.showStillnessCues ?? true;
     for (const id of ids) {
+      if (!isEntityOutside(world, id) && !world.staticObstacles.has(id)) {
+        continue;
+      }
+
       const shape = world.shapes.get(id);
       const transform = world.transforms.get(id);
       if (!shape || !transform) {
         continue;
       }
+      const isSelected = selectedEntityId === id;
 
       // Always draw from current transform+shape state. Cached collision geometries are built pre-resolution.
       const geometry = geometryFromComponents(shape, transform);
       const house = world.houses.get(id);
       if (house && geometry.kind === 'polygon') {
-        this.drawHouse(geometry.vertices, house.doorEastWorld, house.doorWestWorld, camera);
+        this.drawHouse(
+          geometry.vertices,
+          house,
+          transform,
+          camera,
+          options.showHouseDoors ?? true,
+          options.showHouseOccupancy ?? false,
+          world.houseOccupants.get(id)?.size ?? 0,
+          isSelected,
+        );
         continue;
       }
 
@@ -116,7 +135,6 @@ export class CanvasRenderer {
         continue;
       }
 
-      const isSelected = selectedEntityId === id;
       const isFlatlanderHovered =
         !isSelected &&
         options.flatlanderHoverEntityId !== null &&
@@ -661,7 +679,16 @@ export class CanvasRenderer {
     this.ctx.restore();
   }
 
-  private drawHouse(vertices: Vec2[], eastDoor: Vec2, westDoor: Vec2, camera: Camera): void {
+  private drawHouse(
+    vertices: Vec2[],
+    house: HouseComponent,
+    transform: TransformComponent,
+    camera: Camera,
+    showDoors: boolean,
+    showOccupancy: boolean,
+    occupantCount: number,
+    selected: boolean,
+  ): void {
     const first = vertices[0];
     if (!first) {
       return;
@@ -669,8 +696,8 @@ export class CanvasRenderer {
 
     this.ctx.save();
     this.ctx.fillStyle = 'rgba(95, 89, 79, 0.18)';
-    this.ctx.strokeStyle = 'rgba(86, 80, 71, 0.7)';
-    this.ctx.lineWidth = 1.2 / camera.zoom;
+    this.ctx.strokeStyle = selected ? 'rgba(30, 28, 24, 0.9)' : 'rgba(86, 80, 71, 0.7)';
+    this.ctx.lineWidth = (selected ? 2.2 : 1.2) / camera.zoom;
     this.ctx.beginPath();
     this.ctx.moveTo(first.x, first.y);
     for (let i = 1; i < vertices.length; i += 1) {
@@ -684,8 +711,19 @@ export class CanvasRenderer {
     this.ctx.fill();
     this.ctx.stroke();
 
-    this.drawDoorMarker(eastDoor, '#c67a32', camera);
-    this.drawDoorMarker(westDoor, '#396887', camera);
+    if (showDoors) {
+      const eastDoor = doorPoseWorld(transform, house.doorEast).midpoint;
+      const westDoor = doorPoseWorld(transform, house.doorWest).midpoint;
+      this.drawDoorMarker(eastDoor, '#c67a32', camera);
+      this.drawDoorMarker(westDoor, '#396887', camera);
+    }
+
+    if (showOccupancy) {
+      const center = polygonCentroid(vertices);
+      this.ctx.fillStyle = 'rgba(30, 28, 24, 0.84)';
+      this.ctx.font = `${Math.max(8, Math.round(10 / camera.zoom))}px Trebuchet MS, sans-serif`;
+      this.ctx.fillText(String(Math.max(0, occupantCount)), center.x + 3 / camera.zoom, center.y + 3 / camera.zoom);
+    }
     this.ctx.restore();
   }
 

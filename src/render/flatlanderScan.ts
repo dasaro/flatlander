@@ -1,5 +1,6 @@
 import { geometryFromComponents } from '../core/entityGeometry';
 import { eyePoseWorld } from '../core/eyePose';
+import { isEntityOutside } from '../core/housing/dwelling';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
 import {
@@ -104,6 +105,9 @@ function collectCandidates(world: World, viewerId: number, maxDistance: number, 
 
     const inanimate = world.staticObstacles.has(id);
     if (!includeObstacles && inanimate) {
+      continue;
+    }
+    if (!inanimate && !isEntityOutside(world, id)) {
       continue;
     }
 

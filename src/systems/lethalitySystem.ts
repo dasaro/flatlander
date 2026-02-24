@@ -1,5 +1,6 @@
 import type { SupportFeature } from '../geometry/collisionManifold';
 import type { GeometryShape } from '../geometry/intersections';
+import { isEntityOutside } from '../core/housing/dwelling';
 import { rankKeyForEntity } from '../core/rankKey';
 import { clamp, normalize, sub } from '../geometry/vector';
 import type { World } from '../core/world';
@@ -101,7 +102,12 @@ function evaluateDirectionalStab(
   contactPoint: { x: number; y: number },
   activePressureKeys: Set<string>,
 ): void {
-  if (world.staticObstacles.has(attackerId) || world.staticObstacles.has(victimId)) {
+  if (
+    world.staticObstacles.has(attackerId) ||
+    world.staticObstacles.has(victimId) ||
+    !isEntityOutside(world, attackerId) ||
+    !isEntityOutside(world, victimId)
+  ) {
     return;
   }
 

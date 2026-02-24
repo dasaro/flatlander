@@ -29,6 +29,7 @@
 - Handshake stillness window (short stand-still lock after successful recognition).
 - Vertex/endpoint lethality with sharpness, impact, pressure accumulation, and kill attribution.
 - Wear/erosion (attritional damage) and durability dimming hooks.
+- Pentagonal houses with east/west gendered doors, north roof alignment, and indoor shelter state.
 - Reproduction with gestation, lineage, generation, dynasty, legacy counters, and irregular births.
 - Isosceles generational brain-angle heredity (+0.5°/generation, cap at 60°→equilateral) and irregular regularization.
 - Optional non-canon compensation system remains available but is OFF by default.
@@ -59,8 +60,8 @@
 ### Top 10 divergences / assumptions
 1. **World topology includes torus mode** (not in novel geometry).
    - Severity: **medium**.
-2. **Houses are fully disabled in runtime defaults** despite strong house law content in the novel.
-   - Severity: **high**.
+2. **Housing entry/exit and “indoors” are abstracted as a container state rather than full interior geometry/pathfinding.**
+   - Severity: **medium**.
 3. **Handshake stillness is enforced *after* successful recognition, not strictly as precondition for the felt individual**.
    - Severity: **medium**.
 4. **Social movement is BDI-lite gameplay logic, not direct textual behavior laws**.
@@ -114,7 +115,7 @@
 | Contact network overlay | No direct textual analog | Implementation assumption / extrapolation | Selected entity shows parent/known edges, with deterministic known-edge selection | `src/render/canvasRenderer.ts` `drawContactNetworkOverlay`; `src/render/contactNetwork.ts` | Overlay toggles under Event/Overlays panel | `tests/contactNetwork.test.ts` |
 | Age + deterioration dimming; fog preview | No direct textual requirement (fog preview is interpretive aid) | Implementation assumption / extrapolation | Optional alpha dimming by age/hp; selected-observer fog preview/rings in God view | `src/render/viewModifiers.ts`; `src/render/canvasRenderer.ts` | Overlay toggles (`dim*`, `fogPreview*`) | `tests/viewModifiers.test.ts` |
 | Sleep/settle anti-jitter | Not in novel | Implementation assumption / extrapolation | Low-motion entities go asleep; wake on impact; reduces long-run tremble | `src/systems/sleepSystem.ts`; respected in movement/steering systems | `sleepEnabled=true`, eps and thresholds in world config | `tests/sleepSystem.test.ts` |
-| Houses & house laws | Part I, Sec. 2 | Divergence from the novel (currently disabled) | House code exists but runtime forces houses off and disables UI controls | `src/core/worldgen/houses.ts` exists; `src/main.ts` `settingsToWorldConfig` forces `housesEnabled:false`; `src/ui/uiController.ts` `syncEnvironmentFieldState` disables fields | Environment panel is present but disabled | `tests/housesDisabled.test.ts` |
+| Houses & house laws | Part I, Sec. 2 | Directly stated in the novel (with implementation assumptions for interior abstraction) | Optional pentagonal houses spawn as static obstacles, aligned to bearings; women use smaller east door, men larger west door; indoor state shelters entities | `src/core/worldgen/houses.ts` `spawnHouses`; `src/core/housing/houseFactory.ts`; `src/systems/houseSystem.ts`; `src/systems/collisionSystem.ts` (indoors excluded); `src/render/canvasRenderer.ts` `drawHouse` | `housesEnabled=false` default (feature off by default for compatibility); `houseCount=8` typical in UI; Environment panel toggles for doors/occupancy | `tests/housingFactory.test.ts`, `tests/housingWorldgen.test.ts`, `tests/housingDoors.test.ts`, `tests/housingIndoorsExclusion.test.ts`, `tests/housingExit.test.ts` |
 
 ---
 
@@ -574,54 +575,68 @@ No textual equivalent.
 
 ---
 
-### 3.17 Houses and environment laws (currently disabled)
+### 3.17 Houses and environment laws
 **What the novel says**  
 Part I, Section 2 contains explicit house orientation and law-like constraints.
 
 **How the app implements it**  
-- House generator exists (`spawnHouses`) with pentagon/square/triangle-fort logic and east/west doors.
-- Runtime currently forces `housesEnabled=false`; UI environment controls are disabled.
+- Deterministic worldgen can spawn houses (`spawnHouses`) as static polygon obstacles.
+- Canonical house geometry is pentagonal with north roof apex and east/west side doors (`createCanonicalPentagonHouse`).
+- East door is smaller and west door larger via `DoorSpec.sizeFactor` (Part I §2 constraint interpretation).
+- `HouseSystem` handles door-gated entry, indoor dwelling state, stillness while indoors (`waitForBearing`), and deterministic exit near the proper door.
+- Indoor entities are excluded from outside collision/movement/perception passes.
 
 **Key defaults**  
-- `housesEnabled=false`, `houseCount=0`.
+- `housesEnabled=false` (off by default for backward compatibility),
+- UI default `houseCount=8`,
+- `houseSize=30`.
 
 **Observe in app**  
-- No houses appear in default runs.
+1. Enable Houses in **World / Environment** and set House Count.
+2. Press Reset.
+3. Houses appear as dim static pentagons; optional door markers can be shown.
+4. Nearby women/men enter via east/west doors respectively and become indoor occupants.
 
 **Known divergences/assumptions**  
-- This is a deliberate divergence from narrative environment richness.
+- Houses are optional and OFF by default.
+- Interiors are represented as a container state (indoor/outdoor) rather than explicit interior geometry.
+- Entry/exit thresholds and indoor repair are simulation assumptions.
 
 **Code pointers**  
 - `src/core/worldgen/houses.ts` `spawnHouses`  
-- `src/main.ts` `settingsToWorldConfig` (hard-disable), callback comment “intentionally disabled”  
-- `src/ui/uiController.ts` `syncEnvironmentFieldState`
+- `src/core/housing/houseFactory.ts`  
+- `src/systems/houseSystem.ts`  
+- `src/main.ts` `settingsToWorldConfig`, `populateWorld`, `onEnvironmentUpdate`  
+- `src/ui/uiController.ts` Environment panel + inspector dwelling/house rows
 
 ---
 
 ### 3.18 System order, deterministic invariants, and narrative-vs-engine split
 **Tick order (from `src/main.ts` `systems` array):**
-1. `StillnessControllerSystem`
-2. `SouthAttractionSystem`
-3. `IntelligenceGrowthSystem`
-4. `SleepSystem`
-5. `PeaceCrySystem`
-6. `HearingSystem`
-7. `VisionSystem`
-8. `SocialNavMindSystem`
-9. `SocialNavSteeringSystem`
-10. `AvoidanceSteeringSystem`
-11. `FeelingApproachSystem`
-12. `MovementSystem`
-13. `SwaySystem`
-14. `CompensationSystem`
-15. `RegularizationSystem`
-16. `CollisionSystem`
-17. `FeelingSystem`
-18. `CollisionResolutionSystem`
-19. `ErosionSystem`
-20. `LethalitySystem`
-21. `CleanupSystem`
-22. `ReproductionSystem`
+1. `PeaceCrySystem`
+2. `HearingSystem`
+3. `VisionSystem`
+4. `SocialNavMindSystem`
+5. `FeelingApproachSystem`
+6. `IntroductionIntentSystem`
+7. `HouseSystem`
+8. `StillnessControllerSystem`
+9. `SouthAttractionSystem`
+10. `IntelligenceGrowthSystem`
+11. `SleepSystem`
+12. `SocialNavSteeringSystem`
+13. `AvoidanceSteeringSystem`
+14. `MovementSystem`
+15. `SwaySystem`
+16. `CompensationSystem`
+17. `RegularizationSystem`
+18. `CollisionSystem`
+19. `FeelingSystem`
+20. `CollisionResolutionSystem`
+21. `ErosionSystem`
+22. `LethalitySystem`
+23. `CleanupSystem`
+24. `ReproductionSystem`
 
 **Per-system I/O walk (read/write summary):**
 
@@ -698,7 +713,7 @@ Part I, Section 2 contains explicit house orientation and law-like constraints.
 1. Should canonical faithfulness prioritize **strict textual law simulation** (institutions/punishments), or remain a **behavioral sandbox with canonical flavor**?
 2. For handshake canon compliance, do you want stillness to be a **hard precondition before recognition** (stricter than current post-handshake stillness)?
 3. Should the AI policy consume the **same 1D strip samples** shown in UI, or is current separate core vision model acceptable?
-4. Should houses remain intentionally disabled, or should Part I, Section 2 constraints return as a default environment mode?
+4. Should houses become enabled by default for canon-forward demos, or remain opt-in for backward-compatible performance baselines?
 5. Are AGENTS population bands intended as canon targets or strictly pragmatic simulation-health thresholds?
 6. For irregular handling, should there be explicit switchable regimes (severe vs lenient) tied to Section 7 interpretations?
 7. Should peace-cry be merely advisory (current), or law-enforced in a strict mode?

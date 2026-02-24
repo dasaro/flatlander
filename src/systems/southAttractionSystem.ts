@@ -1,4 +1,5 @@
 import { southAttractionMultiplier } from '../core/fields/southAttractionField';
+import { isEntityOutside } from '../core/housing/dwelling';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
 import { clamp } from '../geometry/vector';
@@ -30,6 +31,9 @@ export class SouthAttractionSystem implements System {
       const shape = world.shapes.get(id);
       const drift = world.southDrifts.get(id);
       if (!transform || !shape || !drift) {
+        continue;
+      }
+      if (!isEntityOutside(world, id)) {
         continue;
       }
       if (world.stillness.has(id)) {

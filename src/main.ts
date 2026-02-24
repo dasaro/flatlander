@@ -4,6 +4,7 @@ import type { BoundaryMode, MovementComponent } from './core/components';
 import { computeDefaultEyeComponent, eyePoseWorld } from './core/eyePose';
 import type { WorldEvent } from './core/events';
 import { countLivingDescendants, getAncestors } from './core/genealogy';
+import { Rank } from './core/rank';
 import type { EventType } from './ui/eventAnalytics';
 import { EventAnalytics } from './ui/eventAnalytics';
 import { spawnFromRequest, type SpawnMovementConfig, type SpawnRequest } from './core/factory';
@@ -11,6 +12,7 @@ import { requestStillness } from './core/stillness';
 import { FixedTimestepSimulation } from './core/simulation';
 import { boundaryFromTopology, type WorldTopology } from './core/topology';
 import { createWorld, type WorldConfig } from './core/world';
+import { spawnHouses } from './core/worldgen/houses';
 import type { Vec2 } from './geometry/vector';
 import { Camera } from './render/camera';
 import { CanvasRenderer } from './render/canvasRenderer';
@@ -30,6 +32,7 @@ import { CollisionSystem } from './systems/collisionSystem';
 import { ErosionSystem } from './systems/erosionSystem';
 import { FeelingApproachSystem } from './systems/feelingApproachSystem';
 import { FeelingSystem } from './systems/feelingSystem';
+import { HouseSystem } from './systems/houseSystem';
 import { IntelligenceGrowthSystem } from './systems/intelligenceGrowthSystem';
 import {
   IntroductionIntentSystem,
@@ -53,6 +56,7 @@ import { PickingController } from './ui/pickingController';
 import { SelectionState } from './ui/selectionState';
 import { getVisibleLegendItems, type LegendVisibilityState } from './ui/legendModel';
 import {
+  type EnvironmentSettings,
   type EventHighlightsSettings,
   type FlatlanderViewSettings,
   type FogSightSettings,
@@ -118,6 +122,7 @@ const systems = [
   new SocialNavMindSystem(),
   new FeelingApproachSystem(),
   new IntroductionIntentSystem(),
+  new HouseSystem(),
   // Consume stillness requests after intent systems and before force/steering/movement.
   new StillnessControllerSystem(),
   new SouthAttractionSystem(),
@@ -142,6 +147,16 @@ const systems = [
 let worldTopology: WorldTopology = topologyInput.value === 'bounded' ? 'bounded' : 'torus';
 const initialBoundary = boundaryFromTopology(worldTopology);
 let spawnPlan: SpawnRequest[] = applyBoundaryToSpawnPlan(defaultSpawnPlan(), initialBoundary);
+let environmentSettings: EnvironmentSettings = {
+  housesEnabled: false,
+  houseCount: 8,
+  townPopulation: 5000,
+  allowTriangularForts: false,
+  allowSquareHouses: false,
+  houseSize: 30,
+  showDoors: true,
+  showOccupancy: false,
+};
 let peaceCrySettings: PeaceCrySettings = {
   enabled: true,
   cadenceTicks: 20,
@@ -216,6 +231,7 @@ let world = createWorld(
       settingsToWorldConfig(
         southAttractionSettings,
         worldTopology,
+        environmentSettings,
         peaceCrySettings,
         reproductionSettings,
         fogSightSettings,
@@ -298,6 +314,7 @@ const ui = new UIController({
       settingsToWorldConfig(
         southAttractionSettings,
         worldTopology,
+        environmentSettings,
         peaceCrySettings,
         reproductionSettings,
         fogSightSettings,
@@ -335,8 +352,10 @@ const ui = new UIController({
   onTopologyUpdate: (topology) => {
     applyTopology(topology);
   },
-  onEnvironmentUpdate: () => {
-    // Houses are intentionally disabled in this milestone.
+  onEnvironmentUpdate: (settings) => {
+    environmentSettings = settings;
+    applyEnvironmentSettingsToWorld(world, environmentSettings);
+    flatlanderScanDirty = true;
   },
   onPeaceCryDefaultsUpdate: (settings) => {
     peaceCrySettings = settings;
@@ -637,6 +656,8 @@ function frame(now: number): void {
     showPovCone: eventHighlightsSettings.showPovCone,
     showStillnessCues: eventHighlightsSettings.showFeeling,
     flatlanderHoverEntityId,
+    showHouseDoors: environmentSettings.showDoors,
+    showHouseOccupancy: environmentSettings.showOccupancy,
   });
   populationHistogram.render();
   renderEventTimeline();
@@ -654,34 +675,26 @@ requestAnimationFrame(frame);
 function renderSelection(): void {
   const selectedId = selectionState.selectedId;
   if (selectedId === null) {
-    ui.renderSelected(
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      'N/A',
-    );
+    renderNoSelectionInspector();
+    return;
+  }
+
+  const selectedHouse = world.houses.get(selectedId) ?? null;
+  if (selectedHouse) {
+    const occupants = [...(world.houseOccupants.get(selectedId) ?? new Set<number>())]
+      .sort((a, b) => a - b)
+      .map((occupantId) => ({
+        id: occupantId,
+        rankLabel: rankLabelForEntity(occupantId),
+      }));
+    const selectedShape = world.shapes.get(selectedId);
+    const shapeLabel =
+      selectedShape?.kind === 'polygon'
+        ? `${selectedShape.sides}-gon house`
+        : selectedShape
+          ? selectedShape.kind
+          : 'House';
+    ui.renderSelectedHouse(selectedId, selectedHouse.houseKind, shapeLabel, occupants);
     return;
   }
 
@@ -726,34 +739,7 @@ function renderSelection(): void {
   }
   if (!movement || !shape || !rank || !vision || !perception || !voice || !feeling || !knowledge) {
     selectionState.setSelected(null);
-    ui.renderSelected(
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      'N/A',
-    );
+    renderNoSelectionInspector();
     return;
   }
 
@@ -785,6 +771,39 @@ function renderSelection(): void {
     stillness,
     ancestorsLabel,
   );
+  ui.renderDwellingState(world.dwellings.get(selectedId) ?? null);
+}
+
+function renderNoSelectionInspector(): void {
+  ui.renderSelected(
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    'N/A',
+  );
+  ui.renderDwellingState(null);
 }
 
 function applyTopology(topology: WorldTopology): void {
@@ -1038,6 +1057,18 @@ function readInitialSeed(raw: string): number {
   return Number.isFinite(seed) ? seed : 1;
 }
 
+function rankLabelForEntity(entityId: number): string {
+  const rank = world.ranks.get(entityId);
+  const shape = world.shapes.get(entityId);
+  if (!rank || !shape) {
+    return 'Unknown';
+  }
+  if (rank.rank === Rank.Triangle && shape.kind === 'polygon') {
+    return shape.triangleKind === 'Isosceles' ? 'Triangle (Isosceles)' : 'Triangle (Equilateral)';
+  }
+  return rank.rank;
+}
+
 function applySpawnPlan(targetWorld: typeof world, plan: SpawnRequest[]): void {
   for (const request of plan) {
     spawnFromRequest(targetWorld, request);
@@ -1045,6 +1076,7 @@ function applySpawnPlan(targetWorld: typeof world, plan: SpawnRequest[]): void {
 }
 
 function populateWorld(targetWorld: typeof world, plan: SpawnRequest[]): void {
+  spawnHouses(targetWorld, targetWorld.rng, targetWorld.config);
   applySpawnPlan(targetWorld, plan);
 }
 
@@ -1305,16 +1337,20 @@ function defaultSpawnPlan(): SpawnRequest[] {
 function settingsToWorldConfig(
   settings: SouthAttractionSettings,
   topology: WorldTopology,
+  environment: EnvironmentSettings,
   peaceCry: PeaceCrySettings,
   reproduction: ReproductionSettings,
   fogSight: FogSightSettings,
 ): Partial<WorldConfig> {
   return {
     topology,
-    housesEnabled: false,
-    houseCount: 0,
-    allowTriangularForts: false,
-    allowSquareHouses: false,
+    housesEnabled: environment.housesEnabled,
+    houseCount: Math.max(0, Math.round(environment.houseCount)),
+    townPopulation: Math.max(0, Math.round(environment.townPopulation)),
+    allowTriangularForts: environment.allowTriangularForts,
+    allowSquareHouses: environment.allowSquareHouses,
+    houseSize: Math.max(4, environment.houseSize),
+    houseMinSpacing: Math.max(0, Math.round(environment.houseSize * 0.35)),
     peaceCryEnabled: peaceCry.enabled,
     defaultPeaceCryCadenceTicks: peaceCry.cadenceTicks,
     defaultPeaceCryRadius: peaceCry.radius,
@@ -1338,6 +1374,19 @@ function settingsToWorldConfig(
     sightEnabled: fogSight.sightEnabled,
     fogDensity: fogSight.fogDensity,
   };
+}
+
+function applyEnvironmentSettingsToWorld(
+  worldState: typeof world,
+  environment: EnvironmentSettings,
+): void {
+  worldState.config.housesEnabled = environment.housesEnabled;
+  worldState.config.houseCount = Math.max(0, Math.round(environment.houseCount));
+  worldState.config.townPopulation = Math.max(0, Math.round(environment.townPopulation));
+  worldState.config.allowTriangularForts = environment.allowTriangularForts;
+  worldState.config.allowSquareHouses = environment.allowSquareHouses;
+  worldState.config.houseSize = Math.max(4, environment.houseSize);
+  worldState.config.houseMinSpacing = Math.max(0, Math.round(environment.houseSize * 0.35));
 }
 
 function applyPeaceCrySettingsToWorld(worldState: typeof world, settings: PeaceCrySettings): void {

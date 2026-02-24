@@ -121,10 +121,30 @@ export interface StaticObstacleComponent {
 
 export type HouseKind = 'Pentagon' | 'Square' | 'TriangleFort';
 
+export interface DoorSpec {
+  side: 'east' | 'west';
+  localMidpoint: Vec2;
+  localNormalInward: Vec2;
+  sizeFactor: number;
+}
+
 export interface HouseComponent {
+  kind: 'house';
   houseKind: HouseKind;
-  doorEastWorld: Vec2;
-  doorWestWorld: Vec2;
+  polygon: {
+    verticesLocal: Vec2[];
+  };
+  doorEast: DoorSpec;
+  doorWest: DoorSpec;
+  doorEnterRadius: number;
+  indoorCapacity?: number | null;
+}
+
+export interface DwellingComponent {
+  state: 'outside' | 'inside';
+  houseId: EntityId | null;
+  ticksInside: number;
+  cooldownTicks: number;
 }
 
 export interface PeaceCryComponent {

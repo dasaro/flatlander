@@ -7,6 +7,7 @@ import type {
   AudiblePing,
   BrainAngleComponent,
   CombatStatsComponent,
+  DwellingComponent,
   DurabilityComponent,
   EntityId,
   EyeComponent,
@@ -49,6 +50,7 @@ export interface WorldConfig {
   allowTriangularForts: boolean;
   allowSquareHouses: boolean;
   houseSize: number;
+  houseMinSpacing: number;
   peaceCryEnabled: boolean;
   defaultPeaceCryCadenceTicks: number;
   defaultPeaceCryRadius: number;
@@ -158,6 +160,8 @@ export interface World {
   southDrifts: Map<EntityId, SouthDriftComponent>;
   staticObstacles: Map<EntityId, StaticObstacleComponent>;
   houses: Map<EntityId, HouseComponent>;
+  dwellings: Map<EntityId, DwellingComponent>;
+  houseOccupants: Map<EntityId, Set<EntityId>>;
   vision: Map<EntityId, VisionComponent>;
   eyes: Map<EntityId, EyeComponent>;
   visionHits: Map<EntityId, VisionHitComponent>;
@@ -208,6 +212,7 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   allowTriangularForts: false,
   allowSquareHouses: false,
   houseSize: 30,
+  houseMinSpacing: 16,
   peaceCryEnabled: true,
   defaultPeaceCryCadenceTicks: 20,
   defaultPeaceCryRadius: 120,
@@ -310,6 +315,8 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     southDrifts: new Map(),
     staticObstacles: new Map(),
     houses: new Map(),
+    dwellings: new Map(),
+    houseOccupants: new Map(),
     vision: new Map(),
     eyes: new Map(),
     visionHits: new Map(),

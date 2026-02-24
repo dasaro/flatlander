@@ -1,4 +1,5 @@
 import type { MovementComponent } from '../core/components';
+import { isEntityOutside } from '../core/housing/dwelling';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
 import {
@@ -27,6 +28,10 @@ export class MovementSystem implements System {
 
     for (const id of ids) {
       if (world.staticObstacles.has(id)) {
+        continue;
+      }
+
+      if (!isEntityOutside(world, id)) {
         continue;
       }
 

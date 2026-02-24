@@ -59,6 +59,8 @@ export interface EnvironmentSettings {
   allowTriangularForts: boolean;
   allowSquareHouses: boolean;
   houseSize: number;
+  showDoors: boolean;
+  showOccupancy: boolean;
 }
 
 export interface PeaceCrySettings {
@@ -155,6 +157,8 @@ interface InputRefs {
   envAllowTriangularForts: HTMLInputElement;
   envAllowSquareHouses: HTMLInputElement;
   envHouseSize: HTMLInputElement;
+  envShowHouseDoors: HTMLInputElement;
+  envShowHouseOccupancy: HTMLInputElement;
   peaceCryEnabledGlobal: HTMLInputElement;
   peaceCryCadenceGlobal: HTMLInputElement;
   peaceCryRadiusGlobal: HTMLInputElement;
@@ -257,6 +261,10 @@ interface InputRefs {
   inspectorRank: HTMLElement;
   inspectorShape: HTMLElement;
   inspectorKills: HTMLElement;
+  inspectorHouseSummary: HTMLElement;
+  inspectorHouseKind: HTMLElement;
+  inspectorHouseOccupantTotal: HTMLElement;
+  inspectorHouseOccupants: HTMLElement;
   inspectorMovementType: HTMLSelectElement;
   inspectorBoundary: HTMLSelectElement;
   inspectorVisionEnabled: HTMLInputElement;
@@ -288,6 +296,10 @@ interface InputRefs {
   inspectorKnownCount: HTMLElement;
   inspectorLastFeltTick: HTMLElement;
   inspectorKnownList: HTMLElement;
+  inspectorDwellingRow: HTMLElement;
+  inspectorDwellingState: HTMLElement;
+  inspectorDwellingHouse: HTMLElement;
+  inspectorDwellingTicks: HTMLElement;
   inspectorReproductionRow: HTMLElement;
   inspectorFertilityEnabled: HTMLElement;
   inspectorFertilityMature: HTMLElement;
@@ -513,6 +525,7 @@ export class UIController {
     ancestorsLabel: string,
   ): void {
     this.selectedEntityId = entityId;
+    this.refs.inspectorHouseSummary.hidden = true;
     if (
       entityId === null ||
       movement === null ||
@@ -531,6 +544,13 @@ export class UIController {
       this.refs.inspectorRank.textContent = 'N/A';
       this.refs.inspectorShape.textContent = 'N/A';
       this.refs.inspectorKills.textContent = '0';
+      this.refs.inspectorDwellingRow.hidden = true;
+      this.refs.inspectorDwellingState.textContent = 'outside';
+      this.refs.inspectorDwellingHouse.textContent = 'N/A';
+      this.refs.inspectorDwellingTicks.textContent = '0';
+      this.refs.inspectorHouseKind.textContent = 'N/A';
+      this.refs.inspectorHouseOccupantTotal.textContent = '0';
+      this.refs.inspectorHouseOccupants.innerHTML = '';
       this.refs.inspectorHearingSkill.value = '0.50';
       this.refs.inspectorHearingRadius.value = '180';
       this.refs.inspectorHeardSignature.textContent = 'None';
@@ -584,6 +604,7 @@ export class UIController {
     this.refs.inspectorRank.textContent = rankLabel(rank, shape);
     this.refs.inspectorShape.textContent = shapeLabel(shape);
     this.refs.inspectorKills.textContent = String(Math.max(0, Math.round(killCount ?? 0)));
+    this.refs.inspectorDwellingRow.hidden = false;
     this.refs.inspectorNone.hidden = true;
     this.refs.inspectorFields.hidden = false;
 
@@ -791,6 +812,55 @@ export class UIController {
     this.syncInspectorActionButtons();
   }
 
+  renderSelectedHouse(
+    entityId: number,
+    houseKind: string,
+    shapeLabelText: string,
+    occupants: Array<{ id: number; rankLabel: string }>,
+  ): void {
+    this.selectedEntityId = null;
+    this.refs.selectedId.textContent = String(entityId);
+    this.refs.inspectorRank.textContent = 'House';
+    this.refs.inspectorShape.textContent = shapeLabelText;
+    this.refs.inspectorKills.textContent = '0';
+    this.refs.inspectorNone.hidden = true;
+    this.refs.inspectorFields.hidden = true;
+    this.refs.inspectorHouseSummary.hidden = false;
+    this.refs.inspectorHouseKind.textContent = houseKind;
+    this.refs.inspectorHouseOccupantTotal.textContent = String(occupants.length);
+    this.refs.inspectorHouseOccupants.innerHTML = '';
+    if (occupants.length === 0) {
+      const empty = document.createElement('li');
+      empty.textContent = 'No occupants';
+      this.refs.inspectorHouseOccupants.appendChild(empty);
+    } else {
+      for (const occupant of occupants) {
+        const item = document.createElement('li');
+        item.textContent = `#${occupant.id}: ${occupant.rankLabel}`;
+        this.refs.inspectorHouseOccupants.appendChild(item);
+      }
+    }
+    this.syncInspectorActionButtons();
+  }
+
+  renderDwellingState(
+    state: { state: 'outside' | 'inside'; houseId: number | null; ticksInside: number } | null,
+  ): void {
+    if (!state) {
+      this.refs.inspectorDwellingRow.hidden = true;
+      this.refs.inspectorDwellingState.textContent = 'outside';
+      this.refs.inspectorDwellingHouse.textContent = 'N/A';
+      this.refs.inspectorDwellingTicks.textContent = '0';
+      return;
+    }
+
+    this.refs.inspectorDwellingRow.hidden = false;
+    this.refs.inspectorDwellingState.textContent = state.state;
+    this.refs.inspectorDwellingHouse.textContent =
+      state.houseId !== null && state.houseId !== undefined ? `#${state.houseId}` : 'N/A';
+    this.refs.inspectorDwellingTicks.textContent = String(Math.max(0, Math.round(state.ticksInside)));
+  }
+
   private renderKnownList(knowledge: KnowledgeComponent): void {
     this.refs.inspectorKnownList.innerHTML = '';
 
@@ -866,6 +936,8 @@ export class UIController {
       this.refs.envAllowTriangularForts,
       this.refs.envAllowSquareHouses,
       this.refs.envHouseSize,
+      this.refs.envShowHouseDoors,
+      this.refs.envShowHouseOccupancy,
     ];
 
     for (const input of environmentInputs) {
@@ -1210,27 +1282,30 @@ export class UIController {
   }
 
   private readEnvironmentSettings(): EnvironmentSettings {
+    const townPopulation = Math.max(0, parseInteger(this.refs.envTownPopulation.value, 5000));
+    const allowSquareHouses = this.refs.envAllowSquareHouses.checked && townPopulation < 10_000;
     return {
-      housesEnabled: false,
-      houseCount: 0,
-      townPopulation: Math.max(0, parseInteger(this.refs.envTownPopulation.value, 5000)),
-      allowTriangularForts: false,
-      allowSquareHouses: false,
+      housesEnabled: this.refs.envHousesEnabled.checked,
+      houseCount: Math.max(0, parseInteger(this.refs.envHouseCount.value, 8)),
+      townPopulation,
+      allowTriangularForts: this.refs.envAllowTriangularForts.checked,
+      allowSquareHouses,
       houseSize: Math.max(4, parseNumber(this.refs.envHouseSize.value, 30)),
+      showDoors: this.refs.envShowHouseDoors.checked,
+      showOccupancy: this.refs.envShowHouseOccupancy.checked,
     };
   }
 
   private syncEnvironmentFieldState(settings: EnvironmentSettings): void {
-    void settings;
-    this.refs.envHousesEnabled.checked = false;
-    this.refs.envHousesEnabled.disabled = true;
-    this.refs.envHouseCount.value = '0';
-    this.refs.envHouseCount.disabled = true;
-    this.refs.envTownPopulation.disabled = true;
-    this.refs.envAllowTriangularForts.checked = false;
-    this.refs.envAllowTriangularForts.disabled = true;
-    this.refs.envAllowSquareHouses.checked = false;
-    this.refs.envAllowSquareHouses.disabled = true;
+    this.refs.envHouseCount.disabled = !settings.housesEnabled;
+    this.refs.envHouseSize.disabled = !settings.housesEnabled;
+    this.refs.envAllowTriangularForts.disabled = !settings.housesEnabled;
+    this.refs.envTownPopulation.disabled = !settings.housesEnabled;
+    const squareAllowedByPopulation = settings.townPopulation < 10_000;
+    if (!squareAllowedByPopulation) {
+      this.refs.envAllowSquareHouses.checked = false;
+    }
+    this.refs.envAllowSquareHouses.disabled = !settings.housesEnabled || !squareAllowedByPopulation;
   }
 
   private readPeaceCrySettings(): PeaceCrySettings {
@@ -1674,6 +1749,8 @@ function collectRefs(): InputRefs {
     envAllowTriangularForts: required<HTMLInputElement>('env-allow-triangular-forts'),
     envAllowSquareHouses: required<HTMLInputElement>('env-allow-square-houses'),
     envHouseSize: required<HTMLInputElement>('env-house-size'),
+    envShowHouseDoors: required<HTMLInputElement>('env-show-house-doors'),
+    envShowHouseOccupancy: required<HTMLInputElement>('env-show-house-occupancy'),
     peaceCryEnabledGlobal: required<HTMLInputElement>('peace-cry-enabled'),
     peaceCryCadenceGlobal: required<HTMLInputElement>('peace-cry-cadence'),
     peaceCryRadiusGlobal: required<HTMLInputElement>('peace-cry-radius'),
@@ -1776,6 +1853,10 @@ function collectRefs(): InputRefs {
     inspectorRank: required<HTMLElement>('inspector-rank'),
     inspectorShape: required<HTMLElement>('inspector-shape'),
     inspectorKills: required<HTMLElement>('inspector-kills'),
+    inspectorHouseSummary: required<HTMLElement>('inspector-house-summary'),
+    inspectorHouseKind: required<HTMLElement>('inspector-house-kind'),
+    inspectorHouseOccupantTotal: required<HTMLElement>('inspector-house-occupant-total'),
+    inspectorHouseOccupants: required<HTMLElement>('inspector-house-occupants'),
     inspectorMovementType: required<HTMLSelectElement>('inspector-movement-type'),
     inspectorBoundary: required<HTMLSelectElement>('inspector-boundary'),
     inspectorVisionEnabled: required<HTMLInputElement>('inspector-vision-enabled'),
@@ -1807,6 +1888,10 @@ function collectRefs(): InputRefs {
     inspectorKnownCount: required<HTMLElement>('inspector-known-count'),
     inspectorLastFeltTick: required<HTMLElement>('inspector-last-felt-tick'),
     inspectorKnownList: required<HTMLElement>('inspector-known-list'),
+    inspectorDwellingRow: required<HTMLElement>('inspector-dwelling-row'),
+    inspectorDwellingState: required<HTMLElement>('inspector-dwelling-state'),
+    inspectorDwellingHouse: required<HTMLElement>('inspector-dwelling-house'),
+    inspectorDwellingTicks: required<HTMLElement>('inspector-dwelling-ticks'),
     inspectorReproductionRow: required<HTMLElement>('inspector-reproduction-row'),
     inspectorFertilityEnabled: required<HTMLElement>('inspector-fertility-enabled'),
     inspectorFertilityMature: required<HTMLElement>('inspector-fertility-mature'),

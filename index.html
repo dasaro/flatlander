@@ -263,11 +263,11 @@
           </div>
           <div class="row">
             <label for="env-house-count">House Count</label>
-            <input id="env-house-count" type="number" min="0" max="0" step="1" value="0" />
+            <input id="env-house-count" type="number" min="0" max="40" step="1" value="8" />
           </div>
           <div class="row">
             <label for="env-town-population">Town Population</label>
-            <input id="env-town-population" type="number" min="0" step="100" value="5000" disabled />
+            <input id="env-town-population" type="number" min="0" step="100" value="5000" />
           </div>
           <div class="row">
             <label for="env-allow-triangular-forts">Allow Triangular Forts</label>
@@ -279,7 +279,15 @@
           </div>
           <div class="row">
             <label for="env-house-size">House Size</label>
-            <input id="env-house-size" type="number" min="4" max="120" step="1" value="30" disabled />
+            <input id="env-house-size" type="number" min="4" max="120" step="1" value="30" />
+          </div>
+          <div class="row">
+            <label for="env-show-house-doors">Show House Doors</label>
+            <input id="env-show-house-doors" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="env-show-house-occupancy">Show Occupancy</label>
+            <input id="env-show-house-occupancy" type="checkbox" />
           </div>
           <div class="row">
             <label for="peace-cry-enabled">Peace-Cry Enabled</label>
@@ -296,7 +304,7 @@
           <div class="button-row">
             <button id="peace-cry-apply-all" type="button">Apply Cry To Women</button>
           </div>
-          <p class="hint">Houses are disabled in this build. Peace-cry defaults apply fully after Reset.</p>
+          <p class="hint">House generation follows current settings on Reset. Peace-cry defaults apply fully after Reset.</p>
         </section>
 
         <section class="panel">
@@ -470,8 +478,24 @@
           <div class="row"><span>Rank</span><strong id="inspector-rank">N/A</strong></div>
           <div class="row"><span>Shape</span><strong id="inspector-shape">N/A</strong></div>
           <div class="row"><span>Kills</span><strong id="inspector-kills">0</strong></div>
+          <div id="inspector-house-summary" hidden>
+            <div class="row"><span>House Kind</span><strong id="inspector-house-kind">N/A</strong></div>
+            <div class="row"><span>Occupants</span><strong id="inspector-house-occupant-total">0</strong></div>
+            <div class="row"><span>Occupants List</span></div>
+            <ul id="inspector-house-occupants" class="rank-list"></ul>
+          </div>
           <p id="inspector-none" class="hint">Click a figure to edit movement.</p>
           <div id="inspector-fields">
+            <div class="row" id="inspector-dwelling-row">
+              <span>Dwelling</span>
+              <div>
+                <strong id="inspector-dwelling-state">outside</strong>
+                <span> | house: </span>
+                <strong id="inspector-dwelling-house">N/A</strong>
+                <span> | ticks inside: </span>
+                <strong id="inspector-dwelling-ticks">0</strong>
+              </div>
+            </div>
             <div class="row">
               <label for="inspector-movement-type">Behavior</label>
               <select id="inspector-movement-type">

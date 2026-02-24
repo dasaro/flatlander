@@ -1,5 +1,6 @@
 import { getEyeWorldPosition } from '../core/eye';
 import { southAttractionMultiplier } from '../core/fields/southAttractionField';
+import { isEntityOutside } from '../core/housing/dwelling';
 import { rankKeyForEntity } from '../core/rankKey';
 import { Rank } from '../core/rank';
 import { getSortedEntityIds } from '../core/world';
@@ -33,6 +34,9 @@ export class PeaceCrySystem implements System {
       const peaceCry = world.peaceCry.get(id);
       const transform = world.transforms.get(id);
       if (!rank || rank.rank !== Rank.Woman || !peaceCry || !peaceCry.enabled || !transform) {
+        continue;
+      }
+      if (!isEntityOutside(world, id)) {
         continue;
       }
 

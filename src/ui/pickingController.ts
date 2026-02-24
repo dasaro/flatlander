@@ -1,4 +1,5 @@
 import { geometryFromComponents } from '../core/entityGeometry';
+import { isEntityOutside } from '../core/housing/dwelling';
 import type { World } from '../core/world';
 import {
   distancePointToConvexPolygonEdges,
@@ -158,7 +159,7 @@ export function pickEntityAtWorldPoint(
   let bestCentroidDistance = Number.POSITIVE_INFINITY;
 
   for (const id of ids) {
-    if (world.staticObstacles.has(id)) {
+    if (!isEntityOutside(world, id)) {
       continue;
     }
 

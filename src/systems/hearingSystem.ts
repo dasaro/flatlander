@@ -1,4 +1,5 @@
 import { getEyeWorldPosition } from '../core/eye';
+import { isEntityOutside } from '../core/housing/dwelling';
 import { Rank } from '../core/rank';
 import { getSortedEntityIds } from '../core/world';
 import type { VoiceSignature } from '../core/components';
@@ -49,12 +50,18 @@ export class HearingSystem implements System {
       if (!perception || !listenerTransform || perception.hearingSkill <= 0 || perception.hearingRadius <= 0) {
         continue;
       }
+      if (!isEntityOutside(world, id)) {
+        continue;
+      }
 
       const listenerEye = getEyeWorldPosition(world, id) ?? listenerTransform.position;
       let best: HeardCandidate | null = null;
 
       for (const otherId of ids) {
         if (otherId === id) {
+          continue;
+        }
+        if (!isEntityOutside(world, otherId)) {
           continue;
         }
 

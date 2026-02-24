@@ -1,4 +1,5 @@
 import { geometryFromComponents } from '../core/entityGeometry';
+import { isEntityOutside } from '../core/housing/dwelling';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
 import { computeCollisionManifold, type SupportFeature } from '../geometry/collisionManifold';
@@ -147,6 +148,10 @@ export function rebuildCollisionState(world: World): void {
 
   const items: Array<{ id: number; aabb: ReturnType<typeof aabbFromGeometry> }> = [];
   for (const id of ids) {
+    if (!isEntityOutside(world, id)) {
+      continue;
+    }
+
     const shape = world.shapes.get(id);
     const transform = world.transforms.get(id);
     if (!shape || !transform) {

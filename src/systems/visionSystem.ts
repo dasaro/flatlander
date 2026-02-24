@@ -1,5 +1,6 @@
 import { geometryFromComponents } from '../core/entityGeometry';
 import { eyePoseWorld } from '../core/eyePose';
+import { isEntityOutside } from '../core/housing/dwelling';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
 import {
@@ -48,6 +49,10 @@ function approxBoundingRadius(world: World, entityId: number): number {
 function collectTargets(world: World, ids: number[]): VisionTarget[] {
   const targets: VisionTarget[] = [];
   for (const id of ids) {
+    if (!isEntityOutside(world, id) && !world.staticObstacles.has(id)) {
+      continue;
+    }
+
     const transform = world.transforms.get(id);
     const shape = world.shapes.get(id);
     if (!transform || !shape) {
@@ -135,6 +140,9 @@ export class VisionSystem implements System {
       const vision = world.vision.get(id);
       const perception = world.perceptions.get(id);
       if (!vision || !perception || !vision.enabled || vision.range <= 0) {
+        continue;
+      }
+      if (!isEntityOutside(world, id)) {
         continue;
       }
 

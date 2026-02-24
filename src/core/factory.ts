@@ -217,6 +217,12 @@ export function spawnEntity(
   world.vision.set(id, vision);
   world.perceptions.set(id, perception);
   world.voices.set(id, voice);
+  world.dwellings.set(id, {
+    state: 'outside',
+    houseId: null,
+    ticksInside: 0,
+    cooldownTicks: 0,
+  });
   world.feeling.set(id, feeling);
   world.knowledge.set(id, { known: new Map() });
   world.ages.set(id, { ticksAlive: 0 });

@@ -27,7 +27,15 @@ export class CleanupSystem implements System {
       world.ranks.delete(id);
       world.southDrifts.delete(id);
       world.staticObstacles.delete(id);
+      const wasHouse = world.houses.has(id);
       world.houses.delete(id);
+      world.dwellings.delete(id);
+      if (wasHouse) {
+        world.houseOccupants.delete(id);
+      }
+      for (const occupants of world.houseOccupants.values()) {
+        occupants.delete(id);
+      }
       world.vision.delete(id);
       world.visionHits.delete(id);
       world.perceptions.delete(id);
