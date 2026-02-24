@@ -7,6 +7,7 @@ import type { System } from './system';
 
 const COLLISION_VELOCITY_DEADBAND = 0.05;
 const NORMAL_COMPONENT_EPS = 1e-4;
+const RESTING_CONTACT_CLOSING_SPEED_EPS = 0.1;
 
 function removeIntoNormal(velocity: Vec2, normal: Vec2): Vec2 {
   const component = dot(velocity, normal);
@@ -69,7 +70,12 @@ function correctWorldBounds(world: World, transform: TransformComponent): void {
 }
 
 function resolveVelocityAgainstNormal(world: World, entityId: EntityId, normal: Vec2): void {
-  if (world.staticObstacles.has(entityId) || world.pendingDeaths.has(entityId)) {
+  if (
+    world.staticObstacles.has(entityId) ||
+    world.pendingDeaths.has(entityId) ||
+    world.sleep.get(entityId)?.asleep ||
+    world.stillness.has(entityId)
+  ) {
     return;
   }
 
@@ -142,8 +148,14 @@ export class CollisionResolutionSystem implements System {
           continue;
         }
 
-        const aStatic = world.staticObstacles.has(aId) || isHandshakeImmovable(world, aId);
-        const bStatic = world.staticObstacles.has(bId) || isHandshakeImmovable(world, bId);
+        const aStatic =
+          world.staticObstacles.has(aId) ||
+          isHandshakeImmovable(world, aId) ||
+          (world.sleep.get(aId)?.asleep ?? false);
+        const bStatic =
+          world.staticObstacles.has(bId) ||
+          isHandshakeImmovable(world, bId) ||
+          (world.sleep.get(bId)?.asleep ?? false);
         if (aStatic && bStatic) {
           continue;
         }
@@ -155,9 +167,13 @@ export class CollisionResolutionSystem implements System {
         const localPercent = handshakePair ? percent * 0.2 : percent;
         const penetration = Math.max(0, manifold.penetration);
         const correctionMagnitude = Math.max(0, penetration - localSlop) * localPercent;
+        const shouldResolveVelocity =
+          manifold.closingSpeed > RESTING_CONTACT_CLOSING_SPEED_EPS || correctionMagnitude > 0;
         if (correctionMagnitude <= 0) {
-          resolveVelocityAgainstNormal(world, aId, manifold.normal);
-          resolveVelocityAgainstNormal(world, bId, mul(manifold.normal, -1));
+          if (shouldResolveVelocity) {
+            resolveVelocityAgainstNormal(world, aId, manifold.normal);
+            resolveVelocityAgainstNormal(world, bId, mul(manifold.normal, -1));
+          }
           continue;
         }
         const correction = mul(manifold.normal, correctionMagnitude);
@@ -185,8 +201,10 @@ export class CollisionResolutionSystem implements System {
           correctWorldBounds(world, bTransform);
         }
 
-        resolveVelocityAgainstNormal(world, aId, manifold.normal);
-        resolveVelocityAgainstNormal(world, bId, mul(manifold.normal, -1));
+        if (shouldResolveVelocity) {
+          resolveVelocityAgainstNormal(world, aId, manifold.normal);
+          resolveVelocityAgainstNormal(world, bId, mul(manifold.normal, -1));
+        }
       }
     }
   }

@@ -192,4 +192,123 @@ describe('collision resolution', () => {
 
     expect(buildSnapshot(90210)).toBe(buildSnapshot(90210));
   });
+
+  it('keeps sleeping entities stable under low-energy contact', () => {
+    const world = createWorld(314, {
+      southAttractionEnabled: false,
+      reproductionEnabled: false,
+      topology: 'bounded',
+      collisionResolveIterations: 2,
+      collisionSlop: 0.2,
+      collisionResolvePercent: 0.8,
+    });
+
+    const sleeperId = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 5, size: 16, irregular: false },
+      { type: 'straightDrift', vx: 0.8, vy: 0.2, boundary: 'bounce' },
+      { x: 100, y: 100 },
+    );
+    const moverId = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 4, size: 16, irregular: false },
+      { type: 'straightDrift', vx: -0.3, vy: 0.1, boundary: 'bounce' },
+      { x: 108, y: 100 },
+    );
+
+    world.sleep.set(sleeperId, { asleep: true, stillTicks: 50 });
+
+    const sleeperTransform = world.transforms.get(sleeperId);
+    if (!sleeperTransform) {
+      throw new Error('Missing sleeper transform.');
+    }
+    sleeperTransform.rotation = 1.234;
+
+    world.manifolds = [
+      {
+        aId: sleeperId,
+        bId: moverId,
+        normal: { x: 1, y: 0 },
+        penetration: 1.0,
+        contactPoint: { x: 104, y: 100 },
+        featureA: { kind: 'edge' },
+        featureB: { kind: 'edge' },
+        closingSpeed: 0.02,
+      },
+    ];
+
+    const beforePos = { ...sleeperTransform.position };
+    const beforeRot = sleeperTransform.rotation;
+    const sleeperMovement = world.movements.get(sleeperId);
+    const beforeVx = sleeperMovement?.type === 'straightDrift' ? sleeperMovement.vx : 0;
+    const beforeVy = sleeperMovement?.type === 'straightDrift' ? sleeperMovement.vy : 0;
+
+    new CollisionResolutionSystem().update(world, 1 / 30);
+
+    const afterTransform = world.transforms.get(sleeperId);
+    const afterMovement = world.movements.get(sleeperId);
+    if (!afterTransform || !afterMovement || afterMovement.type !== 'straightDrift') {
+      throw new Error('Missing sleeper state after resolution.');
+    }
+
+    expect(afterTransform.position.x).toBeCloseTo(beforePos.x, 10);
+    expect(afterTransform.position.y).toBeCloseTo(beforePos.y, 10);
+    expect(afterTransform.rotation).toBeCloseTo(beforeRot, 10);
+    expect(afterMovement.vx).toBeCloseTo(beforeVx, 10);
+    expect(afterMovement.vy).toBeCloseTo(beforeVy, 10);
+  });
+
+  it('does not alter velocity for resting low-energy manifolds', () => {
+    const world = createWorld(2718, {
+      southAttractionEnabled: false,
+      reproductionEnabled: false,
+      topology: 'bounded',
+      collisionResolveIterations: 1,
+      collisionSlop: 0.2,
+      collisionResolvePercent: 0.8,
+    });
+
+    const aId = spawnEntity(
+      world,
+      { kind: 'circle', size: 10 },
+      { type: 'straightDrift', vx: 1.2, vy: 0, boundary: 'bounce' },
+      { x: 200, y: 220 },
+    );
+    const bId = spawnEntity(
+      world,
+      { kind: 'circle', size: 10 },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'bounce' },
+      { x: 221, y: 220 },
+    );
+
+    world.manifolds = [
+      {
+        aId,
+        bId,
+        normal: { x: 1, y: 0 },
+        penetration: 0.1,
+        contactPoint: { x: 210, y: 220 },
+        featureA: { kind: 'edge' },
+        featureB: { kind: 'edge' },
+        closingSpeed: 0.01,
+      },
+    ];
+
+    const aMovement = world.movements.get(aId);
+    if (!aMovement || aMovement.type !== 'straightDrift') {
+      throw new Error('Expected straight-drift movement for aId.');
+    }
+    const beforeVx = aMovement.vx;
+    const beforeVy = aMovement.vy;
+
+    new CollisionResolutionSystem().update(world, 1 / 30);
+
+    const afterMovement = world.movements.get(aId);
+    if (!afterMovement || afterMovement.type !== 'straightDrift') {
+      throw new Error('Expected straight-drift movement for aId after resolution.');
+    }
+
+    expect(afterMovement.vx).toBeCloseTo(beforeVx, 10);
+    expect(afterMovement.vy).toBeCloseTo(beforeVy, 10);
+  });
 });
