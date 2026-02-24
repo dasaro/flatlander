@@ -1,5 +1,7 @@
 import { hashNoise } from '../core/behaviors/hashNoise';
 import type { EntityId, SocialIntention, SocialNavMovement } from '../core/components';
+import { isEntityOutside } from '../core/housing/dwelling';
+import { nearestHouseDoorTarget, shouldSeekShelter } from '../core/housing/shelterPolicy';
 import { Rank } from '../core/rank';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
@@ -180,12 +182,16 @@ function cautionFactor(world: World, entityId: EntityId): number {
 function chooseIntention(
   movement: SocialNavMovement,
   desireAvoid: number,
+  desireShelter: number,
   desireYield: number,
   desireMate: number,
   desireFeel: number,
 ): SocialIntention {
-  if (desireAvoid >= Math.max(desireYield, desireMate, desireFeel, 0.15)) {
+  if (desireAvoid >= Math.max(desireShelter, desireYield, desireMate, desireFeel, 0.15)) {
     return 'avoid';
+  }
+  if (desireShelter >= Math.max(desireYield, desireMate, desireFeel, 0.2)) {
+    return 'seekShelter';
   }
   if (desireYield >= Math.max(desireMate, desireFeel, 0.35)) {
     return 'yield';
@@ -224,6 +230,13 @@ export class SocialNavMindSystem implements System {
       if (!movement || movement.type !== 'socialNav' || world.staticObstacles.has(id)) {
         continue;
       }
+      if (!isEntityOutside(world, id)) {
+        continue;
+      }
+      const transform = world.transforms.get(id);
+      if (!transform) {
+        continue;
+      }
       const stillness = world.stillness.get(id);
       if (stillness) {
         movement.intention = 'holdStill';
@@ -256,6 +269,8 @@ export class SocialNavMindSystem implements System {
       const higher = higherRankFromPerception(world, id, seenId);
       const mate = mateFromPerception(world, id, seenId);
       const unknown = unknownFromPerception(world, id, seenId);
+      const shelterTarget = nearestHouseDoorTarget(world, id, transform.position);
+      const shelterWanted = shelterTarget !== null && shouldSeekShelter(world, id);
       const caution = cautionFactor(world, id);
 
       const hazardRadius = Math.max(8, movement.maxSpeed * 2.2);
@@ -265,6 +280,10 @@ export class SocialNavMindSystem implements System {
           : Math.max(0, (hazardRadius - hazardDistance) / hazardRadius) * (0.4 + caution * 0.6);
       const desireYield =
         higher === null ? 0 : Math.max(0, (140 - higher.distance) / 140) * (0.25 + caution * 0.8);
+      const desireShelter =
+        !shelterWanted || shelterTarget === null
+          ? 0
+          : Math.max(0.2, Math.max(0, (220 - shelterTarget.distance) / 220));
       const desireMate =
         mate === null
           ? 0
@@ -278,7 +297,14 @@ export class SocialNavMindSystem implements System {
                 Math.max(1, world.config.introductionRadius),
             );
 
-      movement.intention = chooseIntention(movement, desireAvoid, desireYield, desireMate, desireFeel);
+      movement.intention = chooseIntention(
+        movement,
+        desireAvoid,
+        desireShelter,
+        desireYield,
+        desireMate,
+        desireFeel,
+      );
 
       if (movement.intention === 'avoid' || movement.intention === 'yield') {
         const direction =
@@ -298,6 +324,14 @@ export class SocialNavMindSystem implements System {
         if (mateTransform) {
           setGoalTarget(movement, mate.id, mateTransform.position);
         }
+      } else if (movement.intention === 'seekShelter' && shelterTarget) {
+        movement.goal = {
+          type: 'point',
+          targetId: shelterTarget.houseId,
+          x: shelterTarget.midpoint.x,
+          y: shelterTarget.midpoint.y,
+          doorSide: shelterTarget.side,
+        };
       } else if (movement.intention === 'approachForFeeling' && unknown) {
         const unknownTransform = world.transforms.get(unknown.id);
         if (unknownTransform) {

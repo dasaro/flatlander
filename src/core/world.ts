@@ -51,6 +51,9 @@ export interface WorldConfig {
   allowSquareHouses: boolean;
   houseSize: number;
   houseMinSpacing: number;
+  rainEnabled: boolean;
+  rainPeriodTicks: number;
+  rainDurationTicks: number;
   peaceCryEnabled: boolean;
   defaultPeaceCryCadenceTicks: number;
   defaultPeaceCryRadius: number;
@@ -162,6 +165,11 @@ export interface World {
   houses: Map<EntityId, HouseComponent>;
   dwellings: Map<EntityId, DwellingComponent>;
   houseOccupants: Map<EntityId, Set<EntityId>>;
+  weather: {
+    isRaining: boolean;
+    ticksUntilRain: number;
+    ticksRemainingRain: number;
+  };
   vision: Map<EntityId, VisionComponent>;
   eyes: Map<EntityId, EyeComponent>;
   visionHits: Map<EntityId, VisionHitComponent>;
@@ -193,6 +201,8 @@ export interface World {
   collisions: CollisionRecord[];
   manifolds: CollisionManifoldRecord[];
   deathsThisTick: number;
+  houseDoorContactsThisTick: number;
+  houseEntriesThisTick: number;
   regularizedThisTick: number;
   handshakeStartedThisTick: number;
   handshakeCompletedThisTick: number;
@@ -213,6 +223,9 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   allowSquareHouses: false,
   houseSize: 30,
   houseMinSpacing: 16,
+  rainEnabled: false,
+  rainPeriodTicks: 2400,
+  rainDurationTicks: 500,
   peaceCryEnabled: true,
   defaultPeaceCryCadenceTicks: 20,
   defaultPeaceCryRadius: 120,
@@ -300,6 +313,11 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     ...DEFAULT_WORLD_CONFIG,
     ...overrides,
   };
+  if (overrides.rainEnabled === undefined) {
+    config.rainEnabled = config.housesEnabled;
+  }
+  const rainPeriod = Math.max(1, Math.round(config.rainPeriodTicks));
+  const rainDuration = Math.max(1, Math.round(config.rainDurationTicks));
 
   return {
     config,
@@ -317,6 +335,11 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     houses: new Map(),
     dwellings: new Map(),
     houseOccupants: new Map(),
+    weather: {
+      isRaining: false,
+      ticksUntilRain: rainPeriod,
+      ticksRemainingRain: rainDuration,
+    },
     vision: new Map(),
     eyes: new Map(),
     visionHits: new Map(),
@@ -348,6 +371,8 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     collisions: [],
     manifolds: [],
     deathsThisTick: 0,
+    houseDoorContactsThisTick: 0,
+    houseEntriesThisTick: 0,
     regularizedThisTick: 0,
     handshakeStartedThisTick: 0,
     handshakeCompletedThisTick: 0,

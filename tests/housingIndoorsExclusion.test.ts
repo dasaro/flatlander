@@ -24,6 +24,8 @@ function addHouse(world: ReturnType<typeof createWorld>, x: number, y: number): 
 describe('indoors exclusion', () => {
   it('skips indoors entities in movement and collision systems', () => {
     const world = createWorld(11, { housesEnabled: true });
+    world.config.rainEnabled = true;
+    world.weather.isRaining = true;
     const houseSystem = new HouseSystem();
     const movementSystem = new MovementSystem();
     const collisionSystem = new CollisionSystem();
@@ -58,6 +60,7 @@ describe('indoors exclusion', () => {
       durability.hp = 1;
     }
 
+    collisionSystem.update(world, 1 / world.config.tickRate);
     houseSystem.update(world);
     expect(world.dwellings.get(womanId)?.state).toBe('inside');
     const insidePosition = { ...womanTransform.position };

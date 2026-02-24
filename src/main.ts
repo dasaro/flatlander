@@ -27,6 +27,7 @@ import { FlatlanderViewRenderer } from './render/flatlanderViewRenderer';
 import { PopulationHistogram } from './render/populationHistogram';
 import { HearingSystem } from './systems/hearingSystem';
 import { PeaceCrySystem } from './systems/peaceCrySystem';
+import { RainSystem } from './systems/rainSystem';
 import { CleanupSystem } from './systems/cleanupSystem';
 import { CollisionSystem } from './systems/collisionSystem';
 import { ErosionSystem } from './systems/erosionSystem';
@@ -117,12 +118,12 @@ const primaryRunBtn = document.getElementById('run-btn');
 
 const systems = [
   new PeaceCrySystem(),
+  new RainSystem(),
   new HearingSystem(),
   new VisionSystem(),
   new SocialNavMindSystem(),
   new FeelingApproachSystem(),
   new IntroductionIntentSystem(),
-  new HouseSystem(),
   // Consume stillness requests after intent systems and before force/steering/movement.
   new StillnessControllerSystem(),
   new SouthAttractionSystem(),
@@ -135,6 +136,8 @@ const systems = [
   new CompensationSystem(),
   new RegularizationSystem(),
   new CollisionSystem(),
+  // House entry consumes fresh collision contact points before separation correction.
+  new HouseSystem(),
   // Feeling consumes fresh collision contacts and can request stillness before separation correction.
   new FeelingSystem(),
   new CollisionResolutionSystem(),
@@ -154,6 +157,7 @@ let environmentSettings: EnvironmentSettings = {
   allowTriangularForts: false,
   allowSquareHouses: false,
   houseSize: 30,
+  rainEnabled: false,
   showDoors: true,
   showOccupancy: false,
 };
@@ -1351,6 +1355,7 @@ function settingsToWorldConfig(
     allowSquareHouses: environment.allowSquareHouses,
     houseSize: Math.max(4, environment.houseSize),
     houseMinSpacing: Math.max(0, Math.round(environment.houseSize * 0.35)),
+    rainEnabled: environment.rainEnabled && environment.housesEnabled,
     peaceCryEnabled: peaceCry.enabled,
     defaultPeaceCryCadenceTicks: peaceCry.cadenceTicks,
     defaultPeaceCryRadius: peaceCry.radius,
@@ -1387,6 +1392,12 @@ function applyEnvironmentSettingsToWorld(
   worldState.config.allowSquareHouses = environment.allowSquareHouses;
   worldState.config.houseSize = Math.max(4, environment.houseSize);
   worldState.config.houseMinSpacing = Math.max(0, Math.round(environment.houseSize * 0.35));
+  worldState.config.rainEnabled = environment.rainEnabled && environment.housesEnabled;
+  if (!worldState.config.rainEnabled) {
+    worldState.weather.isRaining = false;
+    worldState.weather.ticksUntilRain = Math.max(1, Math.round(worldState.config.rainPeriodTicks));
+    worldState.weather.ticksRemainingRain = Math.max(1, Math.round(worldState.config.rainDurationTicks));
+  }
 }
 
 function applyPeaceCrySettingsToWorld(worldState: typeof world, settings: PeaceCrySettings): void {

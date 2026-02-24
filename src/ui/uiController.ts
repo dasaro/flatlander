@@ -59,6 +59,7 @@ export interface EnvironmentSettings {
   allowTriangularForts: boolean;
   allowSquareHouses: boolean;
   houseSize: number;
+  rainEnabled: boolean;
   showDoors: boolean;
   showOccupancy: boolean;
 }
@@ -157,6 +158,7 @@ interface InputRefs {
   envAllowTriangularForts: HTMLInputElement;
   envAllowSquareHouses: HTMLInputElement;
   envHouseSize: HTMLInputElement;
+  envRainEnabled: HTMLInputElement;
   envShowHouseDoors: HTMLInputElement;
   envShowHouseOccupancy: HTMLInputElement;
   peaceCryEnabledGlobal: HTMLInputElement;
@@ -359,6 +361,10 @@ interface InputRefs {
   stillnessAvgTicksValue: HTMLElement;
   handshakesPerThousandValue: HTMLElement;
   totalAliveValue: HTMLElement;
+  houseDoorContactsValue: HTMLElement;
+  houseEntriesValue: HTMLElement;
+  totalInsideValue: HTMLElement;
+  rainActiveValue: HTMLElement;
   rankList: HTMLElement;
 }
 
@@ -452,6 +458,16 @@ export class UIController {
       world.tick > 0 ? (world.handshakeCompletedTotal * 1000) / world.tick : 0;
     this.refs.handshakesPerThousandValue.textContent = handshakesPerThousand.toFixed(2);
     this.refs.totalAliveValue.textContent = String(world.entities.size);
+    this.refs.houseDoorContactsValue.textContent = String(world.houseDoorContactsThisTick);
+    this.refs.houseEntriesValue.textContent = String(world.houseEntriesThisTick);
+    let totalInside = 0;
+    for (const dwelling of world.dwellings.values()) {
+      if (dwelling.state === 'inside') {
+        totalInside += 1;
+      }
+    }
+    this.refs.totalInsideValue.textContent = String(totalInside);
+    this.refs.rainActiveValue.textContent = world.weather.isRaining ? '1' : '0';
 
     const counts = new Map<string, number>();
     for (const id of world.entities) {
@@ -936,6 +952,7 @@ export class UIController {
       this.refs.envAllowTriangularForts,
       this.refs.envAllowSquareHouses,
       this.refs.envHouseSize,
+      this.refs.envRainEnabled,
       this.refs.envShowHouseDoors,
       this.refs.envShowHouseOccupancy,
     ];
@@ -1291,6 +1308,7 @@ export class UIController {
       allowTriangularForts: this.refs.envAllowTriangularForts.checked,
       allowSquareHouses,
       houseSize: Math.max(4, parseNumber(this.refs.envHouseSize.value, 30)),
+      rainEnabled: this.refs.envRainEnabled.checked,
       showDoors: this.refs.envShowHouseDoors.checked,
       showOccupancy: this.refs.envShowHouseOccupancy.checked,
     };
@@ -1301,6 +1319,7 @@ export class UIController {
     this.refs.envHouseSize.disabled = !settings.housesEnabled;
     this.refs.envAllowTriangularForts.disabled = !settings.housesEnabled;
     this.refs.envTownPopulation.disabled = !settings.housesEnabled;
+    this.refs.envRainEnabled.disabled = !settings.housesEnabled;
     const squareAllowedByPopulation = settings.townPopulation < 10_000;
     if (!squareAllowedByPopulation) {
       this.refs.envAllowSquareHouses.checked = false;
@@ -1749,6 +1768,7 @@ function collectRefs(): InputRefs {
     envAllowTriangularForts: required<HTMLInputElement>('env-allow-triangular-forts'),
     envAllowSquareHouses: required<HTMLInputElement>('env-allow-square-houses'),
     envHouseSize: required<HTMLInputElement>('env-house-size'),
+    envRainEnabled: required<HTMLInputElement>('env-rain-enabled'),
     envShowHouseDoors: required<HTMLInputElement>('env-show-house-doors'),
     envShowHouseOccupancy: required<HTMLInputElement>('env-show-house-occupancy'),
     peaceCryEnabledGlobal: required<HTMLInputElement>('peace-cry-enabled'),
@@ -1951,6 +1971,10 @@ function collectRefs(): InputRefs {
     stillnessAvgTicksValue: required<HTMLElement>('stat-stillness-avg'),
     handshakesPerThousandValue: required<HTMLElement>('stat-handshake-rate'),
     totalAliveValue: required<HTMLElement>('stat-total'),
+    houseDoorContactsValue: required<HTMLElement>('stat-house-door-contacts'),
+    houseEntriesValue: required<HTMLElement>('stat-house-entries'),
+    totalInsideValue: required<HTMLElement>('stat-total-inside'),
+    rainActiveValue: required<HTMLElement>('stat-rain-active'),
     rankList: required<HTMLElement>('rank-list'),
   };
 }

@@ -14,6 +14,7 @@ export type SocialIntention =
   | 'roam'
   | 'avoid'
   | 'yield'
+  | 'seekShelter'
   | 'approachMate'
   | 'approachForFeeling'
   | 'holdStill';
@@ -24,6 +25,7 @@ export interface SocialNavGoal {
   y?: number;
   heading?: number;
   targetId?: EntityId;
+  doorSide?: 'east' | 'west';
 }
 
 export interface RandomWalkMovement {

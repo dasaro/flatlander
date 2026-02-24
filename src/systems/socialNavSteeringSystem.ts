@@ -1,3 +1,4 @@
+import { doorPoseWorld } from '../core/housing/houseFactory';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
 import { clamp } from '../geometry/vector';
@@ -36,6 +37,8 @@ function targetSpeedForIntention(world: World, entityId: number): number {
       return movement.maxSpeed * 0.92;
     case 'yield':
       return movement.maxSpeed * 0.45;
+    case 'seekShelter':
+      return movement.maxSpeed * 0.55;
     case 'approachMate':
       return movement.maxSpeed * 0.66;
     case 'approachForFeeling':
@@ -79,12 +82,31 @@ export class SocialNavSteeringSystem implements System {
       if (movement.goal?.type === 'direction' && movement.goal.heading !== undefined) {
         targetHeading = movement.goal.heading;
       } else if (movement.goal?.type === 'point') {
-        const targetId = movement.goal.targetId;
-        const targetTransform = targetId !== undefined ? world.transforms.get(targetId) : null;
-        const targetX = targetTransform?.position.x ?? movement.goal.x;
-        const targetY = targetTransform?.position.y ?? movement.goal.y;
+        const targetX = movement.goal.x;
+        const targetY = movement.goal.y;
         if (targetX !== undefined && targetY !== undefined) {
           targetHeading = Math.atan2(targetY - transform.position.y, targetX - transform.position.x);
+        }
+
+        if (
+          movement.intention === 'seekShelter' &&
+          movement.goal.targetId !== undefined &&
+          movement.goal.doorSide !== undefined
+        ) {
+          const house = world.houses.get(movement.goal.targetId);
+          const houseTransform = world.transforms.get(movement.goal.targetId);
+          if (house && houseTransform) {
+            const doorSpec =
+              movement.goal.doorSide === 'east' ? house.doorEast : house.doorWest;
+            const door = doorPoseWorld(houseTransform, doorSpec);
+            const distanceToDoor = Math.hypot(
+              door.midpoint.x - transform.position.x,
+              door.midpoint.y - transform.position.y,
+            );
+            if (distanceToDoor <= Math.max(10, house.doorEnterRadius * 2)) {
+              targetHeading = Math.atan2(door.normalInward.y, door.normalInward.x);
+            }
+          }
         }
       }
 
@@ -100,7 +122,17 @@ export class SocialNavSteeringSystem implements System {
       }
 
       const targetSpeed = targetSpeedForIntention(world, id);
-      movement.smoothSpeed += (targetSpeed - movement.smoothSpeed) * speedAlpha;
+      let adjustedTargetSpeed = targetSpeed;
+      if (movement.intention === 'seekShelter' && movement.goal?.type === 'point') {
+        const targetX = movement.goal.x;
+        const targetY = movement.goal.y;
+        if (targetX !== undefined && targetY !== undefined) {
+          const distanceToTarget = Math.hypot(targetX - transform.position.x, targetY - transform.position.y);
+          const arriveScale = clamp(distanceToTarget / 36, 0.08, 1);
+          adjustedTargetSpeed *= arriveScale;
+        }
+      }
+      movement.smoothSpeed += (adjustedTargetSpeed - movement.smoothSpeed) * speedAlpha;
       movement.smoothSpeed = clamp(movement.smoothSpeed, 0, movement.maxSpeed);
       if (Math.abs(movement.smoothSpeed) < 0.05) {
         movement.smoothSpeed = 0;

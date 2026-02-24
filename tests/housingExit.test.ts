@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { spawnEntity } from '../src/core/factory';
 import { createHouseLayout, doorPoseWorld, houseComponentFromLayout, houseShapeFromLayout } from '../src/core/housing/houseFactory';
 import { createWorld } from '../src/core/world';
+import { CollisionSystem } from '../src/systems/collisionSystem';
 import { HouseSystem } from '../src/systems/houseSystem';
 
 function addHouse(world: ReturnType<typeof createWorld>, x: number, y: number): number {
@@ -22,6 +23,9 @@ function addHouse(world: ReturnType<typeof createWorld>, x: number, y: number): 
 describe('housing exit behavior', () => {
   it('exits after indoor stay and places person outside the preferred door', () => {
     const world = createWorld(21, { housesEnabled: true });
+    world.config.rainEnabled = true;
+    world.weather.isRaining = true;
+    const collisionSystem = new CollisionSystem();
     const houseSystem = new HouseSystem();
     const houseId = addHouse(world, 420, 260);
 
@@ -55,6 +59,7 @@ describe('housing exit behavior', () => {
       durability.hp = 1;
     }
 
+    collisionSystem.update(world, 1 / world.config.tickRate);
     houseSystem.update(world);
     expect(world.dwellings.get(manId)?.state).toBe('inside');
     if (durability) {

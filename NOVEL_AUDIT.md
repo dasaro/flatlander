@@ -115,7 +115,7 @@
 | Contact network overlay | No direct textual analog | Implementation assumption / extrapolation | Selected entity shows parent/known edges, with deterministic known-edge selection | `src/render/canvasRenderer.ts` `drawContactNetworkOverlay`; `src/render/contactNetwork.ts` | Overlay toggles under Event/Overlays panel | `tests/contactNetwork.test.ts` |
 | Age + deterioration dimming; fog preview | No direct textual requirement (fog preview is interpretive aid) | Implementation assumption / extrapolation | Optional alpha dimming by age/hp; selected-observer fog preview/rings in God view | `src/render/viewModifiers.ts`; `src/render/canvasRenderer.ts` | Overlay toggles (`dim*`, `fogPreview*`) | `tests/viewModifiers.test.ts` |
 | Sleep/settle anti-jitter | Not in novel | Implementation assumption / extrapolation | Low-motion entities go asleep; wake on impact; reduces long-run tremble | `src/systems/sleepSystem.ts`; respected in movement/steering systems | `sleepEnabled=true`, eps and thresholds in world config | `tests/sleepSystem.test.ts` |
-| Houses & house laws | Part I, Sec. 2 | Directly stated in the novel (with implementation assumptions for interior abstraction) | Optional pentagonal houses spawn as static obstacles, aligned to bearings; women use smaller east door, men larger west door; indoor state shelters entities | `src/core/worldgen/houses.ts` `spawnHouses`; `src/core/housing/houseFactory.ts`; `src/systems/houseSystem.ts`; `src/systems/collisionSystem.ts` (indoors excluded); `src/render/canvasRenderer.ts` `drawHouse` | `housesEnabled=false` default (feature off by default for compatibility); `houseCount=8` typical in UI; Environment panel toggles for doors/occupancy | `tests/housingFactory.test.ts`, `tests/housingWorldgen.test.ts`, `tests/housingDoors.test.ts`, `tests/housingIndoorsExclusion.test.ts`, `tests/housingExit.test.ts` |
+| Houses & house laws | Part I, Sec. 2 | Directly stated in the novel (with implementation assumptions for interior abstraction) | Optional pentagonal houses spawn as static obstacles, aligned to bearings; women use smaller east door, men larger west door; rain cycles drive shelter-seeking; indoor state shelters entities | `src/core/worldgen/houses.ts` `spawnHouses`; `src/core/housing/houseFactory.ts`; `src/core/housing/shelterPolicy.ts`; `src/systems/rainSystem.ts`; `src/systems/socialNavMindSystem.ts`; `src/systems/houseSystem.ts`; `src/systems/collisionSystem.ts` (indoors excluded); `src/render/canvasRenderer.ts` `drawHouse` | `housesEnabled=false` default; `rainEnabled` follows housing by default; Environment panel toggles for houses/rain/doors/occupancy | `tests/housingFactory.test.ts`, `tests/housingWorldgen.test.ts`, `tests/housingDoors.test.ts`, `tests/housingDoorEntryFromCollision.test.ts`, `tests/housingIndoorsExclusion.test.ts`, `tests/housingExit.test.ts`, `tests/rainShelterIntention.test.ts` |
 
 ---
 
@@ -583,7 +583,9 @@ Part I, Section 2 contains explicit house orientation and law-like constraints.
 - Deterministic worldgen can spawn houses (`spawnHouses`) as static polygon obstacles.
 - Canonical house geometry is pentagonal with north roof apex and east/west side doors (`createCanonicalPentagonHouse`).
 - East door is smaller and west door larger via `DoorSpec.sizeFactor` (Part I §2 constraint interpretation).
-- `HouseSystem` handles door-gated entry, indoor dwelling state, stillness while indoors (`waitForBearing`), and deterministic exit near the proper door.
+- Deterministic rain cycles (`RainSystem`) create explicit shelter motivation when houses are enabled.
+- `SocialNavMindSystem` can choose `seekShelter` intention and route to the nearest eligible east/west door.
+- `HouseSystem` uses collision contact points near the correct door as the entry sensor (rather than centroid distance), then applies indoor dwelling state, stillness while indoors (`waitForBearing`), and deterministic exit near the proper door.
 - Indoor entities are excluded from outside collision/movement/perception passes.
 
 **Key defaults**  
@@ -600,12 +602,16 @@ Part I, Section 2 contains explicit house orientation and law-like constraints.
 **Known divergences/assumptions**  
 - Houses are optional and OFF by default.
 - Interiors are represented as a container state (indoor/outdoor) rather than explicit interior geometry.
-- Entry/exit thresholds and indoor repair are simulation assumptions.
+- Entry/exit thresholds, collision-door aperture tolerance, and indoor repair are simulation assumptions.
+- Rain itself does not directly damage entities; it acts as a deterministic shelter-drive signal.
 
 **Code pointers**  
 - `src/core/worldgen/houses.ts` `spawnHouses`  
 - `src/core/housing/houseFactory.ts`  
+- `src/core/housing/shelterPolicy.ts`  
+- `src/systems/rainSystem.ts`  
 - `src/systems/houseSystem.ts`  
+- `src/systems/socialNavMindSystem.ts`  
 - `src/main.ts` `settingsToWorldConfig`, `populateWorld`, `onEnvironmentUpdate`  
 - `src/ui/uiController.ts` Environment panel + inspector dwelling/house rows
 
@@ -614,12 +620,12 @@ Part I, Section 2 contains explicit house orientation and law-like constraints.
 ### 3.18 System order, deterministic invariants, and narrative-vs-engine split
 **Tick order (from `src/main.ts` `systems` array):**
 1. `PeaceCrySystem`
-2. `HearingSystem`
-3. `VisionSystem`
-4. `SocialNavMindSystem`
-5. `FeelingApproachSystem`
-6. `IntroductionIntentSystem`
-7. `HouseSystem`
+2. `RainSystem`
+3. `HearingSystem`
+4. `VisionSystem`
+5. `SocialNavMindSystem`
+6. `FeelingApproachSystem`
+7. `IntroductionIntentSystem`
 8. `StillnessControllerSystem`
 9. `SouthAttractionSystem`
 10. `IntelligenceGrowthSystem`
@@ -631,12 +637,13 @@ Part I, Section 2 contains explicit house orientation and law-like constraints.
 16. `CompensationSystem`
 17. `RegularizationSystem`
 18. `CollisionSystem`
-19. `FeelingSystem`
-20. `CollisionResolutionSystem`
-21. `ErosionSystem`
-22. `LethalitySystem`
-23. `CleanupSystem`
-24. `ReproductionSystem`
+19. `HouseSystem`
+20. `FeelingSystem`
+21. `CollisionResolutionSystem`
+22. `ErosionSystem`
+23. `LethalitySystem`
+24. `CleanupSystem`
+25. `ReproductionSystem`
 
 **Per-system I/O walk (read/write summary):**
 

@@ -74,6 +74,8 @@ export class FixedTimestepSimulation {
     this.world.collisions = [];
     this.world.manifolds = [];
     this.world.deathsThisTick = 0;
+    this.world.houseDoorContactsThisTick = 0;
+    this.world.houseEntriesThisTick = 0;
     this.world.regularizedThisTick = 0;
     this.world.handshakeStartedThisTick = 0;
     this.world.handshakeCompletedThisTick = 0;

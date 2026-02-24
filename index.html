@@ -282,6 +282,10 @@
             <input id="env-house-size" type="number" min="4" max="120" step="1" value="30" />
           </div>
           <div class="row">
+            <label for="env-rain-enabled">Rain Enabled</label>
+            <input id="env-rain-enabled" type="checkbox" />
+          </div>
+          <div class="row">
             <label for="env-show-house-doors">Show House Doors</label>
             <input id="env-show-house-doors" type="checkbox" checked />
           </div>
@@ -794,6 +798,10 @@
           <div class="row"><span>Avg Stillness Ticks</span><strong id="stat-stillness-avg">0.0</strong></div>
           <div class="row"><span>Handshakes / 1000 ticks</span><strong id="stat-handshake-rate">0.00</strong></div>
           <div class="row"><span>Total Alive</span><strong id="stat-total">0</strong></div>
+          <div class="row"><span>House Door Contacts (tick)</span><strong id="stat-house-door-contacts">0</strong></div>
+          <div class="row"><span>House Entries (tick)</span><strong id="stat-house-entries">0</strong></div>
+          <div class="row"><span>Total Inside</span><strong id="stat-total-inside">0</strong></div>
+          <div class="row"><span>Rain Active</span><strong id="stat-rain-active">0</strong></div>
           <ul id="rank-list" class="rank-list"></ul>
         </section>
       </aside>

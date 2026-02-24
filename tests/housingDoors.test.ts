@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { spawnEntity } from '../src/core/factory';
 import { createHouseLayout, doorPoseWorld, houseComponentFromLayout, houseShapeFromLayout } from '../src/core/housing/houseFactory';
 import { createWorld } from '../src/core/world';
+import { CollisionSystem } from '../src/systems/collisionSystem';
 import { HouseSystem } from '../src/systems/houseSystem';
 
 function addHouse(world: ReturnType<typeof createWorld>, x: number, y: number): number {
@@ -58,8 +59,11 @@ function placeNearDoorForAttempt(
 describe('housing door rules', () => {
   it('women enter from east door but not west door', () => {
     const houseSystem = new HouseSystem();
+    const collisionSystem = new CollisionSystem();
 
     const eastWorld = createWorld(1, { housesEnabled: true });
+    eastWorld.config.rainEnabled = true;
+    eastWorld.weather.isRaining = true;
     const eastHouseId = addHouse(eastWorld, 300, 220);
     const womanEastId = spawnEntity(
       eastWorld,
@@ -68,11 +72,14 @@ describe('housing door rules', () => {
       { x: 0, y: 0 },
     );
     placeNearDoorForAttempt(eastWorld, womanEastId, eastHouseId, 'east');
+    collisionSystem.update(eastWorld, 1 / eastWorld.config.tickRate);
     houseSystem.update(eastWorld);
     expect(eastWorld.dwellings.get(womanEastId)?.state).toBe('inside');
     expect(eastWorld.dwellings.get(womanEastId)?.houseId).toBe(eastHouseId);
 
     const westWorld = createWorld(2, { housesEnabled: true });
+    westWorld.config.rainEnabled = true;
+    westWorld.weather.isRaining = true;
     const westHouseId = addHouse(westWorld, 300, 220);
     const womanWestId = spawnEntity(
       westWorld,
@@ -81,14 +88,18 @@ describe('housing door rules', () => {
       { x: 0, y: 0 },
     );
     placeNearDoorForAttempt(westWorld, womanWestId, westHouseId, 'west');
+    collisionSystem.update(westWorld, 1 / westWorld.config.tickRate);
     houseSystem.update(westWorld);
     expect(westWorld.dwellings.get(womanWestId)?.state).toBe('outside');
   });
 
   it('men enter from west door but not east door', () => {
     const houseSystem = new HouseSystem();
+    const collisionSystem = new CollisionSystem();
 
     const westWorld = createWorld(3, { housesEnabled: true });
+    westWorld.config.rainEnabled = true;
+    westWorld.weather.isRaining = true;
     const westHouseId = addHouse(westWorld, 300, 220);
     const manWestId = spawnEntity(
       westWorld,
@@ -97,11 +108,14 @@ describe('housing door rules', () => {
       { x: 0, y: 0 },
     );
     placeNearDoorForAttempt(westWorld, manWestId, westHouseId, 'west');
+    collisionSystem.update(westWorld, 1 / westWorld.config.tickRate);
     houseSystem.update(westWorld);
     expect(westWorld.dwellings.get(manWestId)?.state).toBe('inside');
     expect(westWorld.dwellings.get(manWestId)?.houseId).toBe(westHouseId);
 
     const eastWorld = createWorld(4, { housesEnabled: true });
+    eastWorld.config.rainEnabled = true;
+    eastWorld.weather.isRaining = true;
     const eastHouseId = addHouse(eastWorld, 300, 220);
     const manEastId = spawnEntity(
       eastWorld,
@@ -110,6 +124,7 @@ describe('housing door rules', () => {
       { x: 0, y: 0 },
     );
     placeNearDoorForAttempt(eastWorld, manEastId, eastHouseId, 'east');
+    collisionSystem.update(eastWorld, 1 / eastWorld.config.tickRate);
     houseSystem.update(eastWorld);
     expect(eastWorld.dwellings.get(manEastId)?.state).toBe('outside');
   });
