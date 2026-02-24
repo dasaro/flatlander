@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.8.0] - 2026-02-24
+
+### Added
+- 2D world hover cards for rapid individual inspection:
+  - hovering entities now shows key per-entity data (id, rank, shape, movement mode/intention, speed, kills, age, feeling state),
+  - hovering houses shows house type and occupant count.
+
+### Changed
+- Picking controller now emits deterministic hover updates (UI callback path only), reusing world-space hit tests already used for click selection.
+- Hover info is rendered as a lightweight UI overlay in the stage layer (no simulation-core coupling).
+
+### Fixed
+- House entry reliability in solid-collision worlds:
+  - deterministic rain-cycle shelter drive,
+  - `socialNav` shelter intention and door-target approach,
+  - collision-contact-point door sensor (entry checked after collision detection and before resolution),
+  - door-contact/entry/inside/rain stats surfaced in UI.
+
 ## [0.7.5] - 2026-02-23
 
 ### Changed

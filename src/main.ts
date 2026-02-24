@@ -101,6 +101,7 @@ if (!(flatlanderCanvasNode instanceof HTMLCanvasElement)) {
   throw new Error('Missing #flatlander-canvas canvas element.');
 }
 const flatlanderCanvas: HTMLCanvasElement = flatlanderCanvasNode;
+const worldHoverInfo = document.getElementById('world-hover-info');
 
 const initialSeedInput = document.getElementById('seed-input');
 if (!(initialSeedInput instanceof HTMLInputElement)) {
@@ -270,6 +271,9 @@ let flatlanderScanDirty = true;
 let flatlanderHoverEntityId: number | null = null;
 let flatlanderHoverSampleIndex: number | null = null;
 let flatlanderHoverNormalizedX: number | null = null;
+let hoveredWorldEntityId: number | null = null;
+let hoveredWorldPoint: Vec2 | null = null;
+let hoveredWorldClientPoint: Vec2 | null = null;
 const eventDrainPipeline = new EventDrainPipeline(
   world.tick,
   () => world.events.drain(),
@@ -340,6 +344,9 @@ const ui = new UIController({
     lastFlatlanderScanViewerId = null;
     lastFlatlanderScanConfigKey = '';
     clearFlatlanderHover();
+    hoveredWorldEntityId = null;
+    hoveredWorldPoint = null;
+    hoveredWorldClientPoint = null;
     debugClickPoint = null;
     lastRenderTimeMs = 0;
     renderSelection();
@@ -594,6 +601,9 @@ if (populationClearSelectionButton instanceof HTMLButtonElement) {
 selectionState.subscribe(() => {
   flatlanderScanDirty = true;
   clearFlatlanderHover();
+  hoveredWorldEntityId = null;
+  hoveredWorldPoint = null;
+  hoveredWorldClientPoint = null;
   renderSelection();
 });
 
@@ -607,6 +617,11 @@ const pickingController = new PickingController({
   },
   onSelectionApplied: () => {
     renderSelection();
+  },
+  onHoverApplied: (hoveredId, pointWorld, clientPoint) => {
+    hoveredWorldEntityId = hoveredId;
+    hoveredWorldPoint = pointWorld;
+    hoveredWorldClientPoint = clientPoint;
   },
   tolerancePx: 10,
   dragThresholdPx: 7,
@@ -666,6 +681,7 @@ function frame(now: number): void {
   populationHistogram.render();
   renderEventTimeline();
   renderDynamicLegend();
+  renderWorldHoverInfo();
   ui.renderStats(world);
   if (quickRunBtn instanceof HTMLButtonElement && primaryRunBtn instanceof HTMLButtonElement) {
     syncQuickRunButton(quickRunBtn, primaryRunBtn);
@@ -808,6 +824,92 @@ function renderNoSelectionInspector(): void {
     'N/A',
   );
   ui.renderDwellingState(null);
+}
+
+function renderWorldHoverInfo(): void {
+  if (!(worldHoverInfo instanceof HTMLElement)) {
+    return;
+  }
+
+  if (
+    hoveredWorldEntityId === null ||
+    !world.entities.has(hoveredWorldEntityId) ||
+    hoveredWorldClientPoint === null
+  ) {
+    worldHoverInfo.hidden = true;
+    return;
+  }
+
+  const entityId = hoveredWorldEntityId;
+  const house = world.houses.get(entityId);
+  const shape = world.shapes.get(entityId);
+  const rankLabel = rankLabelForEntity(entityId);
+  const movement = world.movements.get(entityId);
+  const age = world.ages.get(entityId);
+  const combat = world.combatStats.get(entityId);
+  const feeling = world.feeling.get(entityId);
+  const speed =
+    movement?.type === 'straightDrift'
+      ? Math.hypot(movement.vx, movement.vy)
+      : movement
+        ? movement.speed
+        : 0;
+
+  let shapeLabel = 'Unknown';
+  if (house) {
+    shapeLabel = `${house.houseKind} House`;
+  } else if (shape?.kind === 'segment') {
+    shapeLabel = 'Woman Segment';
+  } else if (shape?.kind === 'circle') {
+    shapeLabel = 'Circle';
+  } else if (shape?.kind === 'polygon') {
+    shapeLabel =
+      shape.sides === 3 && shape.triangleKind
+        ? `${shape.sides}-gon (${shape.triangleKind})`
+        : `${shape.sides}-gon`;
+  }
+
+  const title = `#${entityId} · ${rankLabel}`;
+  const lines = house
+    ? [
+        `${shapeLabel}`,
+        `Occupants: ${world.houseOccupants.get(entityId)?.size ?? 0}`,
+        hoveredWorldPoint
+          ? `x ${hoveredWorldPoint.x.toFixed(1)} · y ${hoveredWorldPoint.y.toFixed(1)}`
+          : '',
+      ]
+    : [
+        `${shapeLabel} · ${movementLabel(movement)}`,
+        `Speed ${speed.toFixed(1)} · Kills ${combat?.kills ?? 0} · Age ${age?.ticksAlive ?? 0}`,
+        `Feeling ${feeling?.state ?? 'N/A'}`,
+      ];
+
+  worldHoverInfo.innerHTML = [
+    `<div class="world-hover-title">${title}</div>`,
+    ...lines.filter((line) => line.length > 0).map((line) => `<div>${line}</div>`),
+  ].join('');
+
+  const offset = 14;
+  worldHoverInfo.style.left = `${hoveredWorldClientPoint.x + offset}px`;
+  worldHoverInfo.style.top = `${hoveredWorldClientPoint.y + offset}px`;
+  worldHoverInfo.hidden = false;
+}
+
+function movementLabel(movement: MovementComponent | undefined): string {
+  if (!movement) {
+    return 'Static';
+  }
+  switch (movement.type) {
+    case 'straightDrift':
+      return 'Straight Drift';
+    case 'seekPoint':
+      return 'Seek Point';
+    case 'socialNav':
+      return `SocialNav (${movement.intention})`;
+    case 'randomWalk':
+    default:
+      return 'Random Walk';
+  }
 }
 
 function applyTopology(topology: WorldTopology): void {

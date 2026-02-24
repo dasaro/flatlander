@@ -201,6 +201,11 @@ export interface PickingControllerOptions {
   getWorld: () => World;
   onClickWorldPoint?: (point: Vec2) => void;
   onSelectionApplied?: (selectedId: number | null) => void;
+  onHoverApplied?: (
+    hoveredId: number | null,
+    pointWorld: Vec2 | null,
+    clientPoint: Vec2 | null,
+  ) => void;
   tolerancePx?: number;
   dragThresholdPx?: number;
 }
@@ -221,6 +226,7 @@ export class PickingController {
     canvas.addEventListener('pointermove', this.onPointerMove);
     canvas.addEventListener('pointerup', this.onPointerUp);
     canvas.addEventListener('pointercancel', this.onPointerCancel);
+    canvas.addEventListener('pointerleave', this.onPointerLeave);
     canvas.addEventListener('wheel', this.onWheel, { passive: false });
     canvas.addEventListener('dblclick', this.onDoubleClick);
   }
@@ -231,6 +237,7 @@ export class PickingController {
     canvas.removeEventListener('pointermove', this.onPointerMove);
     canvas.removeEventListener('pointerup', this.onPointerUp);
     canvas.removeEventListener('pointercancel', this.onPointerCancel);
+    canvas.removeEventListener('pointerleave', this.onPointerLeave);
     canvas.removeEventListener('wheel', this.onWheel);
     canvas.removeEventListener('dblclick', this.onDoubleClick);
   }
@@ -257,6 +264,11 @@ export class PickingController {
   };
 
   private readonly onPointerMove = (event: PointerEvent): void => {
+    if (!this.pointer) {
+      this.updateHover(event.clientX, event.clientY);
+      return;
+    }
+
     if (!this.pointer || event.pointerId !== this.pointer.pointerId) {
       return;
     }
@@ -276,6 +288,9 @@ export class PickingController {
 
     if (this.pointer.dragging) {
       this.options.camera.panByPixels(dxCss * metrics.scaleX, dyCss * metrics.scaleY);
+      this.options.onHoverApplied?.(null, null, null);
+    } else {
+      this.updateHover(event.clientX, event.clientY);
     }
 
     this.pointer.lastClient = currentClient;
@@ -316,6 +331,7 @@ export class PickingController {
     this.options.selectionState.setSelected(selectedId, { forceNotify: true });
     this.options.onClickWorldPoint?.(pointWorld);
     this.options.onSelectionApplied?.(selectedId);
+    this.options.onHoverApplied?.(selectedId, pointWorld, endClient);
   };
 
   private readonly onPointerCancel = (event: PointerEvent): void => {
@@ -325,6 +341,11 @@ export class PickingController {
         this.options.canvas.releasePointerCapture(event.pointerId);
       }
     }
+    this.options.onHoverApplied?.(null, null, null);
+  };
+
+  private readonly onPointerLeave = (): void => {
+    this.options.onHoverApplied?.(null, null, null);
   };
 
   private readonly onWheel = (event: WheelEvent): void => {
@@ -339,4 +360,31 @@ export class PickingController {
     const world = this.options.getWorld();
     this.options.camera.reset(world.config.width, world.config.height);
   };
+
+  private updateHover(clientX: number, clientY: number): void {
+    const metrics = getCanvasMetrics(this.options.canvas);
+    if (!isInsideDrawableContent(metrics, clientX, clientY)) {
+      this.options.onHoverApplied?.(null, null, null);
+      return;
+    }
+
+    const pointCanvas = clientToCanvasPixels(metrics, clientX, clientY);
+    const pointWorld = this.options.camera.screenToWorld(
+      pointCanvas.x,
+      pointCanvas.y,
+      this.options.canvas,
+    );
+    const toleranceWorld = cssToleranceToWorldTolerance(
+      this.toleranceCssPx,
+      metrics.scaleX,
+      metrics.scaleY,
+      this.options.camera.zoom,
+    );
+    const hoveredId = pickEntityAtWorldPoint(
+      this.options.getWorld(),
+      pointWorld,
+      toleranceWorld,
+    );
+    this.options.onHoverApplied?.(hoveredId, pointWorld, { x: clientX, y: clientY });
+  }
 }
