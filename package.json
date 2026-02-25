@@ -1,7 +1,7 @@
 {
   "name": "flatlander",
   "private": true,
-  "version": "0.9.1",
+  "version": "0.9.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "stability": "tsx src/tools/stabilityHarness.ts",
+    "housing:longrun": "tsx src/tools/housingLongRun.ts",
     "handshake": "tsx src/tools/handshakeHarness.ts",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write ."

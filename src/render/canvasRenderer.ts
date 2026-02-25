@@ -12,8 +12,10 @@ import type { Camera } from './camera';
 import { contactCurveControlPoint, selectTopKnownIds } from './contactNetwork';
 import type { EffectsManager } from './effects';
 import { fogIntensityAtDistance, fogRingRadiusForLevel, visualAlpha } from './viewModifiers';
+import type { FrameSnapshot } from '../ui/frameSnapshot';
 
 export interface RenderOptions {
+  frameSnapshot?: Readonly<FrameSnapshot>;
   showSouthZoneOverlay?: boolean;
   debugClickPoint?: Vec2 | null;
   effectsManager?: EffectsManager;
@@ -76,6 +78,16 @@ export class CanvasRenderer {
 
     this.ctx.fillStyle = '#f3f1e8';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    const frameSnapshot: Readonly<FrameSnapshot> =
+      options.frameSnapshot ??
+      Object.freeze({
+        tick: world.tick,
+        isRaining: world.weather.isRaining,
+        fogDensity: Math.max(0, world.config.fogDensity),
+        showRainOverlay: false,
+        showFogOverlay: false,
+      });
+    this.drawEnvironmentOverlay(frameSnapshot);
 
     this.ctx.save();
     camera.applyToContext(this.ctx, this.canvas);
@@ -289,7 +301,7 @@ export class CanvasRenderer {
     this.ctx.strokeStyle = '#8d8778';
     this.ctx.lineWidth = 2;
     this.ctx.strokeRect(1, 1, this.canvas.width - 2, this.canvas.height - 2);
-    this.drawSouthIndicator();
+    this.drawSouthIndicator(frameSnapshot);
     if (options.debugClickPoint) {
       this.drawDebugClick(options.debugClickPoint, camera);
     }
@@ -369,7 +381,45 @@ export class CanvasRenderer {
     }
   }
 
-  private drawSouthIndicator(): void {
+  private drawEnvironmentOverlay(snapshot: Readonly<FrameSnapshot>): void {
+    if (snapshot.showFogOverlay && snapshot.fogDensity > 0) {
+      const fogAlpha = Math.max(0, Math.min(0.18, snapshot.fogDensity * 10));
+      this.ctx.save();
+      this.ctx.fillStyle = `rgba(88, 95, 108, ${fogAlpha.toFixed(3)})`;
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.restore();
+    }
+
+    if (snapshot.showRainOverlay && snapshot.isRaining) {
+      this.drawRainOverlay(snapshot.tick);
+    }
+  }
+
+  private drawRainOverlay(tick: number): void {
+    const phase = tick % 240;
+    const spacing = 36;
+    const columns = Math.ceil((this.canvas.width + 120) / spacing);
+    const diagonalX = -7;
+    const diagonalY = 18;
+
+    this.ctx.save();
+    this.ctx.strokeStyle = 'rgba(86, 103, 124, 0.34)';
+    this.ctx.lineWidth = 1;
+    this.ctx.lineCap = 'round';
+
+    for (let i = 0; i < columns; i += 1) {
+      const x = ((i * spacing + phase * 2.4) % (this.canvas.width + 120)) - 60;
+      const y = (((i * 97 + phase * 6.5) % (this.canvas.height + 80)) - 40);
+      this.ctx.beginPath();
+      this.ctx.moveTo(x, y);
+      this.ctx.lineTo(x + diagonalX, y + diagonalY);
+      this.ctx.stroke();
+    }
+
+    this.ctx.restore();
+  }
+
+  private drawSouthIndicator(snapshot: Readonly<FrameSnapshot>): void {
     const x = this.canvas.width - 92;
     const y = 18;
 
@@ -380,6 +430,14 @@ export class CanvasRenderer {
     const versionText = this.appVersionText;
     const versionWidth = this.ctx.measureText(versionText).width;
     this.ctx.fillText(versionText, this.canvas.width - versionWidth - 10, 12);
+
+    const fogLabel = `Fog ${snapshot.fogDensity.toFixed(3)}`;
+    const rainLabel = snapshot.isRaining ? 'RAIN' : '';
+    this.ctx.font = '11px Trebuchet MS, sans-serif';
+    this.ctx.fillText(fogLabel, this.canvas.width - 120, 28);
+    if (rainLabel.length > 0) {
+      this.ctx.fillText(rainLabel, this.canvas.width - 120, 41);
+    }
 
     this.ctx.strokeStyle = '#2e2b25';
     this.ctx.lineWidth = 1.5;

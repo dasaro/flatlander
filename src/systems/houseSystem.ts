@@ -1,10 +1,14 @@
 import type { EntityId, HouseComponent, SocialNavMovement } from '../core/components';
 import { isEntityOutside } from '../core/housing/dwelling';
 import {
+  LOW_HP_HOME_RETURN_THRESHOLD,
+  healthRatio,
   hasHouseCapacity,
   preferredDoorSide,
 } from '../core/housing/shelterPolicy';
 import { doorPoseWorld, houseCentroidWorld } from '../core/housing/houseFactory';
+import type { HouseTransitionReason } from '../core/events';
+import { rankKeyForEntity } from '../core/rankKey';
 import { requestStillness } from '../core/stillness';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
@@ -134,7 +138,46 @@ function setDwellingOutside(world: World, personId: EntityId, cooldownTicks: num
   dwelling.reenterCooldownTicks = 0;
 }
 
-function enterHouse(world: World, personId: EntityId, houseId: EntityId, house: HouseComponent): void {
+function classifyEnterReason(world: World, personId: EntityId, houseId: EntityId): HouseTransitionReason {
+  if (world.weather.isRaining) {
+    return 'RainShelter';
+  }
+  const bond = world.bonds.get(personId);
+  if (bond?.homeHouseId === houseId) {
+    return 'ReturnHome';
+  }
+  if (healthRatio(world, personId) <= LOW_HP_HOME_RETURN_THRESHOLD) {
+    return 'Healing';
+  }
+  const movement = world.movements.get(personId);
+  if (
+    movement?.type === 'socialNav' &&
+    movement.intention === 'seekShelter' &&
+    world.entities.size > world.config.crowdComfortPopulation
+  ) {
+    return 'AvoidCrowd';
+  }
+  return 'Wander';
+}
+
+function classifyExitReason(world: World, personId: EntityId): HouseTransitionReason {
+  if (world.weather.isRaining) {
+    return 'WaitForBearing';
+  }
+  if (healthRatio(world, personId) < 0.98) {
+    return 'Healing';
+  }
+  return 'Wander';
+}
+
+function enterHouse(
+  world: World,
+  personId: EntityId,
+  houseId: EntityId,
+  house: HouseComponent,
+  side: 'east' | 'west',
+  reason: HouseTransitionReason,
+): void {
   const dwelling = world.dwellings.get(personId);
   const personTransform = world.transforms.get(personId);
   const houseTransform = world.transforms.get(houseId);
@@ -163,6 +206,17 @@ function enterHouse(world: World, personId: EntityId, houseId: EntityId, house: 
   world.houseOccupants.set(houseId, occupants);
 
   personTransform.position = houseCentroidWorld(houseTransform, house);
+  const doorPose = doorPoseWorld(houseTransform, side === 'east' ? house.doorEast : house.doorWest);
+  world.events.push({
+    type: 'houseEnter',
+    tick: world.tick,
+    entityId: personId,
+    houseId,
+    doorSide: side,
+    reason,
+    pos: doorPose.midpoint,
+    entityRankKey: rankKeyForEntity(world, personId),
+  });
 }
 
 function exitHouse(
@@ -171,6 +225,7 @@ function exitHouse(
   houseId: EntityId,
   house: HouseComponent,
   side: 'east' | 'west',
+  reason: HouseTransitionReason,
 ): void {
   const dwelling = world.dwellings.get(personId);
   const personTransform = world.transforms.get(personId);
@@ -217,6 +272,16 @@ function exitHouse(
     dwelling.reenterCooldownTicks = REENTER_COOLDOWN_TICKS;
   }
   applyExitTransitMotion(world, personId, outward);
+  world.events.push({
+    type: 'houseExit',
+    tick: world.tick,
+    entityId: personId,
+    houseId,
+    doorSide: side,
+    reason,
+    pos: doorWorld.midpoint,
+    entityRankKey: rankKeyForEntity(world, personId),
+  });
 }
 
 function shouldExitHouse(world: World, personId: EntityId, ticksInside: number): boolean {
@@ -406,7 +471,8 @@ export class HouseSystem implements System {
 
         if (shouldExitHouse(world, id, dwelling.ticksInside)) {
           const side = preferredDoorSide(world, id);
-          exitHouse(world, id, dwelling.houseId, house, side);
+          const reason = classifyExitReason(world, id);
+          exitHouse(world, id, dwelling.houseId, house, side, reason);
         }
         continue;
       }
@@ -498,7 +564,8 @@ export class HouseSystem implements System {
         continue;
       }
 
-      enterHouse(world, contact.personId, contact.houseId, contact.house);
+      const reason = classifyEnterReason(world, contact.personId, contact.houseId);
+      enterHouse(world, contact.personId, contact.houseId, contact.house, contact.side, reason);
       enteredThisTick.add(contact.personId);
       world.houseContactStreaks.delete(contact.personId);
       world.houseApproachDebug.delete(contact.personId);

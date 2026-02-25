@@ -19,11 +19,12 @@ function baseState(overrides: Partial<LegendVisibilityState> = {}): LegendVisibi
 
 describe('legend model', () => {
   it('shows only items enabled by toggles and observed events', () => {
-    const state = baseState({ observedEventTypes: new Set(['death', 'handshake']) });
+    const state = baseState({ observedEventTypes: new Set(['death', 'handshake', 'houseEnter']) });
     const ids = getVisibleLegendItems(state).map((item) => item.id);
 
     expect(ids).toContain('death');
     expect(ids).toContain('handshake');
+    expect(ids).toContain('houseEnter');
     expect(ids).not.toContain('touch');
     expect(ids).toContain('networkParent');
     expect(ids).toContain('networkKnown');

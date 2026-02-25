@@ -1,5 +1,13 @@
 import type { Vec2 } from '../geometry/vector';
 
+export type HouseTransitionReason =
+  | 'RainShelter'
+  | 'ReturnHome'
+  | 'Healing'
+  | 'AvoidCrowd'
+  | 'WaitForBearing'
+  | 'Wander';
+
 export type WorldEvent =
   | {
       type: 'handshakeStart';
@@ -65,6 +73,26 @@ export type WorldEvent =
       childRankKey?: string;
       motherRankKey?: string;
     }
+  | {
+      type: 'houseEnter';
+      tick: number;
+      entityId: number;
+      houseId: number;
+      doorSide: 'east' | 'west';
+      reason: HouseTransitionReason;
+      pos: Vec2;
+      entityRankKey?: string;
+    }
+  | {
+      type: 'houseExit';
+      tick: number;
+      entityId: number;
+      houseId: number;
+      doorSide: 'east' | 'west';
+      reason: HouseTransitionReason;
+      pos: Vec2;
+      entityRankKey?: string;
+    }
   | { type: 'regularized'; tick: number; entityId: number; pos: Vec2; rankKey?: string };
 
 export class EventQueue {
@@ -105,6 +133,9 @@ export function eventInvolvedIds(event: WorldEvent): number[] {
       return event.killerId !== undefined ? [event.entityId, event.killerId] : [event.entityId];
     case 'birth':
       return [event.childId, event.motherId];
+    case 'houseEnter':
+    case 'houseExit':
+      return [event.entityId, event.houseId];
     case 'regularized':
       return [event.entityId];
     default:

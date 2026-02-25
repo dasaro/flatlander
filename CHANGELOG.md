@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.2] - 2026-02-25
+
+### Added
+- Frame-consistent environment snapshot pipeline for rendering (`src/ui/frameSnapshot.ts`), captured once per animation frame and passed into renderer.
+- New first-class domain events:
+  - `houseEnter`
+  - `houseExit`
+  with deterministic reason payloads and door-side metadata.
+- Housing long-run multi-seed harness (`npm run housing:longrun`) writing `.artifacts/housing_runs.json` and enforcing enter/exit usage thresholds.
+- Regression coverage:
+  - `tests/frameSnapshot.test.ts`
+  - `tests/houseEvents.test.ts`
+  - `tests/housingUsageSmoke.test.ts`
+
+### Changed
+- God-view now shows deterministic rain and fog overlays from frame snapshot state, plus HUD labels for rain/fog.
+- Environment panel gained explicit toggles:
+  - `Show Rain Overlay` (default on)
+  - `Show Fog Overlay` (default on)
+- House occupancy markers are now visible by default.
+- Event timeline + legend now include dedicated `Enter House` and `Exit House` tracks/icons with hover counts.
+
 ## [0.9.1] - 2026-02-25
 
 ### Fixed

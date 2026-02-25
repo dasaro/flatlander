@@ -50,6 +50,24 @@ describe('effects mapping', () => {
       { type: 'stab', tick: 1, attackerId: 4, victimId: 5, pos: origin, sharpness: 0.7 },
       { type: 'death', tick: 1, entityId: 5, pos: origin },
       { type: 'birth', tick: 1, childId: 6, motherId: 2, pos: origin },
+      {
+        type: 'houseEnter',
+        tick: 1,
+        entityId: 6,
+        houseId: 40,
+        doorSide: 'west',
+        reason: 'RainShelter',
+        pos: origin,
+      },
+      {
+        type: 'houseExit',
+        tick: 1,
+        entityId: 6,
+        houseId: 40,
+        doorSide: 'west',
+        reason: 'Wander',
+        pos: origin,
+      },
     ];
 
     const kinds = events
@@ -57,7 +75,7 @@ describe('effects mapping', () => {
       .filter((effect): effect is NonNullable<typeof effect> => effect !== null)
       .map((effect) => effect.kind);
 
-    expect(kinds).toEqual(['pulse', 'marker', 'ring', 'spark', 'marker', 'pulse']);
+    expect(kinds).toEqual(['pulse', 'marker', 'ring', 'spark', 'marker', 'pulse', 'marker', 'marker']);
   });
 
   it('uses X marker only for death events', () => {
@@ -67,6 +85,24 @@ describe('effects mapping', () => {
       { type: 'peaceCry', tick: 1, emitterId: 3, pos: origin, radius: 80 },
       { type: 'stab', tick: 1, attackerId: 4, victimId: 5, pos: origin, sharpness: 0.5 },
       { type: 'birth', tick: 1, childId: 6, motherId: 2, pos: origin },
+      {
+        type: 'houseEnter',
+        tick: 1,
+        entityId: 6,
+        houseId: 40,
+        doorSide: 'east',
+        reason: 'RainShelter',
+        pos: origin,
+      },
+      {
+        type: 'houseExit',
+        tick: 1,
+        entityId: 6,
+        houseId: 40,
+        doorSide: 'west',
+        reason: 'Wander',
+        pos: origin,
+      },
       { type: 'regularized', tick: 1, entityId: 8, pos: origin },
     ];
 

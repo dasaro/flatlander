@@ -287,12 +287,20 @@
             <input id="env-rain-enabled" type="checkbox" checked />
           </div>
           <div class="row">
+            <label for="env-show-rain-overlay">Show Rain Overlay</label>
+            <input id="env-show-rain-overlay" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="env-show-fog-overlay">Show Fog Overlay</label>
+            <input id="env-show-fog-overlay" type="checkbox" checked />
+          </div>
+          <div class="row">
             <label for="env-show-house-doors">Show House Doors</label>
             <input id="env-show-house-doors" type="checkbox" checked />
           </div>
           <div class="row">
             <label for="env-show-house-occupancy">Show Occupancy</label>
-            <input id="env-show-house-occupancy" type="checkbox" />
+            <input id="env-show-house-occupancy" type="checkbox" checked />
           </div>
           <div class="row">
             <label for="env-show-housing-debug">Show Housing Debug</label>
@@ -852,6 +860,8 @@
           <div class="timeline-controls timeline-type-controls">
             <label><input id="timeline-type-handshake-failed" type="checkbox" checked /> unsuccessful handshake</label>
             <label><input id="timeline-type-handshake" type="checkbox" checked /> handshake</label>
+            <label><input id="timeline-type-house-enter" type="checkbox" checked /> enter house</label>
+            <label><input id="timeline-type-house-exit" type="checkbox" checked /> exit house</label>
             <label><input id="timeline-type-death" type="checkbox" checked /> death</label>
             <label><input id="timeline-type-birth" type="checkbox" checked /> birth</label>
             <label><input id="timeline-type-regularized" type="checkbox" checked /> regularized</label>
@@ -872,7 +882,9 @@
             </div>
           </details>
           <canvas id="event-timeline-canvas" aria-label="Event timeline"></canvas>
-          <div id="event-timeline-legend" class="hint">Handshake Failed / Handshake / Death / Birth / Regularized</div>
+          <div id="event-timeline-legend" class="hint">
+            Handshake Failed / Handshake / Enter House / Exit House / Death / Birth / Regularized
+          </div>
           <div id="event-timeline-tooltip" class="hint">Hover or click markers for tick details.</div>
         </section>
       </main>

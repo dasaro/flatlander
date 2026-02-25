@@ -71,11 +71,14 @@ import {
 } from './ui/uiController';
 import { MobileMenuState } from './ui/mobileMenuState';
 import { EventDrainPipeline } from './ui/eventDrainPipeline';
+import { captureFrameSnapshot } from './ui/frameSnapshot';
 import { APP_VERSION } from './version';
 
 const TIMELINE_TYPE_CONTROL_IDS: Partial<Record<EventType, string>> = {
   handshakeAttemptFailed: 'timeline-type-handshake-failed',
   handshake: 'timeline-type-handshake',
+  houseEnter: 'timeline-type-house-enter',
+  houseExit: 'timeline-type-house-exit',
   death: 'timeline-type-death',
   birth: 'timeline-type-birth',
   regularized: 'timeline-type-regularized',
@@ -166,8 +169,10 @@ let environmentSettings: EnvironmentSettings = {
   allowSquareHouses: false,
   houseSize: 30,
   rainEnabled: true,
+  showRainOverlay: true,
+  showFogOverlay: true,
   showDoors: true,
-  showOccupancy: false,
+  showOccupancy: true,
   showHousingDebug: false,
 };
 let peaceCrySettings: PeaceCrySettings = {
@@ -661,9 +666,14 @@ function frame(now: number): void {
 
   const clickPoint = debugClickPoint;
   debugClickPoint = null;
+  const frameSnapshot = captureFrameSnapshot(world, {
+    showRainOverlay: environmentSettings.showRainOverlay,
+    showFogOverlay: environmentSettings.showFogOverlay,
+  });
 
   renderFlatlanderView();
   renderer.render(world, camera, selectionState.selectedId, {
+    frameSnapshot,
     showSouthZoneOverlay: southAttractionSettings.showSouthZoneOverlay,
     debugClickPoint: southAttractionSettings.showClickDebug ? clickPoint : null,
     effectsManager,

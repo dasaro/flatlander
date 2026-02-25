@@ -60,6 +60,8 @@ export interface EnvironmentSettings {
   allowSquareHouses: boolean;
   houseSize: number;
   rainEnabled: boolean;
+  showRainOverlay: boolean;
+  showFogOverlay: boolean;
   showDoors: boolean;
   showOccupancy: boolean;
   showHousingDebug: boolean;
@@ -160,6 +162,8 @@ interface InputRefs {
   envAllowSquareHouses: HTMLInputElement;
   envHouseSize: HTMLInputElement;
   envRainEnabled: HTMLInputElement;
+  envShowRainOverlay: HTMLInputElement;
+  envShowFogOverlay: HTMLInputElement;
   envShowHouseDoors: HTMLInputElement;
   envShowHouseOccupancy: HTMLInputElement;
   envShowHousingDebug: HTMLInputElement;
@@ -979,6 +983,8 @@ export class UIController {
       this.refs.envAllowSquareHouses,
       this.refs.envHouseSize,
       this.refs.envRainEnabled,
+      this.refs.envShowRainOverlay,
+      this.refs.envShowFogOverlay,
       this.refs.envShowHouseDoors,
       this.refs.envShowHouseOccupancy,
       this.refs.envShowHousingDebug,
@@ -1336,6 +1342,8 @@ export class UIController {
       allowSquareHouses,
       houseSize: Math.max(4, parseNumber(this.refs.envHouseSize.value, 30)),
       rainEnabled: this.refs.envRainEnabled.checked,
+      showRainOverlay: this.refs.envShowRainOverlay.checked,
+      showFogOverlay: this.refs.envShowFogOverlay.checked,
       showDoors: this.refs.envShowHouseDoors.checked,
       showOccupancy: this.refs.envShowHouseOccupancy.checked,
       showHousingDebug: this.refs.envShowHousingDebug.checked,
@@ -1798,6 +1806,8 @@ function collectRefs(): InputRefs {
     envAllowSquareHouses: required<HTMLInputElement>('env-allow-square-houses'),
     envHouseSize: required<HTMLInputElement>('env-house-size'),
     envRainEnabled: required<HTMLInputElement>('env-rain-enabled'),
+    envShowRainOverlay: required<HTMLInputElement>('env-show-rain-overlay'),
+    envShowFogOverlay: required<HTMLInputElement>('env-show-fog-overlay'),
     envShowHouseDoors: required<HTMLInputElement>('env-show-house-doors'),
     envShowHouseOccupancy: required<HTMLInputElement>('env-show-house-occupancy'),
     envShowHousingDebug: required<HTMLInputElement>('env-show-housing-debug'),

@@ -8,12 +8,22 @@ describe('event analytics', () => {
     analytics.ingest([
       { type: 'touch', tick: 10, aId: 1, bId: 2, pos: { x: 0, y: 0 }, aRankKey: 'Woman:Middle', bRankKey: 'Gentleman' },
       { type: 'handshakeAttemptFailed', tick: 11, aId: 1, bId: 4, pos: { x: 1, y: 1 }, aRankKey: 'Woman:Middle', bRankKey: 'Gentleman' },
+      {
+        type: 'houseEnter',
+        tick: 11,
+        entityId: 1,
+        houseId: 99,
+        doorSide: 'east',
+        reason: 'RainShelter',
+        pos: { x: 1.1, y: 1.1 },
+        entityRankKey: 'Woman:Middle',
+      },
       { type: 'death', tick: 12, entityId: 2, pos: { x: 2, y: 2 }, rankKey: 'Gentleman' },
       { type: 'handshake', tick: 12, aId: 1, bId: 3, pos: { x: 1, y: 1 }, aRankKey: 'Woman:Middle', bRankKey: 'Triangle:Equilateral' },
     ]);
 
     const summaries = analytics.getFilteredSummaries({
-      selectedTypes: new Set(['handshake', 'handshakeAttemptFailed', 'death']),
+      selectedTypes: new Set(['handshake', 'handshakeAttemptFailed', 'houseEnter', 'death']),
       selectedRankKeys: new Set<string>(),
       splitByRank: false,
       focusEntityId: null,
@@ -22,6 +32,7 @@ describe('event analytics', () => {
     expect(summaries.map((summary) => summary.tick)).toEqual([11, 12]);
     const tickEleven = summaries.find((summary) => summary.tick === 11);
     expect(tickEleven?.countsByType.handshakeAttemptFailed).toBe(1);
+    expect(tickEleven?.countsByType.houseEnter).toBe(1);
     const tickTwelve = summaries.find((summary) => summary.tick === 12);
     expect(tickTwelve?.countsByType.death).toBe(1);
   });

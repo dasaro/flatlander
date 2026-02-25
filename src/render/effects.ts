@@ -39,7 +39,7 @@ export type Effect =
       pos: Vec2;
       ttl: number;
       age: number;
-      shape: 'x' | 'dot' | 'pair' | 'plus';
+      shape: 'x' | 'dot' | 'pair' | 'plus' | 'houseIn' | 'houseOut';
       eventType: WorldEvent['type'];
       involvedIds: number[];
     };
@@ -138,6 +138,26 @@ export function effectFromEvent(event: WorldEvent): Effect | null {
         age: 0,
         strength: 0.7,
         style: 'birth',
+        eventType: event.type,
+        involvedIds,
+      };
+    case 'houseEnter':
+      return {
+        kind: 'marker',
+        pos: event.pos,
+        ttl: 0.55,
+        age: 0,
+        shape: 'houseIn',
+        eventType: event.type,
+        involvedIds,
+      };
+    case 'houseExit':
+      return {
+        kind: 'marker',
+        pos: event.pos,
+        ttl: 0.55,
+        age: 0,
+        shape: 'houseOut',
         eventType: event.type,
         involvedIds,
       };
@@ -313,8 +333,14 @@ export class EffectsManager {
 
       if (effect.kind === 'marker') {
         ctx.save();
-        ctx.strokeStyle = `rgba(35, 31, 27, ${alpha.toFixed(3)})`;
-        ctx.fillStyle = `rgba(35, 31, 27, ${alpha.toFixed(3)})`;
+        const markerColor =
+          effect.shape === 'houseIn'
+            ? `rgba(79, 127, 88, ${alpha.toFixed(3)})`
+            : effect.shape === 'houseOut'
+              ? `rgba(75, 101, 130, ${alpha.toFixed(3)})`
+              : `rgba(35, 31, 27, ${alpha.toFixed(3)})`;
+        ctx.strokeStyle = markerColor;
+        ctx.fillStyle = markerColor;
         ctx.lineWidth = 1.5 / camera.zoom;
 
         if (effect.shape === 'x') {
@@ -341,6 +367,18 @@ export class EffectsManager {
           ctx.lineTo(effect.pos.x + size, effect.pos.y);
           ctx.moveTo(effect.pos.x, effect.pos.y - size);
           ctx.lineTo(effect.pos.x, effect.pos.y + size);
+          ctx.stroke();
+        } else if (effect.shape === 'houseIn' || effect.shape === 'houseOut') {
+          const direction = effect.shape === 'houseIn' ? 1 : -1;
+          const tipX = effect.pos.x + direction * (4.8 / camera.zoom);
+          const tailX = effect.pos.x - direction * (4.2 / camera.zoom);
+          const wingY = 2.8 / camera.zoom;
+          ctx.beginPath();
+          ctx.moveTo(tailX, effect.pos.y);
+          ctx.lineTo(tipX, effect.pos.y);
+          ctx.lineTo(effect.pos.x + direction * (1.3 / camera.zoom), effect.pos.y - wingY);
+          ctx.moveTo(tipX, effect.pos.y);
+          ctx.lineTo(effect.pos.x + direction * (1.3 / camera.zoom), effect.pos.y + wingY);
           ctx.stroke();
         } else {
           ctx.beginPath();

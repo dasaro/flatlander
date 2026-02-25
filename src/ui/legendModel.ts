@@ -148,6 +148,44 @@ const LEGEND_ITEMS: LegendItem[] = [
     },
   },
   {
+    id: 'houseEnter',
+    label: 'Enter House',
+    isVisible: (state) => eventVisible('houseEnter', state),
+    drawIcon: (ctx, size) => {
+      const c = size / 2;
+      const r = size * 0.22;
+      ctx.strokeStyle = '#4f7f58';
+      ctx.lineWidth = Math.max(1, size * 0.08);
+      ctx.beginPath();
+      ctx.moveTo(c - r, c);
+      ctx.lineTo(c + r * 0.4, c);
+      ctx.moveTo(c + r * 0.4, c);
+      ctx.lineTo(c + r * 0.05, c - r * 0.35);
+      ctx.moveTo(c + r * 0.4, c);
+      ctx.lineTo(c + r * 0.05, c + r * 0.35);
+      ctx.stroke();
+    },
+  },
+  {
+    id: 'houseExit',
+    label: 'Exit House',
+    isVisible: (state) => eventVisible('houseExit', state),
+    drawIcon: (ctx, size) => {
+      const c = size / 2;
+      const r = size * 0.22;
+      ctx.strokeStyle = '#4b6582';
+      ctx.lineWidth = Math.max(1, size * 0.08);
+      ctx.beginPath();
+      ctx.moveTo(c + r, c);
+      ctx.lineTo(c - r * 0.4, c);
+      ctx.moveTo(c - r * 0.4, c);
+      ctx.lineTo(c - r * 0.05, c - r * 0.35);
+      ctx.moveTo(c - r * 0.4, c);
+      ctx.lineTo(c - r * 0.05, c + r * 0.35);
+      ctx.stroke();
+    },
+  },
+  {
     id: 'regularized',
     label: 'Regularized',
     isVisible: (state) => eventVisible('regularized', state),

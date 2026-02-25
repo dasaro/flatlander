@@ -33,6 +33,8 @@ export interface TimelineFilter {
 const EVENT_TYPES: EventType[] = [
   'handshakeAttemptFailed',
   'handshake',
+  'houseEnter',
+  'houseExit',
   'death',
   'birth',
   'regularized',
@@ -48,6 +50,8 @@ function emptyCountsByType(): Record<EventType, number> {
     stab: 0,
     death: 0,
     birth: 0,
+    houseEnter: 0,
+    houseExit: 0,
     regularized: 0,
   };
 }
@@ -62,6 +66,8 @@ function emptyByTypeByRank(): Record<EventType, Record<string, number>> {
     stab: {},
     death: {},
     birth: {},
+    houseEnter: {},
+    houseExit: {},
     regularized: {},
   };
 }
@@ -81,6 +87,9 @@ function rankKeysForEvent(event: WorldEvent): string[] {
       return [event.rankKey ?? 'Unknown'];
     case 'birth':
       return [event.childRankKey ?? 'Unknown', event.motherRankKey ?? 'Unknown'];
+    case 'houseEnter':
+    case 'houseExit':
+      return [event.entityRankKey ?? 'Unknown'];
     case 'regularized':
       return [event.rankKey ?? 'Unknown'];
     default:
@@ -114,7 +123,7 @@ export class EventAnalytics {
         event.type === 'handshakeStart'
       ) {
         // Peace-cry, touch, stab, and handshake-start are too dense/redundant for timeline analysis.
-        // We keep completed handshakes and failed attempts in the timeline.
+        // We keep completed handshakes, failed attempts, and house transitions in the timeline.
         continue;
       }
       const storedEvents = byTick.get(event.tick) ?? [];
