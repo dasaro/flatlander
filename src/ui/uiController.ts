@@ -62,6 +62,7 @@ export interface EnvironmentSettings {
   rainEnabled: boolean;
   showDoors: boolean;
   showOccupancy: boolean;
+  showHousingDebug: boolean;
 }
 
 export interface PeaceCrySettings {
@@ -161,6 +162,7 @@ interface InputRefs {
   envRainEnabled: HTMLInputElement;
   envShowHouseDoors: HTMLInputElement;
   envShowHouseOccupancy: HTMLInputElement;
+  envShowHousingDebug: HTMLInputElement;
   peaceCryEnabledGlobal: HTMLInputElement;
   peaceCryCadenceGlobal: HTMLInputElement;
   peaceCryRadiusGlobal: HTMLInputElement;
@@ -258,6 +260,7 @@ interface InputRefs {
   spawnDriftRow: HTMLElement;
   spawnTargetRow: HTMLElement;
   selectedId: HTMLElement;
+  selectedName: HTMLElement;
   inspectorNone: HTMLElement;
   inspectorFields: HTMLElement;
   inspectorRank: HTMLElement;
@@ -365,9 +368,14 @@ interface InputRefs {
   stillnessAvgTicksValue: HTMLElement;
   handshakesPerThousandValue: HTMLElement;
   totalAliveValue: HTMLElement;
+  birthsTickValue: HTMLElement;
   houseDoorContactsValue: HTMLElement;
   houseEntriesValue: HTMLElement;
   totalInsideValue: HTMLElement;
+  insideTickValue: HTMLElement;
+  seekShelterIntentValue: HTMLElement;
+  seekHomeIntentValue: HTMLElement;
+  stuckNearHouseValue: HTMLElement;
   rainActiveValue: HTMLElement;
   rankList: HTMLElement;
 }
@@ -396,6 +404,7 @@ export class UIController {
     this.callbacks.onSouthAttractionUpdate(this.readSouthAttractionSettings());
     this.callbacks.onSimulationSpeedUpdate(this.readSimulationSpeed());
     this.renderSelected(
+      null,
       null,
       null,
       null,
@@ -466,8 +475,13 @@ export class UIController {
       world.tick > 0 ? (world.handshakeCompletedTotal * 1000) / world.tick : 0;
     this.refs.handshakesPerThousandValue.textContent = handshakesPerThousand.toFixed(2);
     this.refs.totalAliveValue.textContent = String(world.entities.size);
+    this.refs.birthsTickValue.textContent = String(world.birthsThisTick);
     this.refs.houseDoorContactsValue.textContent = String(world.houseDoorContactsThisTick);
     this.refs.houseEntriesValue.textContent = String(world.houseEntriesThisTick);
+    this.refs.insideTickValue.textContent = String(world.insideCountThisTick);
+    this.refs.seekShelterIntentValue.textContent = String(world.seekShelterIntentCount);
+    this.refs.seekHomeIntentValue.textContent = String(world.seekHomeIntentCount);
+    this.refs.stuckNearHouseValue.textContent = String(world.stuckNearHouseCount);
     let totalInside = 0;
     for (const dwelling of world.dwellings.values()) {
       if (dwelling.state === 'inside') {
@@ -522,6 +536,7 @@ export class UIController {
 
   renderSelected(
     entityId: number | null,
+    displayName: string | null,
     movement: MovementComponent | null,
     shape: ShapeComponent | null,
     rank: RankComponent | null,
@@ -565,6 +580,7 @@ export class UIController {
       knowledge === null
     ) {
       this.refs.selectedId.textContent = 'None';
+      this.refs.selectedName.textContent = 'N/A';
       this.refs.inspectorRank.textContent = 'N/A';
       this.refs.inspectorShape.textContent = 'N/A';
       this.refs.inspectorKills.textContent = '0';
@@ -625,6 +641,7 @@ export class UIController {
     }
 
     this.refs.selectedId.textContent = String(entityId);
+    this.refs.selectedName.textContent = displayName ?? `#${entityId}`;
     this.refs.inspectorRank.textContent = rankLabel(rank, shape);
     this.refs.inspectorShape.textContent = shapeLabel(shape);
     this.refs.inspectorKills.textContent = String(Math.max(0, Math.round(killCount ?? 0)));
@@ -844,6 +861,7 @@ export class UIController {
   ): void {
     this.selectedEntityId = null;
     this.refs.selectedId.textContent = String(entityId);
+    this.refs.selectedName.textContent = `House #${entityId}`;
     this.refs.inspectorRank.textContent = 'House';
     this.refs.inspectorShape.textContent = shapeLabelText;
     this.refs.inspectorKills.textContent = '0';
@@ -963,6 +981,7 @@ export class UIController {
       this.refs.envRainEnabled,
       this.refs.envShowHouseDoors,
       this.refs.envShowHouseOccupancy,
+      this.refs.envShowHousingDebug,
     ];
 
     for (const input of environmentInputs) {
@@ -1319,6 +1338,7 @@ export class UIController {
       rainEnabled: this.refs.envRainEnabled.checked,
       showDoors: this.refs.envShowHouseDoors.checked,
       showOccupancy: this.refs.envShowHouseOccupancy.checked,
+      showHousingDebug: this.refs.envShowHousingDebug.checked,
     };
   }
 
@@ -1328,6 +1348,7 @@ export class UIController {
     this.refs.envAllowTriangularForts.disabled = !settings.housesEnabled;
     this.refs.envTownPopulation.disabled = !settings.housesEnabled;
     this.refs.envRainEnabled.disabled = !settings.housesEnabled;
+    this.refs.envShowHousingDebug.disabled = !settings.housesEnabled;
     const squareAllowedByPopulation = settings.townPopulation < 10_000;
     if (!squareAllowedByPopulation) {
       this.refs.envAllowSquareHouses.checked = false;
@@ -1349,7 +1370,7 @@ export class UIController {
       gestationTicks: Math.max(1, parseInteger(this.refs.reproductionGestationTicks.value, 300)),
       matingRadius: Math.max(0, parseNumber(this.refs.reproductionMatingRadius.value, 52)),
       conceptionChancePerTick: clampRange(
-        parseNumber(this.refs.reproductionConceptionChance.value, 0.0027),
+        parseNumber(this.refs.reproductionConceptionChance.value, 0.0038),
         0,
         1,
       ),
@@ -1779,6 +1800,7 @@ function collectRefs(): InputRefs {
     envRainEnabled: required<HTMLInputElement>('env-rain-enabled'),
     envShowHouseDoors: required<HTMLInputElement>('env-show-house-doors'),
     envShowHouseOccupancy: required<HTMLInputElement>('env-show-house-occupancy'),
+    envShowHousingDebug: required<HTMLInputElement>('env-show-housing-debug'),
     peaceCryEnabledGlobal: required<HTMLInputElement>('peace-cry-enabled'),
     peaceCryCadenceGlobal: required<HTMLInputElement>('peace-cry-cadence'),
     peaceCryRadiusGlobal: required<HTMLInputElement>('peace-cry-radius'),
@@ -1876,6 +1898,7 @@ function collectRefs(): InputRefs {
     spawnDriftRow: required<HTMLElement>('spawn-drift-row'),
     spawnTargetRow: required<HTMLElement>('spawn-target-row'),
     selectedId: required<HTMLElement>('selected-id'),
+    selectedName: required<HTMLElement>('selected-name'),
     inspectorNone: required<HTMLElement>('inspector-none'),
     inspectorFields: required<HTMLElement>('inspector-fields'),
     inspectorRank: required<HTMLElement>('inspector-rank'),
@@ -1983,9 +2006,14 @@ function collectRefs(): InputRefs {
     stillnessAvgTicksValue: required<HTMLElement>('stat-stillness-avg'),
     handshakesPerThousandValue: required<HTMLElement>('stat-handshake-rate'),
     totalAliveValue: required<HTMLElement>('stat-total'),
+    birthsTickValue: required<HTMLElement>('stat-births-tick'),
     houseDoorContactsValue: required<HTMLElement>('stat-house-door-contacts'),
     houseEntriesValue: required<HTMLElement>('stat-house-entries'),
     totalInsideValue: required<HTMLElement>('stat-total-inside'),
+    insideTickValue: required<HTMLElement>('stat-inside-tick'),
+    seekShelterIntentValue: required<HTMLElement>('stat-seek-shelter'),
+    seekHomeIntentValue: required<HTMLElement>('stat-seek-home'),
+    stuckNearHouseValue: required<HTMLElement>('stat-stuck-near-house'),
     rainActiveValue: required<HTMLElement>('stat-rain-active'),
     rankList: required<HTMLElement>('rank-list'),
   };

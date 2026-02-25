@@ -259,7 +259,7 @@
           <h2>World / Environment</h2>
           <div class="row">
             <label for="env-houses-enabled">Houses Enabled</label>
-            <input id="env-houses-enabled" type="checkbox" />
+            <input id="env-houses-enabled" type="checkbox" checked />
           </div>
           <div class="row">
             <label for="env-house-count">House Count</label>
@@ -283,7 +283,7 @@
           </div>
           <div class="row">
             <label for="env-rain-enabled">Rain Enabled</label>
-            <input id="env-rain-enabled" type="checkbox" />
+            <input id="env-rain-enabled" type="checkbox" checked />
           </div>
           <div class="row">
             <label for="env-show-house-doors">Show House Doors</label>
@@ -292,6 +292,10 @@
           <div class="row">
             <label for="env-show-house-occupancy">Show Occupancy</label>
             <input id="env-show-house-occupancy" type="checkbox" />
+          </div>
+          <div class="row">
+            <label for="env-show-housing-debug">Show Housing Debug</label>
+            <input id="env-show-housing-debug" type="checkbox" />
           </div>
           <div class="row">
             <label for="peace-cry-enabled">Peace-Cry Enabled</label>
@@ -327,7 +331,7 @@
           </div>
           <div class="row">
             <label for="reproduction-conception-chance">Conception / Tick</label>
-            <input id="reproduction-conception-chance" type="number" min="0" max="1" step="0.0001" value="0.0027" />
+            <input id="reproduction-conception-chance" type="number" min="0" max="1" step="0.0001" value="0.0038" />
           </div>
           <div class="row">
             <label for="reproduction-female-birth-probability">Female Birth Prob.</label>
@@ -479,6 +483,7 @@
         <section class="panel">
           <h2>Inspector</h2>
           <div class="row"><span>Selected</span><strong id="selected-id">None</strong></div>
+          <div class="row"><span>Name</span><strong id="selected-name">N/A</strong></div>
           <div class="row"><span>Rank</span><strong id="inspector-rank">N/A</strong></div>
           <div class="row"><span>Shape</span><strong id="inspector-shape">N/A</strong></div>
           <div class="row"><span>Kills</span><strong id="inspector-kills">0</strong></div>
@@ -802,9 +807,14 @@
           <div class="row"><span>Avg Stillness Ticks</span><strong id="stat-stillness-avg">0.0</strong></div>
           <div class="row"><span>Handshakes / 1000 ticks</span><strong id="stat-handshake-rate">0.00</strong></div>
           <div class="row"><span>Total Alive</span><strong id="stat-total">0</strong></div>
+          <div class="row"><span>Births This Tick</span><strong id="stat-births-tick">0</strong></div>
           <div class="row"><span>House Door Contacts (tick)</span><strong id="stat-house-door-contacts">0</strong></div>
           <div class="row"><span>House Entries (tick)</span><strong id="stat-house-entries">0</strong></div>
+          <div class="row"><span>Inside Count (tick)</span><strong id="stat-inside-tick">0</strong></div>
           <div class="row"><span>Total Inside</span><strong id="stat-total-inside">0</strong></div>
+          <div class="row"><span>Seek Shelter Intent</span><strong id="stat-seek-shelter">0</strong></div>
+          <div class="row"><span>Seek Home Intent</span><strong id="stat-seek-home">0</strong></div>
+          <div class="row"><span>Stuck Near House</span><strong id="stat-stuck-near-house">0</strong></div>
           <div class="row"><span>Rain Active</span><strong id="stat-rain-active">0</strong></div>
           <ul id="rank-list" class="rank-list"></ul>
         </section>

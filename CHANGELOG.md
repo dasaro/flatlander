@@ -2,6 +2,32 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.0] - 2026-02-25
+
+### Added
+- Housing-demography engineering audit at `HOUSING_DEMOGRAPHY_AUDIT.md` with root-cause analysis and fix traceability.
+- Deterministic naming subsystem (`world.names`) with inspector display support and rank-aware titles that do not consume simulation RNG.
+- Housing diagnostics and observability:
+  - per-tick shelter/entry/inside/stuck counters in stats,
+  - optional housing debug overlay for selected entities (door target/contact/aperture).
+- New deterministic regression coverage for:
+  - bond-gated conception + postpartum cooldown,
+  - wall-following door entry,
+  - deterministic name generation.
+
+### Changed
+- Housing entry reliability:
+  - widened practical contact tolerance at doors,
+  - deterministic wall-follow steering when colliding with a target house,
+  - stuck-at-wall abort behavior to prevent endless pushing loops.
+- Social navigation now includes a `seekHome` path and stronger shelter/home intentions.
+- Reproduction is now domestic-context gated:
+  - conception requires bonded spouses in home context,
+  - arranged pairing/home assignment hooks are deterministic and optional.
+- Crowd stress applies mild population-overload scaling to wear/irregularity pressure.
+- Stability harness extended with housing-usage and demography-bound checks and richer sampled metrics.
+- `NOVEL_AUDIT.md` extended with housing motivation/domesticity/name traceability addendum.
+
 ## [0.8.2] - 2026-02-24
 
 ### Added

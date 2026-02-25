@@ -11,7 +11,7 @@ describe('reproduction rarity bias', () => {
     expect(rarityBoostForShare(0, 2)).toBeLessThanOrEqual(2.5);
   });
 
-  it('deterministically prefers a rarer high-rank father when bias is enabled', () => {
+  it('conceives only with bonded spouse in domestic context', () => {
     const world = createWorld(1002, {
       reproductionEnabled: true,
       gestationTicks: 100,
@@ -63,6 +63,16 @@ describe('reproduction rarity bias', () => {
       { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
       { x: 240, y: 200 },
     );
+
+    const motherBond = world.bonds.get(mother);
+    const nobleBond = world.bonds.get(rareNoble);
+    if (!motherBond || !nobleBond) {
+      throw new Error('Missing bond components for bond-gate test.');
+    }
+    motherBond.spouseId = rareNoble;
+    nobleBond.spouseId = mother;
+    motherBond.bondedAtTick = world.tick;
+    nobleBond.bondedAtTick = world.tick;
 
     new ReproductionSystem().update(world, 1 / world.config.tickRate);
     expect(world.pregnancies.get(mother)?.fatherId).toBe(rareNoble);

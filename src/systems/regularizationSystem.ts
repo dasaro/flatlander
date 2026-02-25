@@ -1,3 +1,4 @@
+import { retitleName } from '../core/names';
 import { rankFromShape, Rank } from '../core/rank';
 import { rankKeyForEntity } from '../core/rankKey';
 import { getSortedEntityIds } from '../core/world';
@@ -80,6 +81,10 @@ export class RegularizationSystem implements System {
         nearCircleThreshold: world.config.nearCircleThreshold,
       });
       world.ranks.set(id, nextRank);
+      const currentName = world.names.get(id);
+      if (currentName) {
+        world.names.set(id, retitleName(currentName, nextRank.rank, shape));
+      }
 
       if (previousRank?.rank === Rank.Irregular && nextRank.rank !== Rank.Irregular) {
         world.regularizedThisTick += 1;

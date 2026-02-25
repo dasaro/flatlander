@@ -15,6 +15,7 @@ export type SocialIntention =
   | 'avoid'
   | 'yield'
   | 'seekShelter'
+  | 'seekHome'
   | 'approachMate'
   | 'approachForFeeling'
   | 'holdStill';
@@ -147,6 +148,19 @@ export interface DwellingComponent {
   houseId: EntityId | null;
   ticksInside: number;
   cooldownTicks: number;
+}
+
+export interface BondComponent {
+  spouseId: EntityId | null;
+  homeHouseId: EntityId | null;
+  bondedAtTick: number;
+}
+
+export interface NameComponent {
+  displayName: string;
+  given: string;
+  family: string;
+  title: string;
 }
 
 export interface PeaceCryComponent {

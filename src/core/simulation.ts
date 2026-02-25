@@ -78,6 +78,11 @@ export class FixedTimestepSimulation {
     this.world.deathTypesThisTick.attrition = 0;
     this.world.houseDoorContactsThisTick = 0;
     this.world.houseEntriesThisTick = 0;
+    this.world.insideCountThisTick = 0;
+    this.world.seekShelterIntentCount = 0;
+    this.world.seekHomeIntentCount = 0;
+    this.world.stuckNearHouseCount = 0;
+    this.world.birthsThisTick = 0;
     this.world.regularizedThisTick = 0;
     this.world.handshakeStartedThisTick = 0;
     this.world.handshakeCompletedThisTick = 0;

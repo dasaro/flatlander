@@ -39,6 +39,7 @@ import {
 } from './isosceles';
 import { initialIntelligenceForRank } from './intelligence';
 import { computeDefaultEyeComponent } from './eyePose';
+import { buildDeterministicName } from './names';
 import { defaultPerceptionForRank } from './perceptionPresets';
 import { rankFromShape, Rank } from './rank';
 import type { ShapeComponent, TriangleKind } from './shapes';
@@ -203,6 +204,7 @@ export function spawnEntity(
   const sway = femaleStatus ? defaultSwayForFemaleRank(femaleStatus.femaleRank) : null;
   const durability = durabilityForRank(rank.rank, shape);
   const legacy = createLegacy();
+  const name = buildDeterministicName(world.seed, id, rank.rank, shape);
 
   world.entities.add(id);
   world.transforms.set(id, {
@@ -256,6 +258,12 @@ export function spawnEntity(
     dynastyId: id,
   });
   world.legacy.set(id, legacy);
+  world.bonds.set(id, {
+    spouseId: null,
+    homeHouseId: null,
+    bondedAtTick: Number.NEGATIVE_INFINITY,
+  });
+  world.names.set(id, name);
   world.combatStats.set(id, { kills: 0 });
   world.durability.set(id, durability);
   if (femaleStatus) {

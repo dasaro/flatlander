@@ -21,6 +21,18 @@ function simulationWithReproduction(world: ReturnType<typeof createWorld>): Fixe
   return new FixedTimestepSimulation(world, [new ReproductionSystem()]);
 }
 
+function bondPair(world: ReturnType<typeof createWorld>, aId: number, bId: number): void {
+  const aBond = world.bonds.get(aId);
+  const bBond = world.bonds.get(bId);
+  if (!aBond || !bBond) {
+    throw new Error('Expected bond components for bonding helper.');
+  }
+  aBond.spouseId = bId;
+  bBond.spouseId = aId;
+  aBond.bondedAtTick = world.tick;
+  bBond.bondedAtTick = world.tick;
+}
+
 describe('reproduction system', () => {
   it('applies basic Law of Nature side inheritance for male children', () => {
     const world = createWorld(55, {
@@ -62,6 +74,8 @@ describe('reproduction system', () => {
 
     makeMature(world, motherSquare);
     makeMature(world, motherPentagon);
+    bondPair(world, motherSquare, fatherSquare);
+    bondPair(world, motherPentagon, fatherPentagon);
 
     const sim = simulationWithReproduction(world);
     sim.stepOneTick();
@@ -109,6 +123,7 @@ describe('reproduction system', () => {
     );
 
     makeMature(world, mother);
+    bondPair(world, mother, father);
     const motherFertility = world.fertility.get(mother);
     if (!motherFertility) {
       throw new Error('Missing mother fertility in pregnancy countdown test.');
@@ -179,6 +194,8 @@ describe('reproduction system', () => {
 
       makeMature(world, motherA);
       makeMature(world, motherB);
+      bondPair(world, motherA, fatherA);
+      bondPair(world, motherB, fatherB);
 
       const sim = simulationWithReproduction(world);
       for (let i = 0; i < 40; i += 1) {
@@ -245,6 +262,11 @@ describe('reproduction system', () => {
         { x: 140, y: 140 },
       );
       makeMature(world, mother);
+      const father = [...world.entities].find((id) => id !== mother && world.shapes.get(id)?.kind === 'polygon');
+      if (father === undefined) {
+        throw new Error('Expected father for irregular birth test.');
+      }
+      bondPair(world, mother, father);
 
       const sim = simulationWithReproduction(world);
       sim.stepOneTick();

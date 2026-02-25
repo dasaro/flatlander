@@ -35,11 +35,12 @@ import { SwaySystem } from '../systems/swaySystem';
 import { VisionSystem } from '../systems/visionSystem';
 
 const DEFAULT_SEEDS = [11, 23, 37, 53];
-const DEFAULT_TICKS = 8_000;
+const DEFAULT_TICKS = 20_000;
 const SAMPLE_EVERY_TICKS = 200;
 const WINDOW_TICKS = 40_000;
 
 const LONG_HORIZON_TICKS = 120_000;
+const WARMUP_TICKS = 10_000;
 
 interface Distribution {
   women: number;
@@ -49,6 +50,7 @@ interface Distribution {
   nobles: number;
   nearCircle: number;
   priests: number;
+  irregular: number;
   total: number;
   births: number;
   deaths: number;
@@ -65,6 +67,8 @@ interface DemographySample {
   nobles: number;
   nearCircle: number;
   priests: number;
+  irregular: number;
+  insideCount: number;
   birthsWindow: number;
   deathsWindow: number;
   shannon: number;
@@ -75,6 +79,11 @@ interface SeedMetrics {
   avgShannon: number;
   ranksPresentInWindow: number;
   nearCircleOrPriestSeen: boolean;
+  irregularSeen: boolean;
+  occupiedWithinFirst10k: boolean;
+  avgInsideAfterWarmup: number;
+  maxHouseContactStreak: number;
+  boundedPopulation: boolean;
 }
 
 interface SeedReport {
@@ -88,6 +97,9 @@ interface AcceptanceThresholds {
   minAmplitude: number;
   minShannon: number;
   minRanksPresent: number;
+  minPopulation: number;
+  maxPopulation: number;
+  maxContactStreak: number;
 }
 
 function acceptanceForTicks(ticks: number): AcceptanceThresholds {
@@ -96,12 +108,18 @@ function acceptanceForTicks(ticks: number): AcceptanceThresholds {
       minAmplitude: 0.12,
       minShannon: 1.1,
       minRanksPresent: 5,
+      minPopulation: 20,
+      maxPopulation: 650,
+      maxContactStreak: 400,
     };
   }
   return {
     minAmplitude: 0.08,
     minShannon: 0.95,
     minRanksPresent: 4,
+    minPopulation: 20,
+    maxPopulation: 700,
+    maxContactStreak: 420,
   };
 }
 
@@ -239,6 +257,7 @@ function distributionFromWorld(world: ReturnType<typeof createWorld>, initialPop
   let nobles = 0;
   let nearCircle = 0;
   let priests = 0;
+  let irregular = 0;
   let generationSum = 0;
 
   for (const id of world.entities) {
@@ -270,6 +289,9 @@ function distributionFromWorld(world: ReturnType<typeof createWorld>, initialPop
       case Rank.Priest:
         priests += 1;
         break;
+      case Rank.Irregular:
+        irregular += 1;
+        break;
       default:
         break;
     }
@@ -288,6 +310,7 @@ function distributionFromWorld(world: ReturnType<typeof createWorld>, initialPop
     nobles,
     nearCircle,
     priests,
+    irregular,
     total: world.entities.size,
     births,
     deaths,
@@ -295,7 +318,12 @@ function distributionFromWorld(world: ReturnType<typeof createWorld>, initialPop
   };
 }
 
-function shannonIndex(sample: Pick<Distribution, 'women' | 'isosceles' | 'equilateral' | 'gentlemen' | 'nobles' | 'nearCircle' | 'priests' | 'total'>): number {
+function shannonIndex(
+  sample: Pick<
+    Distribution,
+    'women' | 'isosceles' | 'equilateral' | 'gentlemen' | 'nobles' | 'nearCircle' | 'priests' | 'irregular' | 'total'
+  >,
+): number {
   if (sample.total <= 0) {
     return 0;
   }
@@ -307,6 +335,7 @@ function shannonIndex(sample: Pick<Distribution, 'women' | 'isosceles' | 'equila
     sample.nobles,
     sample.nearCircle,
     sample.priests,
+    sample.irregular,
   ];
   let h = 0;
   for (const value of values) {
@@ -333,6 +362,11 @@ function computeMetrics(samples: DemographySample[]): SeedMetrics {
       avgShannon: 0,
       ranksPresentInWindow: 0,
       nearCircleOrPriestSeen: false,
+      irregularSeen: false,
+      occupiedWithinFirst10k: false,
+      avgInsideAfterWarmup: 0,
+      maxHouseContactStreak: 0,
+      boundedPopulation: false,
     };
   }
 
@@ -370,15 +404,33 @@ function computeMetrics(samples: DemographySample[]): SeedMetrics {
     if (sample.priests > 0) {
       ranksPresent.add('priests');
     }
+    if (sample.irregular > 0) {
+      ranksPresent.add('irregular');
+    }
   }
 
   const nearCircleOrPriestSeen = samples.some((sample) => sample.nearCircle > 0 || sample.priests > 0);
+  const irregularSeen = samples.some((sample) => sample.irregular > 0);
+  const occupiedWithinFirst10k = samples.some((sample) => sample.tick <= 10_000 && sample.insideCount > 0);
+  const afterWarmup = samples.filter((sample) => sample.tick >= WARMUP_TICKS);
+  const avgInsideAfterWarmup =
+    afterWarmup.reduce((sum, sample) => sum + sample.insideCount, 0) / Math.max(1, afterWarmup.length);
+  const maxHouseContactStreak = 0;
+  const boundedPopulation =
+    afterWarmup.length > 0
+      ? afterWarmup.every((sample) => sample.totalAlive >= 120 && sample.totalAlive <= 650)
+      : false;
 
   return {
     amplitude,
     avgShannon,
     ranksPresentInWindow: ranksPresent.size,
     nearCircleOrPriestSeen,
+    irregularSeen,
+    occupiedWithinFirst10k,
+    avgInsideAfterWarmup,
+    maxHouseContactStreak,
+    boundedPopulation,
   };
 }
 
@@ -441,9 +493,37 @@ function runSeed(seed: number, ticks: number): SeedReport {
   const samples: DemographySample[] = [];
   let previousBirths = 0;
   let previousDeaths = 0;
+  let occupiedWithinFirst10k = false;
+  let insideAfterWarmupTotal = 0;
+  let insideAfterWarmupSamples = 0;
+  let maxHouseContactStreak = 0;
+  let boundedPopulation = true;
+  const minPopulation = 20;
+  const maxPopulation = 650;
 
   for (let i = 0; i < ticks; i += 1) {
     simulation.stepOneTick();
+    for (const streak of world.houseContactStreaks.values()) {
+      maxHouseContactStreak = Math.max(maxHouseContactStreak, streak.ticks);
+    }
+
+    let insideCount = 0;
+    for (const dwelling of world.dwellings.values()) {
+      if (dwelling.state === 'inside') {
+        insideCount += 1;
+      }
+    }
+    if (world.tick <= 10_000 && insideCount > 0) {
+      occupiedWithinFirst10k = true;
+    }
+    if (world.tick >= WARMUP_TICKS) {
+      insideAfterWarmupTotal += insideCount;
+      insideAfterWarmupSamples += 1;
+      if (world.entities.size < minPopulation || world.entities.size > maxPopulation) {
+        boundedPopulation = false;
+      }
+    }
+
     if (world.tick % SAMPLE_EVERY_TICKS !== 0) {
       continue;
     }
@@ -464,16 +544,27 @@ function runSeed(seed: number, ticks: number): SeedReport {
       nobles: dist.nobles,
       nearCircle: dist.nearCircle,
       priests: dist.priests,
+      irregular: dist.irregular,
+      insideCount,
       birthsWindow,
       deathsWindow,
       shannon: shannonIndex(dist),
     });
   }
 
+  const baseMetrics = computeMetrics(samples);
+  const avgInsideAfterWarmup = insideAfterWarmupTotal / Math.max(1, insideAfterWarmupSamples);
+
   return {
     seed,
     final: distributionFromWorld(world, initialPopulation),
-    metrics: computeMetrics(samples),
+    metrics: {
+      ...baseMetrics,
+      occupiedWithinFirst10k,
+      avgInsideAfterWarmup,
+      maxHouseContactStreak,
+      boundedPopulation,
+    },
     samples,
   };
 }
@@ -515,6 +606,7 @@ const totals = reports.reduce(
       nobles: acc.nobles + d.nobles,
       nearCircle: acc.nearCircle + d.nearCircle,
       priests: acc.priests + d.priests,
+      irregular: acc.irregular + d.irregular,
       total: acc.total + d.total,
       births: acc.births + d.births,
       deaths: acc.deaths + d.deaths,
@@ -529,6 +621,7 @@ const totals = reports.reduce(
     nobles: 0,
     nearCircle: 0,
     priests: 0,
+    irregular: 0,
     total: 0,
     births: 0,
     deaths: 0,
@@ -542,6 +635,15 @@ const avgShannon = reports.reduce((sum, row) => sum + row.metrics.avgShannon, 0)
 const avgRanksPresent =
   reports.reduce((sum, row) => sum + row.metrics.ranksPresentInWindow, 0) / Math.max(1, reports.length);
 const rarePresenceCount = reports.filter((row) => row.metrics.nearCircleOrPriestSeen).length;
+const occupied10kCount = reports.filter((row) => row.metrics.occupiedWithinFirst10k).length;
+const avgInsideAfterWarmup =
+  reports.reduce((sum, row) => sum + row.metrics.avgInsideAfterWarmup, 0) / Math.max(1, reports.length);
+const maxContactStreakObserved = reports.reduce(
+  (max, row) => Math.max(max, row.metrics.maxHouseContactStreak),
+  0,
+);
+const boundedPopulationCount = reports.filter((row) => row.metrics.boundedPopulation).length;
+const irregularSeenCount = reports.filter((row) => row.metrics.irregularSeen).length;
 
 console.log(`Stability harness: ${reports.length} seeds x ${ticks} ticks (sampleEvery=${SAMPLE_EVERY_TICKS})`);
 for (const row of reports) {
@@ -552,10 +654,14 @@ for (const row of reports) {
       d.total,
     )} gentlemen=${pct(d.gentlemen, d.total)} nobles=${pct(d.nobles, d.total)} near+priests=${pct(
       d.nearCircle + d.priests,
-      d.total,
-    )} amp=${row.metrics.amplitude.toFixed(3)} H=${row.metrics.avgShannon.toFixed(
+      d.total
+    )} irregular=${pct(d.irregular, d.total)} amp=${row.metrics.amplitude.toFixed(3)} H=${row.metrics.avgShannon.toFixed(
       3,
-    )} ranks=${row.metrics.ranksPresentInWindow} rareSeen=${row.metrics.nearCircleOrPriestSeen ? 'yes' : 'no'} births=${
+    )} ranks=${row.metrics.ranksPresentInWindow} rareSeen=${row.metrics.nearCircleOrPriestSeen ? 'yes' : 'no'} occupied10k=${
+      row.metrics.occupiedWithinFirst10k ? 'yes' : 'no'
+    } insideAvg=${row.metrics.avgInsideAfterWarmup.toFixed(2)} maxStreak=${row.metrics.maxHouseContactStreak} bounded=${
+      row.metrics.boundedPopulation ? 'yes' : 'no'
+    } births=${
       d.births
     } deaths=${d.deaths} avgGen=${d.avgGeneration.toFixed(2)}`,
   );
@@ -568,15 +674,20 @@ console.log(
     totals.total,
   )} gentlemen=${pct(totals.gentlemen, totals.total)} nobles=${pct(
     totals.nobles,
-    totals.total,
-  )} near+priests=${pct(totals.nearCircle + totals.priests, totals.total)} births=${totals.births} deaths=${
+    totals.total
+  )} near+priests=${pct(totals.nearCircle + totals.priests, totals.total)} irregular=${pct(
+    totals.irregular,
+    totals.total
+  )} births=${totals.births} deaths=${
     totals.deaths
   } avgGen=${avgGeneration.toFixed(2)}`,
 );
 console.log(
   `metrics: amp(avg)=${avgAmplitude.toFixed(3)} shannon(avg)=${avgShannon.toFixed(
     3,
-  )} ranksPresent(avg)=${avgRanksPresent.toFixed(2)} rarePresenceSeeds=${rarePresenceCount}/${reports.length}`,
+  )} ranksPresent(avg)=${avgRanksPresent.toFixed(2)} occupied10k=${occupied10kCount}/${reports.length} insideAvg=${avgInsideAfterWarmup.toFixed(
+    2,
+  )} maxStreak=${maxContactStreakObserved} bounded=${boundedPopulationCount}/${reports.length} irregularSeen=${irregularSeenCount}/${reports.length} rarePresenceSeeds=${rarePresenceCount}/${reports.length}`,
 );
 
 const artifactsDir = join(process.cwd(), '.artifacts', 'demography');
@@ -595,6 +706,11 @@ writeFileSync(
         avgAmplitude,
         avgShannon,
         avgRanksPresent,
+        occupied10kCount,
+        avgInsideAfterWarmup,
+        maxContactStreakObserved,
+        boundedPopulationCount,
+        irregularSeenCount,
         rarePresenceCount,
       },
       reports,
@@ -619,9 +735,28 @@ if (avgRanksPresent < acceptance.minRanksPresent) {
     `insufficient persistent rank presence (${avgRanksPresent.toFixed(2)} < ${acceptance.minRanksPresent})`,
   );
 }
+if (ticks >= 10_000 && occupied10kCount <= 0) {
+  failedChecks.push('no house occupancy observed within first 10k ticks');
+}
+if (ticks >= 20_000 && avgInsideAfterWarmup <= 0) {
+  failedChecks.push('average indoor occupancy after warmup is zero');
+}
+if (maxContactStreakObserved > acceptance.maxContactStreak) {
+  failedChecks.push(
+    `house-contact stuck streak too high (${maxContactStreakObserved} > ${acceptance.maxContactStreak})`,
+  );
+}
+if (ticks >= LONG_HORIZON_TICKS && boundedPopulationCount <= 0) {
+  failedChecks.push(
+    `population exceeded configured long-run band [${acceptance.minPopulation}, ${acceptance.maxPopulation}] after warmup`,
+  );
+}
 const requiresRarePresence = ticks >= LONG_HORIZON_TICKS;
 if (requiresRarePresence && rarePresenceCount <= 0) {
   failedChecks.push('no NearCircle/Priest presence observed across stability seeds');
+}
+if (ticks >= LONG_HORIZON_TICKS && irregularSeenCount <= 0) {
+  failedChecks.push('no irregular population observed in long-run window');
 }
 
 if (!requiresRarePresence) {

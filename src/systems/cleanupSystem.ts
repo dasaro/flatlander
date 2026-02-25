@@ -48,6 +48,8 @@ export class CleanupSystem implements System {
       world.fertility.delete(id);
       world.pregnancies.delete(id);
       world.neoTherapy.delete(id);
+      world.bonds.delete(id);
+      world.names.delete(id);
       world.combatStats.delete(id);
       world.durability.delete(id);
       world.femaleStatus.delete(id);
@@ -60,6 +62,23 @@ export class CleanupSystem implements System {
       world.handshakeCounts.delete(id);
       world.geometries.delete(id);
       world.lastCorrections.delete(id);
+      world.houseContactStreaks.delete(id);
+      world.houseApproachDebug.delete(id);
+    }
+
+    if (toRemove.length > 0 && world.bonds.size > 0) {
+      const removed = new Set(toRemove);
+      for (const [id, bond] of world.bonds) {
+        if (removed.has(id)) {
+          continue;
+        }
+        if (bond.spouseId !== null && removed.has(bond.spouseId)) {
+          bond.spouseId = null;
+        }
+        if (bond.homeHouseId !== null && removed.has(bond.homeHouseId)) {
+          bond.homeHouseId = null;
+        }
+      }
     }
 
     if (toRemove.length > 0 && world.stabPressure.size > 0) {

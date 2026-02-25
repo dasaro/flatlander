@@ -1,4 +1,5 @@
 import { isEntityOutside } from '../core/housing/dwelling';
+import { retitleName } from '../core/names';
 import { rankFromShape } from '../core/rank';
 import { rankKeyForEntity } from '../core/rankKey';
 import { getSortedEntityIds } from '../core/world';
@@ -59,7 +60,10 @@ function applyStressWear(world: World, entityId: number, stress: number, dt: num
     return;
   }
   const wearScale = Math.max(0, roundedConfig(world.config.crowdStressWearScale, 0));
-  durability.wear += wearScale * stress * dt;
+  const comfortPopulation = Math.max(1, Math.round(roundedConfig(world.config.crowdComfortPopulation, 1)));
+  const overloadRatio = Math.max(0, (world.entities.size - comfortPopulation) / comfortPopulation);
+  const overloadScale = 1 + overloadRatio * Math.max(0, roundedConfig(world.config.crowdOverloadWearScale, 0));
+  durability.wear += wearScale * stress * overloadScale * dt;
 
   const step = Math.max(0.01, world.config.wearToHpStep);
   if (durability.wear < step) {
@@ -80,7 +84,9 @@ function applyStressIrregularity(world: World, entityId: number, stress: number)
   }
 
   if (!shape.irregular) {
-    const chance = Math.max(0, world.config.crowdStressIrregularChance) * stress;
+      const comfortPopulation = Math.max(1, Math.round(world.config.crowdComfortPopulation));
+      const overloadRatio = Math.max(0, (world.entities.size - comfortPopulation) / comfortPopulation);
+      const chance = Math.max(0, world.config.crowdStressIrregularChance) * stress * (1 + overloadRatio * 0.5);
     if (world.rng.next() < chance) {
       shape.irregular = true;
       shape.regular = false;
@@ -97,11 +103,18 @@ function applyStressIrregularity(world: World, entityId: number, stress: number)
         nearCircleThreshold: world.config.nearCircleThreshold,
       });
       world.ranks.set(entityId, rank);
+      const currentName = world.names.get(entityId);
+      if (currentName) {
+        world.names.set(entityId, retitleName(currentName, rank.rank, shape));
+      }
     }
     return;
   }
 
-  const chance = Math.max(0, world.config.crowdStressExecutionChance) * stress;
+  const comfortPopulation = Math.max(1, Math.round(world.config.crowdComfortPopulation));
+  const overloadRatio = Math.max(0, (world.entities.size - comfortPopulation) / comfortPopulation);
+  const chance =
+    Math.max(0, world.config.crowdStressExecutionChance) * stress * (1 + overloadRatio * 0.65);
   if (world.rng.next() < chance) {
     markAttritionDeath(world, entityId);
   }

@@ -1,8 +1,8 @@
-# NOVEL_FAITHFULNESS AUDIT (Flatlander v0.8.2)
+# NOVEL_FAITHFULNESS AUDIT (Flatlander v0.9.0)
 
 ## 0. Repo snapshot
 - Commit: `b05c607` (baseline before current demography patch)
-- App version: `0.8.2` (`package.json`)
+- App version: `0.9.0` (`package.json`)
 - Runtime: browser-only Vite/TS app (`src/main.ts`, `src/core/world.ts`)
 - Run commands:
   - `npm run dev`
@@ -764,3 +764,16 @@ Part I, Section 2 contains explicit house orientation and law-like constraints.
 - **Strongly implied by the novel**: not verbatim rule, but directly consistent with narrative mechanics.
 - **Implementation assumption / extrapolation**: simulation/UX engineering choice added for playability or observability.
 - **Divergence from the novel**: current behavior or default contradicts/omits a clear canonical element.
+
+## Addendum (v0.9.0): Housing Motivation, Domesticity, and Names
+
+| Mechanic / Feature | Novel anchor (Part/Section) | Canon status | User-visible behavior | Core implementation (files + key functions) | Config/UI controls (keys/defaults/where) | Tests / verification |
+|---|---|---|---|---|---|---|
+| Rain-driven shelter motivation + door-latch entry | Part I, Section 2 (*Of the Climate and Houses in Flatland*) | Strongly implied by the novel | During rain, outside entities strongly seek doors; door contact near the correct side triggers indoor transition | `/Users/fdasaro/Desktop/Flatlander/src/systems/rainSystem.ts` `update`; `/Users/fdasaro/Desktop/Flatlander/src/systems/socialNavMindSystem.ts`; `/Users/fdasaro/Desktop/Flatlander/src/systems/houseSystem.ts` `collectDoorContacts` / `enterHouse` | `housesEnabled=true`, `rainEnabled=true`, `rainPeriodTicks`, `rainDurationTicks`; UI: *World / Environment* panel | `/Users/fdasaro/Desktop/Flatlander/tests/rainShelterIntention.test.ts`; `/Users/fdasaro/Desktop/Flatlander/tests/housingDoorEntryFromCollision.test.ts`; `/Users/fdasaro/Desktop/Flatlander/tests/housingWallFollow.test.ts` |
+| Household bonding + home-gated conception | Part I, Section 5 (social introductions), Section 3/12 (arranged unions and class-controlled reproduction context) | Implementation assumption / extrapolation (canon-inspired) | Conception requires mutual spouse bonds; household/home context is enforced; postpartum cooldown reduces runaway births | `/Users/fdasaro/Desktop/Flatlander/src/systems/feelingSystem.ts` `maybeCreateHouseholdBond`; `/Users/fdasaro/Desktop/Flatlander/src/systems/reproductionSystem.ts` `mutuallyBondedSpouse`, `domesticContextSatisfied`, `arrangeBondIfNeeded` | `postpartumCooldownTicks=180`, `rarityMarriageBiasEnabled=true`, `rarityMarriageBiasStrength=0.35`; UI: *Reproduction* panel + reset-preserved settings | `/Users/fdasaro/Desktop/Flatlander/tests/reproductionBondGate.test.ts`; `/Users/fdasaro/Desktop/Flatlander/tests/reproduction.test.ts`; `/Users/fdasaro/Desktop/Flatlander/tests/reproductionRarityBias.test.ts` |
+| Fancy deterministic names (inspector-visible) | No direct named-person catalog in novel text; social titles are strongly implied by hierarchy | Implementation assumption / extrapolation | Inspector and hover show title+family names (e.g., `Lady`, `Mr.`, `Sir`, `His Circularity`) with deterministic identity across runs | `/Users/fdasaro/Desktop/Flatlander/src/core/names.ts` `buildDeterministicName`; `/Users/fdasaro/Desktop/Flatlander/src/core/factory.ts`; `/Users/fdasaro/Desktop/Flatlander/src/ui/uiController.ts`; `/Users/fdasaro/Desktop/Flatlander/src/main.ts` | No gameplay config; pure hash from `(worldSeed, entityId)`; UI: *Inspector* row `Name` | `/Users/fdasaro/Desktop/Flatlander/tests/names.test.ts`; determinism coverage in `/Users/fdasaro/Desktop/Flatlander/tests/determinism.test.ts` |
+
+### Assumption notes for this addendum
+- `arrangeBondIfNeeded` is explicitly a simulation assumption: it models priest-arranged households as a deterministic rarity-aware matching pass.
+- Domestic conception gating is a balancing abstraction (home radius + rain context), not a literal institutional/legal transcript.
+- Name generation is cosmetic only and intentionally does not consume simulation RNG state.

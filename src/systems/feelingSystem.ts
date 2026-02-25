@@ -1,5 +1,7 @@
 import { orderedEntityPairs } from '../core/events';
 import type { EntityId } from '../core/components';
+import { houseCentroidWorld } from '../core/housing/houseFactory';
+import { hasHouseCapacity } from '../core/housing/shelterPolicy';
 import { rankKeyForEntity } from '../core/rankKey';
 import { requestStillness } from '../core/stillness';
 import { angleToVector } from '../geometry/vector';
@@ -346,6 +348,8 @@ function processActiveHandshakePair(
   const bKnowledge = world.knowledge.get(bId);
   const aFeeling = world.feeling.get(aId);
   const bFeeling = world.feeling.get(bId);
+  const aShape = world.shapes.get(aId);
+  const bShape = world.shapes.get(bId);
   if (!aRank || !bRank || !aKnowledge || !bKnowledge || !aFeeling || !bFeeling) {
     return;
   }
@@ -408,6 +412,115 @@ function processActiveHandshakePair(
 
   aFeeling.lastFeltTick = world.tick;
   bFeeling.lastFeltTick = world.tick;
+  maybeCreateHouseholdBond(world, aId, bId, aShape, bShape);
+}
+
+function isFemaleEntityShape(
+  shape: ReturnType<World['shapes']['get']>,
+): boolean {
+  return shape?.kind === 'segment';
+}
+
+function isMaleEntityShape(
+  shape: ReturnType<World['shapes']['get']>,
+): boolean {
+  return shape?.kind === 'polygon' || shape?.kind === 'circle';
+}
+
+function ensureBondRecord(world: World, entityId: EntityId): NonNullable<ReturnType<World['bonds']['get']>> {
+  const existing = world.bonds.get(entityId);
+  if (existing) {
+    return existing;
+  }
+  const created = {
+    spouseId: null,
+    homeHouseId: null,
+    bondedAtTick: Number.NEGATIVE_INFINITY,
+  };
+  world.bonds.set(entityId, created);
+  return created;
+}
+
+function nearestAvailableHomeHouse(world: World, aId: EntityId, bId: EntityId): EntityId | null {
+  if (world.houses.size === 0) {
+    return null;
+  }
+  const aTransform = world.transforms.get(aId);
+  const bTransform = world.transforms.get(bId);
+  if (!aTransform || !bTransform) {
+    return null;
+  }
+
+  const midpoint = {
+    x: (aTransform.position.x + bTransform.position.x) * 0.5,
+    y: (aTransform.position.y + bTransform.position.y) * 0.5,
+  };
+  const houseIds = [...world.houses.keys()].sort((left, right) => left - right);
+  let bestId: EntityId | null = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  for (const houseId of houseIds) {
+    const house = world.houses.get(houseId);
+    const houseTransform = world.transforms.get(houseId);
+    if (!house || !houseTransform || !hasHouseCapacity(world, houseId, house)) {
+      continue;
+    }
+    const center = houseCentroidWorld(houseTransform, house);
+    const distance = Math.hypot(center.x - midpoint.x, center.y - midpoint.y);
+    if (
+      distance < bestDistance ||
+      (distance === bestDistance && (bestId === null || houseId < bestId))
+    ) {
+      bestDistance = distance;
+      bestId = houseId;
+    }
+  }
+
+  return bestId;
+}
+
+function maybeCreateHouseholdBond(
+  world: World,
+  aId: EntityId,
+  bId: EntityId,
+  aShape: ReturnType<World['shapes']['get']>,
+  bShape: ReturnType<World['shapes']['get']>,
+): void {
+  if (!aShape || !bShape) {
+    return;
+  }
+  const oppositeSex =
+    (isFemaleEntityShape(aShape) && isMaleEntityShape(bShape)) ||
+    (isFemaleEntityShape(bShape) && isMaleEntityShape(aShape));
+  if (!oppositeSex) {
+    return;
+  }
+
+  const aBond = ensureBondRecord(world, aId);
+  const bBond = ensureBondRecord(world, bId);
+  if (
+    aBond.spouseId !== null &&
+    aBond.spouseId !== bId
+  ) {
+    return;
+  }
+  if (
+    bBond.spouseId !== null &&
+    bBond.spouseId !== aId
+  ) {
+    return;
+  }
+
+  aBond.spouseId = bId;
+  bBond.spouseId = aId;
+  aBond.bondedAtTick = world.tick;
+  bBond.bondedAtTick = world.tick;
+
+  const sharedHome = aBond.homeHouseId ?? bBond.homeHouseId ?? nearestAvailableHomeHouse(world, aId, bId);
+  if (sharedHome !== null && sharedHome !== undefined) {
+    aBond.homeHouseId = sharedHome;
+    bBond.homeHouseId = sharedHome;
+  }
 }
 
 export class FeelingSystem implements System {

@@ -5,6 +5,7 @@ import { doorPoseWorld } from './houseFactory';
 import type { Vec2 } from '../../geometry/vector';
 
 export const LOW_HP_SHELTER_THRESHOLD = 0.55;
+export const LOW_HP_HOME_RETURN_THRESHOLD = 0.7;
 
 export interface HouseDoorTarget {
   houseId: EntityId;
@@ -98,4 +99,33 @@ export function nearestHouseDoorTarget(
   }
 
   return best;
+}
+
+export function houseDoorTargetForHouse(
+  world: World,
+  entityId: EntityId,
+  houseId: EntityId,
+  origin: Vec2,
+): HouseDoorTarget | null {
+  const house = world.houses.get(houseId);
+  const transform = world.transforms.get(houseId);
+  if (!house || !transform || !hasHouseCapacity(world, houseId, house)) {
+    return null;
+  }
+
+  const side = preferredDoorSide(world, entityId);
+  const door = side === 'east' ? house.doorEast : house.doorWest;
+  const pose = doorPoseWorld(transform, door);
+  const distance = Math.hypot(origin.x - pose.midpoint.x, origin.y - pose.midpoint.y);
+  const enterRadius = Math.max(1, house.doorEnterRadius * door.sizeFactor);
+
+  return {
+    houseId,
+    house,
+    side,
+    midpoint: pose.midpoint,
+    normalInward: pose.normalInward,
+    enterRadius,
+    distance,
+  };
 }

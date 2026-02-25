@@ -5,6 +5,7 @@ import type { WorldTopology } from './topology';
 import type {
   AgeComponent,
   AudiblePing,
+  BondComponent,
   BrainAngleComponent,
   CombatStatsComponent,
   DwellingComponent,
@@ -22,6 +23,7 @@ import type {
   LegacyComponent,
   LineageComponent,
   MovementComponent,
+  NameComponent,
   NeoTherapyComponent,
   PerceptionComponent,
   PeaceCryComponent,
@@ -76,6 +78,7 @@ export interface WorldConfig {
   neoTherapyAmbitionProbability: number;
   neoTherapyDurationTicks: number;
   neoTherapySurvivalProbability: number;
+  postpartumCooldownTicks: number;
   maxPopulation: number;
   handshakeStillnessTicks: number;
   handshakeCooldownTicks: number;
@@ -147,6 +150,8 @@ export interface WorldConfig {
   crowdStressWearScale: number;
   crowdStressIrregularChance: number;
   crowdStressExecutionChance: number;
+  crowdComfortPopulation: number;
+  crowdOverloadWearScale: number;
   sleepEnabled: boolean;
   sleepSpeedEps: number;
   sleepCorrectionEps: number;
@@ -187,6 +192,8 @@ export interface World {
   staticObstacles: Map<EntityId, StaticObstacleComponent>;
   houses: Map<EntityId, HouseComponent>;
   dwellings: Map<EntityId, DwellingComponent>;
+  bonds: Map<EntityId, BondComponent>;
+  names: Map<EntityId, NameComponent>;
   houseOccupants: Map<EntityId, Set<EntityId>>;
   weather: {
     isRaining: boolean;
@@ -229,12 +236,22 @@ export interface World {
   deathTypesTotal: DeathTypeCounts;
   houseDoorContactsThisTick: number;
   houseEntriesThisTick: number;
+  insideCountThisTick: number;
+  seekShelterIntentCount: number;
+  seekHomeIntentCount: number;
+  stuckNearHouseCount: number;
+  birthsThisTick: number;
   regularizedThisTick: number;
   handshakeStartedThisTick: number;
   handshakeCompletedThisTick: number;
   handshakeCompletedTotal: number;
   geometries: Map<EntityId, GeometryShape>;
   lastCorrections: Map<EntityId, number>;
+  houseContactStreaks: Map<EntityId, { houseId: EntityId; ticks: number }>;
+  houseApproachDebug: Map<
+    EntityId,
+    { houseId: EntityId; doorPoint: { x: number; y: number }; contactPoint: { x: number; y: number }; enterRadius: number }
+  >;
   events: EventQueue;
 }
 
@@ -258,7 +275,7 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   reproductionEnabled: true,
   gestationTicks: 220,
   matingRadius: 52,
-  conceptionChancePerTick: 0.0027,
+  conceptionChancePerTick: 0.0038,
   femaleBirthProbability: 0.54,
   maleBirthHighRankPenaltyPerSide: 0.085,
   conceptionHighRankPenaltyPerSide: 0.13,
@@ -273,6 +290,7 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   neoTherapyAmbitionProbability: 0.12,
   neoTherapyDurationTicks: 320,
   neoTherapySurvivalProbability: 0.1,
+  postpartumCooldownTicks: 180,
   maxPopulation: 500,
   handshakeStillnessTicks: 12,
   handshakeCooldownTicks: 40,
@@ -344,6 +362,8 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   crowdStressWearScale: 0.22,
   crowdStressIrregularChance: 0.00055,
   crowdStressExecutionChance: 0.00025,
+  crowdComfortPopulation: 320,
+  crowdOverloadWearScale: 0.35,
   sleepEnabled: true,
   sleepSpeedEps: 0.15,
   sleepCorrectionEps: 0.08,
@@ -377,6 +397,8 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     staticObstacles: new Map(),
     houses: new Map(),
     dwellings: new Map(),
+    bonds: new Map(),
+    names: new Map(),
     houseOccupants: new Map(),
     weather: {
       isRaining: false,
@@ -425,12 +447,19 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     },
     houseDoorContactsThisTick: 0,
     houseEntriesThisTick: 0,
+    insideCountThisTick: 0,
+    seekShelterIntentCount: 0,
+    seekHomeIntentCount: 0,
+    stuckNearHouseCount: 0,
+    birthsThisTick: 0,
     regularizedThisTick: 0,
     handshakeStartedThisTick: 0,
     handshakeCompletedThisTick: 0,
     handshakeCompletedTotal: 0,
     geometries: new Map(),
     lastCorrections: new Map(),
+    houseContactStreaks: new Map(),
+    houseApproachDebug: new Map(),
     events: new EventQueue(),
   };
 }

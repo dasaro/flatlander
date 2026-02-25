@@ -3,7 +3,6 @@ import { isEntityOutside } from '../core/housing/dwelling';
 import {
   hasHouseCapacity,
   preferredDoorSide,
-  shouldSeekShelter,
 } from '../core/housing/shelterPolicy';
 import { doorPoseWorld, houseCentroidWorld } from '../core/housing/houseFactory';
 import { requestStillness } from '../core/stillness';
@@ -14,10 +13,12 @@ import type { Vec2 } from '../geometry/vector';
 import type { System } from './system';
 
 const DOOR_ENTER_SPEED = 12;
-const DOOR_CONTACT_EPSILON = 2.5;
+const DOOR_CONTACT_EPSILON = 8;
 const MIN_INDOOR_TICKS = 120;
 const COOLDOWN_TICKS_AFTER_EXIT = 160;
 const HOUSE_REPAIR_PER_TICK = 0.08;
+const STUCK_ABORT_TICKS = 240;
+const STUCK_ALERT_TICKS = 400;
 
 interface DoorContact {
   personId: EntityId;
@@ -167,7 +168,11 @@ function socialNavShelterIntent(
   houseId: EntityId,
 ): SocialNavMovement | null {
   const movement = world.movements.get(personId);
-  if (!movement || movement.type !== 'socialNav' || movement.intention !== 'seekShelter') {
+  if (
+    !movement ||
+    movement.type !== 'socialNav' ||
+    (movement.intention !== 'seekShelter' && movement.intention !== 'seekHome')
+  ) {
     return null;
   }
 
@@ -184,8 +189,23 @@ function socialNavShelterIntent(
   return movement;
 }
 
+function abortHouseApproach(world: World, personId: EntityId): void {
+  const movement = world.movements.get(personId);
+  if (!movement || movement.type !== 'socialNav') {
+    return;
+  }
+  movement.intention = 'roam';
+  movement.intentionTicksLeft = Math.max(1, Math.round(movement.intentionMinTicks));
+  delete movement.goal;
+}
+
 function shouldAttemptEntry(world: World, personId: EntityId, houseId: EntityId): boolean {
-  return shouldSeekShelter(world, personId) || socialNavShelterIntent(world, personId, houseId) !== null;
+  void world;
+  void personId;
+  void houseId;
+  // Flatland Part I §2: doors are canonical portals; reaching the correct
+  // doorway at controlled speed is sufficient for entry.
+  return true;
 }
 
 function collectDoorContacts(world: World): DoorContact[] {
@@ -221,15 +241,7 @@ function collectDoorContacts(world: World): DoorContact[] {
       manifold.contactPoint.x - pose.midpoint.x,
       manifold.contactPoint.y - pose.midpoint.y,
     );
-    const personPosition = world.transforms.get(personId)?.position;
-    const centroidDistanceToDoor = personPosition
-      ? Math.hypot(personPosition.x - pose.midpoint.x, personPosition.y - pose.midpoint.y)
-      : Number.POSITIVE_INFINITY;
-
-    if (
-      distanceToDoor > enterRadius + DOOR_CONTACT_EPSILON &&
-      centroidDistanceToDoor > enterRadius * 1.8
-    ) {
+    if (distanceToDoor > enterRadius + DOOR_CONTACT_EPSILON) {
       continue;
     }
 
@@ -250,10 +262,13 @@ function collectDoorContacts(world: World): DoorContact[] {
 export class HouseSystem implements System {
   update(world: World): void {
     if (!world.config.housesEnabled || world.houses.size === 0) {
+      world.houseContactStreaks.clear();
+      world.houseApproachDebug.clear();
       return;
     }
 
     const ids = getSortedEntityIds(world);
+    world.insideCountThisTick = 0;
 
     for (const id of ids) {
       if (!isPerson(world, id)) {
@@ -274,6 +289,7 @@ export class HouseSystem implements System {
         })();
 
       if (dwelling.state === 'inside' && dwelling.houseId !== null) {
+        world.insideCountThisTick += 1;
         const house = world.houses.get(dwelling.houseId);
         if (!house) {
           setDwellingOutside(world, id, COOLDOWN_TICKS_AFTER_EXIT);
@@ -301,12 +317,16 @@ export class HouseSystem implements System {
     }
 
     if (world.manifolds.length === 0) {
+      world.houseContactStreaks.clear();
+      world.houseApproachDebug.clear();
       return;
     }
 
     const enteredThisTick = new Set<EntityId>();
+    const touchedThisTick = new Set<EntityId>();
     for (const contact of collectDoorContacts(world)) {
       world.houseDoorContactsThisTick += 1;
+      touchedThisTick.add(contact.personId);
 
       if (enteredThisTick.has(contact.personId)) {
         continue;
@@ -322,7 +342,44 @@ export class HouseSystem implements System {
       if (!hasHouseCapacity(world, contact.houseId, contact.house)) {
         continue;
       }
+      const intent = socialNavShelterIntent(world, contact.personId, contact.houseId);
       if (!shouldAttemptEntry(world, contact.personId, contact.houseId)) {
+        world.houseApproachDebug.delete(contact.personId);
+        continue;
+      }
+      if (intent) {
+        const houseTransform = world.transforms.get(contact.houseId);
+        const doorSpec = contact.side === 'east' ? contact.house.doorEast : contact.house.doorWest;
+        if (houseTransform) {
+          const doorPose = doorPoseWorld(houseTransform, doorSpec);
+          world.houseApproachDebug.set(contact.personId, {
+            houseId: contact.houseId,
+            doorPoint: doorPose.midpoint,
+            contactPoint: contact.contactPoint,
+            enterRadius: contact.enterRadius,
+          });
+        }
+      }
+
+      const previousStreak = world.houseContactStreaks.get(contact.personId);
+      const streakTicks =
+        previousStreak && previousStreak.houseId === contact.houseId
+          ? previousStreak.ticks + 1
+          : 1;
+      world.houseContactStreaks.set(contact.personId, {
+        houseId: contact.houseId,
+        ticks: streakTicks,
+      });
+      if (streakTicks > STUCK_ALERT_TICKS) {
+        world.stuckNearHouseCount += 1;
+      }
+      if (streakTicks > STUCK_ABORT_TICKS && intent) {
+        abortHouseApproach(world, contact.personId);
+        const dw = world.dwellings.get(contact.personId);
+        if (dw) {
+          dw.cooldownTicks = Math.max(dw.cooldownTicks, 90);
+        }
+        world.houseApproachDebug.delete(contact.personId);
         continue;
       }
       if (movementSpeed(world, contact.personId) > DOOR_ENTER_SPEED) {
@@ -331,7 +388,25 @@ export class HouseSystem implements System {
 
       enterHouse(world, contact.personId, contact.houseId, contact.house);
       enteredThisTick.add(contact.personId);
+      world.houseContactStreaks.delete(contact.personId);
+      world.houseApproachDebug.delete(contact.personId);
       world.houseEntriesThisTick += 1;
     }
+
+    for (const personId of [...world.houseContactStreaks.keys()]) {
+      if (touchedThisTick.has(personId)) {
+        continue;
+      }
+      world.houseContactStreaks.delete(personId);
+      world.houseApproachDebug.delete(personId);
+    }
+
+    let insideTotal = 0;
+    for (const dwelling of world.dwellings.values()) {
+      if (dwelling.state === 'inside') {
+        insideTotal += 1;
+      }
+    }
+    world.insideCountThisTick = insideTotal;
   }
 }

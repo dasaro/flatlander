@@ -1,7 +1,7 @@
 import { doorPoseWorld } from '../core/housing/houseFactory';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
-import { clamp } from '../geometry/vector';
+import { clamp, dot, normalize } from '../geometry/vector';
 import type { System } from './system';
 
 function normalizeAngle(angle: number): number {
@@ -39,6 +39,8 @@ function targetSpeedForIntention(world: World, entityId: number): number {
       return movement.maxSpeed * 0.45;
     case 'seekShelter':
       return movement.maxSpeed * 0.55;
+    case 'seekHome':
+      return movement.maxSpeed * 0.5;
     case 'approachMate':
       return movement.maxSpeed * 0.66;
     case 'approachForFeeling':
@@ -47,6 +49,31 @@ function targetSpeedForIntention(world: World, entityId: number): number {
     default:
       return movement.maxSpeed * 0.74;
   }
+}
+
+function targetHouseContact(
+  world: World,
+  entityId: number,
+  houseId: number,
+): { contactPoint: { x: number; y: number }; outwardNormal: { x: number; y: number } } | null {
+  for (const manifold of world.manifolds) {
+    if (manifold.aId === entityId && manifold.bId === houseId) {
+      return {
+        contactPoint: manifold.contactPoint,
+        outwardNormal: normalize({
+          x: -manifold.normal.x,
+          y: -manifold.normal.y,
+        }),
+      };
+    }
+    if (manifold.aId === houseId && manifold.bId === entityId) {
+      return {
+        contactPoint: manifold.contactPoint,
+        outwardNormal: normalize(manifold.normal),
+      };
+    }
+  }
+  return null;
 }
 
 export class SocialNavSteeringSystem implements System {
@@ -89,7 +116,7 @@ export class SocialNavSteeringSystem implements System {
         }
 
         if (
-          movement.intention === 'seekShelter' &&
+          (movement.intention === 'seekShelter' || movement.intention === 'seekHome') &&
           movement.goal.targetId !== undefined &&
           movement.goal.doorSide !== undefined
         ) {
@@ -103,6 +130,26 @@ export class SocialNavSteeringSystem implements System {
               door.midpoint.x - transform.position.x,
               door.midpoint.y - transform.position.y,
             );
+            const contact = targetHouseContact(world, id, movement.goal.targetId);
+            if (contact) {
+              const toDoor = {
+                x: door.midpoint.x - contact.contactPoint.x,
+                y: door.midpoint.y - contact.contactPoint.y,
+              };
+              let tangent = {
+                x: toDoor.x - contact.outwardNormal.x * dot(toDoor, contact.outwardNormal),
+                y: toDoor.y - contact.outwardNormal.y * dot(toDoor, contact.outwardNormal),
+              };
+              const tangentLength = Math.hypot(tangent.x, tangent.y);
+              if (tangentLength <= 1e-4) {
+                const sign = ((id ^ movement.goal.targetId) & 1) === 0 ? 1 : -1;
+                tangent = {
+                  x: -contact.outwardNormal.y * sign,
+                  y: contact.outwardNormal.x * sign,
+                };
+              }
+              targetHeading = Math.atan2(tangent.y, tangent.x);
+            }
             if (distanceToDoor <= Math.max(10, house.doorEnterRadius * 2)) {
               targetHeading = Math.atan2(door.normalInward.y, door.normalInward.x);
             }
@@ -123,13 +170,19 @@ export class SocialNavSteeringSystem implements System {
 
       const targetSpeed = targetSpeedForIntention(world, id);
       let adjustedTargetSpeed = targetSpeed;
-      if (movement.intention === 'seekShelter' && movement.goal?.type === 'point') {
+      if (
+        (movement.intention === 'seekShelter' || movement.intention === 'seekHome') &&
+        movement.goal?.type === 'point'
+      ) {
         const targetX = movement.goal.x;
         const targetY = movement.goal.y;
         if (targetX !== undefined && targetY !== undefined) {
           const distanceToTarget = Math.hypot(targetX - transform.position.x, targetY - transform.position.y);
           const arriveScale = clamp(distanceToTarget / 36, 0.08, 1);
           adjustedTargetSpeed *= arriveScale;
+        }
+        if (movement.goal.targetId !== undefined && targetHouseContact(world, id, movement.goal.targetId)) {
+          adjustedTargetSpeed = Math.min(adjustedTargetSpeed, movement.maxSpeed * 0.22);
         }
       }
       movement.smoothSpeed += (adjustedTargetSpeed - movement.smoothSpeed) * speedAlpha;

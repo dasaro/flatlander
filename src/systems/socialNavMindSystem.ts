@@ -1,7 +1,12 @@
 import { hashNoise } from '../core/behaviors/hashNoise';
 import type { EntityId, SocialIntention, SocialNavMovement } from '../core/components';
 import { isEntityOutside } from '../core/housing/dwelling';
-import { nearestHouseDoorTarget, shouldSeekShelter } from '../core/housing/shelterPolicy';
+import {
+  houseDoorTargetForHouse,
+  LOW_HP_HOME_RETURN_THRESHOLD,
+  nearestHouseDoorTarget,
+  shouldSeekShelter,
+} from '../core/housing/shelterPolicy';
 import { Rank } from '../core/rank';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
@@ -182,13 +187,17 @@ function cautionFactor(world: World, entityId: EntityId): number {
 function chooseIntention(
   movement: SocialNavMovement,
   desireAvoid: number,
+  desireHome: number,
   desireShelter: number,
   desireYield: number,
   desireMate: number,
   desireFeel: number,
 ): SocialIntention {
-  if (desireAvoid >= Math.max(desireShelter, desireYield, desireMate, desireFeel, 0.15)) {
+  if (desireAvoid >= Math.max(desireHome, desireShelter, desireYield, desireMate, desireFeel, 0.15)) {
     return 'avoid';
+  }
+  if (desireHome >= Math.max(desireShelter, desireYield, desireMate, desireFeel, 0.25)) {
+    return 'seekHome';
   }
   if (desireShelter >= Math.max(desireYield, desireMate, desireFeel, 0.2)) {
     return 'seekShelter';
@@ -219,6 +228,14 @@ function setGoalTarget(movement: SocialNavMovement, targetId: EntityId, point: V
     y: point.y,
     targetId,
   };
+}
+
+function trackHousingIntentionCounts(world: World, movement: SocialNavMovement): void {
+  if (movement.intention === 'seekShelter') {
+    world.seekShelterIntentCount += 1;
+  } else if (movement.intention === 'seekHome') {
+    world.seekHomeIntentCount += 1;
+  }
 }
 
 export class SocialNavMindSystem implements System {
@@ -262,6 +279,7 @@ export class SocialNavMindSystem implements System {
 
       if (!needDecision && !emergencyAvoid) {
         movement.intentionTicksLeft -= 1;
+        trackHousingIntentionCounts(world, movement);
         continue;
       }
 
@@ -269,8 +287,21 @@ export class SocialNavMindSystem implements System {
       const higher = higherRankFromPerception(world, id, seenId);
       const mate = mateFromPerception(world, id, seenId);
       const unknown = unknownFromPerception(world, id, seenId);
+      const bond = world.bonds.get(id);
+      const homeDoorTarget =
+        bond?.homeHouseId !== null &&
+        bond?.homeHouseId !== undefined &&
+        world.houses.has(bond.homeHouseId)
+          ? houseDoorTargetForHouse(world, id, bond.homeHouseId, transform.position)
+          : null;
       const shelterTarget = nearestHouseDoorTarget(world, id, transform.position);
       const shelterWanted = shelterTarget !== null && shouldSeekShelter(world, id);
+      const durability = world.durability.get(id);
+      const hpRatio = durability && durability.maxHp > 0 ? durability.hp / durability.maxHp : 1;
+      const periodicHomeReturn = (world.tick + id) % 600 === 0;
+      const homeWanted =
+        homeDoorTarget !== null &&
+        (world.weather.isRaining || hpRatio <= LOW_HP_HOME_RETURN_THRESHOLD || periodicHomeReturn);
       const caution = cautionFactor(world, id);
 
       const hazardRadius = Math.max(8, movement.maxSpeed * 2.2);
@@ -280,6 +311,10 @@ export class SocialNavMindSystem implements System {
           : Math.max(0, (hazardRadius - hazardDistance) / hazardRadius) * (0.4 + caution * 0.6);
       const desireYield =
         higher === null ? 0 : Math.max(0, (140 - higher.distance) / 140) * (0.25 + caution * 0.8);
+      const desireHome =
+        !homeWanted || homeDoorTarget === null
+          ? 0
+          : Math.max(0.22, Math.max(0, (240 - homeDoorTarget.distance) / 240));
       const desireShelter =
         !shelterWanted || shelterTarget === null
           ? 0
@@ -300,6 +335,7 @@ export class SocialNavMindSystem implements System {
       movement.intention = chooseIntention(
         movement,
         desireAvoid,
+        desireHome,
         desireShelter,
         desireYield,
         desireMate,
@@ -331,6 +367,14 @@ export class SocialNavMindSystem implements System {
           x: shelterTarget.midpoint.x,
           y: shelterTarget.midpoint.y,
           doorSide: shelterTarget.side,
+        };
+      } else if (movement.intention === 'seekHome' && homeDoorTarget) {
+        movement.goal = {
+          type: 'point',
+          targetId: homeDoorTarget.houseId,
+          x: homeDoorTarget.midpoint.x,
+          y: homeDoorTarget.midpoint.y,
+          doorSide: homeDoorTarget.side,
         };
       } else if (movement.intention === 'approachForFeeling' && unknown) {
         const unknownTransform = world.transforms.get(unknown.id);
@@ -368,6 +412,7 @@ export class SocialNavMindSystem implements System {
       if (emergencyAvoid && movement.intention !== 'avoid') {
         movement.intention = 'avoid';
       }
+      trackHousingIntentionCounts(world, movement);
     }
   }
 }

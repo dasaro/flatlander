@@ -156,15 +156,16 @@ let worldTopology: WorldTopology = topologyInput.value === 'bounded' ? 'bounded'
 const initialBoundary = boundaryFromTopology(worldTopology);
 let spawnPlan: SpawnRequest[] = applyBoundaryToSpawnPlan(defaultSpawnPlan(), initialBoundary);
 let environmentSettings: EnvironmentSettings = {
-  housesEnabled: false,
+  housesEnabled: true,
   houseCount: 8,
   townPopulation: 5000,
   allowTriangularForts: false,
   allowSquareHouses: false,
   houseSize: 30,
-  rainEnabled: false,
+  rainEnabled: true,
   showDoors: true,
   showOccupancy: false,
+  showHousingDebug: false,
 };
 let peaceCrySettings: PeaceCrySettings = {
   enabled: true,
@@ -175,7 +176,7 @@ let reproductionSettings: ReproductionSettings = {
   enabled: true,
   gestationTicks: 220,
   matingRadius: 52,
-  conceptionChancePerTick: 0.0027,
+  conceptionChancePerTick: 0.0038,
   femaleBirthProbability: 0.54,
   maxPopulation: 500,
   irregularBirthsEnabled: true,
@@ -681,6 +682,7 @@ function frame(now: number): void {
     flatlanderHoverEntityId,
     showHouseDoors: environmentSettings.showDoors,
     showHouseOccupancy: environmentSettings.showOccupancy,
+    showHousingDebug: environmentSettings.showHousingDebug,
   });
   populationHistogram.render();
   renderEventTimeline();
@@ -749,6 +751,7 @@ function renderSelection(): void {
   const legacy = world.legacy.get(selectedId) ?? null;
   const durability = world.durability.get(selectedId) ?? null;
   const stillness = world.stillness.get(selectedId) ?? null;
+  const selectedName = world.names.get(selectedId)?.displayName ?? null;
   const ancestorEntries = getAncestors(world, selectedId, 4);
   const ancestorsLabel =
     ancestorEntries.length > 0
@@ -769,6 +772,7 @@ function renderSelection(): void {
 
   ui.renderSelected(
     selectedId,
+    selectedName,
     movement,
     shape,
     rank,
@@ -800,6 +804,7 @@ function renderSelection(): void {
 
 function renderNoSelectionInspector(): void {
   ui.renderSelected(
+    null,
     null,
     null,
     null,
@@ -873,7 +878,10 @@ function renderWorldHoverInfo(): void {
         : `${shape.sides}-gon`;
   }
 
-  const title = `#${entityId} · ${rankLabel}`;
+  const displayName = world.names.get(entityId)?.displayName;
+  const title = displayName
+    ? `${displayName} (#${entityId}) · ${rankLabel}`
+    : `#${entityId} · ${rankLabel}`;
   const lines = house
     ? [
         `${shapeLabel}`,

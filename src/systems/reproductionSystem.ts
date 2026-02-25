@@ -1,7 +1,9 @@
 import { spawnEntity, type SpawnMovementConfig, type SpawnShapeConfig } from '../core/factory';
 import { getLineagePathToRoot } from '../core/genealogy';
-import { rankKeyForEntity } from '../core/rankKey';
+import { houseCentroidWorld } from '../core/housing/houseFactory';
+import { hasHouseCapacity } from '../core/housing/shelterPolicy';
 import type { Rank } from '../core/rank';
+import { rankKeyForEntity } from '../core/rankKey';
 import {
   conceptionChanceForFather,
   determineChildSex,
@@ -20,6 +22,7 @@ const NEWBORN_SPEED = 10;
 const NEWBORN_TURN_RATE = 1.4;
 const BIRTH_OFFSET_MIN = 6;
 const BIRTH_OFFSET_MAX = 14;
+const HOME_REPRODUCTION_RADIUS_MULTIPLIER = 1.45;
 
 function isFemaleShape(shapeKind: 'segment' | 'circle' | 'polygon'): boolean {
   return shapeKind === 'segment';
@@ -112,14 +115,14 @@ function buildMaleRankShares(world: World, ids: number[]): Map<Rank, number> {
   return shares;
 }
 
-function nearestFatherId(
+function nearestUnbondedFatherId(
   world: World,
   motherId: number,
   motherPosition: Vec2,
   ids: number[],
   maleRankShares: Map<Rank, number>,
 ): number | null {
-  const radius = Math.max(0, world.config.matingRadius);
+  const radius = Math.max(0, world.config.matingRadius * 1.35);
   let bestId: number | null = null;
   let bestScore = Number.POSITIVE_INFINITY;
   const rarityBiasEnabled = world.config.rarityMarriageBiasEnabled;
@@ -127,6 +130,10 @@ function nearestFatherId(
 
   for (const candidateId of ids) {
     if (candidateId === motherId || world.staticObstacles.has(candidateId)) {
+      continue;
+    }
+    const candidateBond = world.bonds.get(candidateId);
+    if (candidateBond && candidateBond.spouseId !== null) {
       continue;
     }
 
@@ -159,6 +166,94 @@ function nearestFatherId(
   return bestId;
 }
 
+function assignSharedHomeIfMissing(world: World, motherId: number, fatherId: number): void {
+  const motherBond = world.bonds.get(motherId);
+  const fatherBond = world.bonds.get(fatherId);
+  if (!motherBond || !fatherBond) {
+    return;
+  }
+  if (motherBond.homeHouseId !== null || fatherBond.homeHouseId !== null) {
+    const shared = motherBond.homeHouseId ?? fatherBond.homeHouseId;
+    if (shared !== null) {
+      motherBond.homeHouseId = shared;
+      fatherBond.homeHouseId = shared;
+    }
+    return;
+  }
+  if (world.houses.size === 0) {
+    return;
+  }
+
+  const motherTransform = world.transforms.get(motherId);
+  const fatherTransform = world.transforms.get(fatherId);
+  if (!motherTransform || !fatherTransform) {
+    return;
+  }
+
+  const midpoint = {
+    x: (motherTransform.position.x + fatherTransform.position.x) * 0.5,
+    y: (motherTransform.position.y + fatherTransform.position.y) * 0.5,
+  };
+  const houseIds = [...world.houses.keys()].sort((a, b) => a - b);
+  let bestHouseId: number | null = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const houseId of houseIds) {
+    const house = world.houses.get(houseId);
+    const transform = world.transforms.get(houseId);
+    if (!house || !transform || !hasHouseCapacity(world, houseId, house)) {
+      continue;
+    }
+    const center = houseCentroidWorld(transform, house);
+    const d = distance(midpoint, center);
+    if (d < bestDistance || (d === bestDistance && (bestHouseId === null || houseId < bestHouseId))) {
+      bestDistance = d;
+      bestHouseId = houseId;
+    }
+  }
+  if (bestHouseId !== null) {
+    motherBond.homeHouseId = bestHouseId;
+    fatherBond.homeHouseId = bestHouseId;
+  }
+}
+
+function arrangeBondIfNeeded(
+  world: World,
+  motherId: number,
+  motherPosition: Vec2,
+  ids: number[],
+  maleRankShares: Map<Rank, number>,
+): number | null {
+  const motherBond = world.bonds.get(motherId);
+  if (!motherBond) {
+    return null;
+  }
+  if (motherBond.spouseId !== null) {
+    return motherBond.spouseId;
+  }
+  if (!world.config.rarityMarriageBiasEnabled) {
+    return null;
+  }
+
+  // Flatland Part I §3 / §12: priest-arranged pairings are modeled as a
+  // deterministic rarity-aware household matching pass.
+
+  const fatherId = nearestUnbondedFatherId(world, motherId, motherPosition, ids, maleRankShares);
+  if (fatherId === null) {
+    return null;
+  }
+  const fatherBond = world.bonds.get(fatherId);
+  if (!fatherBond || fatherBond.spouseId !== null) {
+    return null;
+  }
+
+  motherBond.spouseId = fatherId;
+  fatherBond.spouseId = motherId;
+  motherBond.bondedAtTick = world.tick;
+  fatherBond.bondedAtTick = world.tick;
+  assignSharedHomeIfMissing(world, motherId, fatherId);
+  return fatherId;
+}
+
 function incrementAges(world: World, ids: number[]): void {
   for (const id of ids) {
     const age = world.ages.get(id);
@@ -169,6 +264,93 @@ function incrementAges(world: World, ids: number[]): void {
 
     world.ages.set(id, { ticksAlive: 1 });
   }
+}
+
+function mutuallyBondedSpouse(world: World, motherId: number): number | null {
+  const motherBond = world.bonds.get(motherId);
+  if (!motherBond || motherBond.spouseId === null) {
+    return null;
+  }
+
+  const fatherId = motherBond.spouseId;
+  const fatherBond = world.bonds.get(fatherId);
+  if (!fatherBond || fatherBond.spouseId !== motherId) {
+    return null;
+  }
+
+  return fatherId;
+}
+
+function sharedHomeHouseId(world: World, motherId: number, fatherId: number): number | null {
+  const motherBond = world.bonds.get(motherId);
+  const fatherBond = world.bonds.get(fatherId);
+  if (!motherBond || !fatherBond) {
+    return null;
+  }
+  if (
+    motherBond.homeHouseId !== null &&
+    fatherBond.homeHouseId !== null &&
+    motherBond.homeHouseId === fatherBond.homeHouseId
+  ) {
+    return motherBond.homeHouseId;
+  }
+  if (motherBond.homeHouseId !== null && fatherBond.homeHouseId === null) {
+    return motherBond.homeHouseId;
+  }
+  if (fatherBond.homeHouseId !== null && motherBond.homeHouseId === null) {
+    return fatherBond.homeHouseId;
+  }
+  return motherBond.homeHouseId ?? fatherBond.homeHouseId ?? null;
+}
+
+function domesticContextSatisfied(
+  world: World,
+  motherId: number,
+  fatherId: number,
+  motherPosition: Vec2,
+): boolean {
+  const fatherTransform = world.transforms.get(fatherId);
+  if (!fatherTransform) {
+    return false;
+  }
+  const pairedDistance = distance(motherPosition, fatherTransform.position);
+  if (pairedDistance > Math.max(0, world.config.matingRadius)) {
+    return false;
+  }
+
+  const homeHouseId = sharedHomeHouseId(world, motherId, fatherId);
+  if (!world.config.housesEnabled || world.houses.size === 0) {
+    return true;
+  }
+  if (world.weather.isRaining) {
+    return true;
+  }
+  if (homeHouseId === null) {
+    return false;
+  }
+  const house = world.houses.get(homeHouseId);
+  const houseTransform = world.transforms.get(homeHouseId);
+  if (!house || !houseTransform) {
+    return false;
+  }
+
+  const motherDwelling = world.dwellings.get(motherId);
+  const fatherDwelling = world.dwellings.get(fatherId);
+  if (
+    motherDwelling?.state === 'inside' &&
+    fatherDwelling?.state === 'inside' &&
+    motherDwelling.houseId === homeHouseId &&
+    fatherDwelling.houseId === homeHouseId
+  ) {
+    return true;
+  }
+
+  const homeCenter = houseCentroidWorld(houseTransform, house);
+  const homeRadius = Math.max(12, world.config.houseSize * HOME_REPRODUCTION_RADIUS_MULTIPLIER);
+  return (
+    distance(motherPosition, homeCenter) <= homeRadius &&
+    distance(fatherTransform.position, homeCenter) <= homeRadius
+  );
 }
 
 export class ReproductionSystem implements System {
@@ -264,6 +446,7 @@ export class ReproductionSystem implements System {
         undefined,
         inheritedFemaleRank ? { femaleRank: inheritedFemaleRank } : undefined,
       );
+      world.birthsThisTick += 1;
       const childTransform = world.transforms.get(childId);
       if (childTransform) {
         world.events.push({
@@ -355,18 +538,25 @@ export class ReproductionSystem implements System {
         continue;
       }
 
-      if (world.tick - fertility.lastBirthTick < fertility.cooldownTicks) {
+      const effectiveCooldown = Math.max(
+        Math.max(0, Math.round(fertility.cooldownTicks)),
+        Math.max(0, Math.round(world.config.postpartumCooldownTicks)),
+      );
+      if (world.tick - fertility.lastBirthTick < effectiveCooldown) {
         continue;
       }
 
-      const fatherId = nearestFatherId(
-        world,
-        motherId,
-        motherTransform.position,
-        ids,
-        maleRankShares,
-      );
+      arrangeBondIfNeeded(world, motherId, motherTransform.position, ids, maleRankShares);
+      const fatherId = mutuallyBondedSpouse(world, motherId);
       if (fatherId === null) {
+        continue;
+      }
+      const fatherShape = world.shapes.get(fatherId);
+      if (!fatherShape || !isMaleShape(fatherShape.kind) || world.staticObstacles.has(fatherId)) {
+        continue;
+      }
+      assignSharedHomeIfMissing(world, motherId, fatherId);
+      if (!domesticContextSatisfied(world, motherId, fatherId, motherTransform.position)) {
         continue;
       }
 

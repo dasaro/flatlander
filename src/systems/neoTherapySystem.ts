@@ -1,4 +1,5 @@
 import { computeDefaultEyeComponent } from '../core/eyePose';
+import { retitleName } from '../core/names';
 import { defaultPerceptionForRank } from '../core/perceptionPresets';
 import { rankFromShape } from '../core/rank';
 import { rankKeyForEntity } from '../core/rankKey';
@@ -93,6 +94,10 @@ function promoteByCourtesy(world: World, entityId: number, target: 'NearCircle' 
     nearCircleThreshold: world.config.nearCircleThreshold,
   });
   world.ranks.set(entityId, nextRank);
+  const currentName = world.names.get(entityId);
+  if (currentName) {
+    world.names.set(entityId, retitleName(currentName, nextRank.rank, nextShape));
+  }
   world.perceptions.set(entityId, defaultPerceptionForRank(nextRank.rank));
   world.voices.set(entityId, defaultVoiceComponent(nextShape, nextRank.rank));
   world.eyes.set(entityId, computeDefaultEyeComponent(nextShape, world.config.defaultEyeFovDeg));

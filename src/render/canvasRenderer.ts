@@ -39,6 +39,7 @@ export interface RenderOptions {
   flatlanderHoverEntityId?: number | null;
   showHouseDoors?: boolean;
   showHouseOccupancy?: boolean;
+  showHousingDebug?: boolean;
 }
 
 export class CanvasRenderer {
@@ -276,6 +277,9 @@ export class CanvasRenderer {
 
     if (options.showHearingOverlay && selectedEntityId !== null) {
       this.drawSelectedHearingOverlay(world, selectedEntityId, camera, options.showTalkingOverlay ?? false);
+    }
+    if (options.showHousingDebug && selectedEntityId !== null) {
+      this.drawHousingDebugOverlay(world, selectedEntityId, camera);
     }
 
     options.effectsManager?.render(this.ctx, camera, selectedEntityId);
@@ -750,6 +754,35 @@ export class CanvasRenderer {
     this.ctx.arc(pointScreen.x, pointScreen.y, 4, 0, Math.PI * 2);
     this.ctx.fill();
     this.ctx.stroke();
+    this.ctx.restore();
+  }
+
+  private drawHousingDebugOverlay(world: World, selectedEntityId: number, camera: Camera): void {
+    const debug = world.houseApproachDebug.get(selectedEntityId);
+    if (!debug) {
+      return;
+    }
+
+    this.ctx.save();
+    this.ctx.strokeStyle = 'rgba(49, 92, 170, 0.75)';
+    this.ctx.fillStyle = 'rgba(49, 92, 170, 0.18)';
+    this.ctx.lineWidth = 1.2 / camera.zoom;
+    this.ctx.beginPath();
+    this.ctx.arc(debug.doorPoint.x, debug.doorPoint.y, Math.max(2, debug.enterRadius), 0, Math.PI * 2);
+    this.ctx.fill();
+    this.ctx.stroke();
+
+    this.ctx.strokeStyle = 'rgba(216, 138, 31, 0.85)';
+    this.ctx.lineWidth = 1.35 / camera.zoom;
+    this.ctx.beginPath();
+    this.ctx.moveTo(debug.contactPoint.x, debug.contactPoint.y);
+    this.ctx.lineTo(debug.doorPoint.x, debug.doorPoint.y);
+    this.ctx.stroke();
+
+    this.ctx.fillStyle = 'rgba(216, 138, 31, 0.9)';
+    this.ctx.beginPath();
+    this.ctx.arc(debug.contactPoint.x, debug.contactPoint.y, 2.1 / camera.zoom, 0, Math.PI * 2);
+    this.ctx.fill();
     this.ctx.restore();
   }
 }
