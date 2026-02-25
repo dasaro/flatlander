@@ -93,7 +93,7 @@ function majorCategories(world: World): Set<string> {
   return categories;
 }
 
-function runCycleProbe(seed: number): CycleSnapshot {
+async function runCycleProbe(seed: number): Promise<CycleSnapshot> {
   const world = createDefaultWorld(seed);
   const sim = new FixedTimestepSimulation(world, createSystems());
   const windowSamples = Math.max(1, Math.round(LAST_WINDOW_TICKS / SAMPLE_EVERY));
@@ -106,6 +106,12 @@ function runCycleProbe(seed: number): CycleSnapshot {
     if (tick % SAMPLE_EVERY === 0) {
       series.push(world.entities.size);
       categoryHistory.push(majorCategories(world));
+    }
+    // Keep worker heartbeat alive in long deterministic integration loops.
+    if (tick % 250 === 0) {
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      });
     }
   }
 
@@ -137,8 +143,8 @@ describe('demography cycles (multi-seed)', () => {
   for (const seed of TEST_SEEDS) {
     it(
       `seed ${seed} exhibits bounded cyclic dynamics with rank diversity`,
-      () => {
-        const cycle = runCycleProbe(seed);
+      async () => {
+        const cycle = await runCycleProbe(seed);
         expect(cycle.minPopulation, `seed ${seed} min population`).toBeGreaterThanOrEqual(20);
         expect(cycle.maxPopulation, `seed ${seed} max population`).toBeLessThanOrEqual(650);
         expect(cycle.diversity, `seed ${seed} rank diversity`).toBeGreaterThanOrEqual(4);
