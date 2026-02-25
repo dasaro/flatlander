@@ -224,6 +224,11 @@ export function spawnEntity(
     houseId: null,
     ticksInside: 0,
     cooldownTicks: 0,
+    transit: null,
+    ignoreHouseCollisionHouseId: null,
+    ignoreHouseCollisionTicks: 0,
+    reenterHouseId: null,
+    reenterCooldownTicks: 0,
   });
   world.feeling.set(id, feeling);
   world.knowledge.set(id, { known: new Map() });

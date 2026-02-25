@@ -20,3 +20,33 @@ export function sortedHouseOccupants(world: World, houseId: EntityId): EntityId[
   }
   return [...occupants].sort((a, b) => a - b);
 }
+
+export function shouldCollideEntities(world: World, aId: EntityId, bId: EntityId): boolean {
+  const aDwelling = world.dwellings.get(aId);
+  if (aDwelling && world.houses.has(bId)) {
+    const transitExitingHouse =
+      aDwelling.transit?.phase === 'exiting' &&
+      aDwelling.transit.houseId === bId &&
+      aDwelling.transit.ticksLeft > 0;
+    const temporaryIgnore =
+      aDwelling.ignoreHouseCollisionHouseId === bId && aDwelling.ignoreHouseCollisionTicks > 0;
+    if (transitExitingHouse || temporaryIgnore) {
+      return false;
+    }
+  }
+
+  const bDwelling = world.dwellings.get(bId);
+  if (bDwelling && world.houses.has(aId)) {
+    const transitExitingHouse =
+      bDwelling.transit?.phase === 'exiting' &&
+      bDwelling.transit.houseId === aId &&
+      bDwelling.transit.ticksLeft > 0;
+    const temporaryIgnore =
+      bDwelling.ignoreHouseCollisionHouseId === aId && bDwelling.ignoreHouseCollisionTicks > 0;
+    if (transitExitingHouse || temporaryIgnore) {
+      return false;
+    }
+  }
+
+  return true;
+}

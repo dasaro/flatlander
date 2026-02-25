@@ -193,7 +193,7 @@ function chooseIntention(
   desireMate: number,
   desireFeel: number,
 ): SocialIntention {
-  if (desireAvoid >= Math.max(desireHome, desireShelter, desireYield, desireMate, desireFeel, 0.15)) {
+  if (desireAvoid >= Math.max(desireHome, desireShelter, desireYield, desireMate, desireFeel, 0.62)) {
     return 'avoid';
   }
   if (desireHome >= Math.max(desireShelter, desireYield, desireMate, desireFeel, 0.25)) {
@@ -298,10 +298,14 @@ export class SocialNavMindSystem implements System {
       const shelterWanted = shelterTarget !== null && shouldSeekShelter(world, id);
       const durability = world.durability.get(id);
       const hpRatio = durability && durability.maxHp > 0 ? durability.hp / durability.maxHp : 1;
-      const periodicHomeReturn = (world.tick + id) % 600 === 0;
+      const periodicHomeReturn = world.tick % 720 < 90;
+      const spouseBonded = bond?.spouseId !== null && bond?.spouseId !== undefined;
       const homeWanted =
         homeDoorTarget !== null &&
-        (world.weather.isRaining || hpRatio <= LOW_HP_HOME_RETURN_THRESHOLD || periodicHomeReturn);
+        (world.weather.isRaining ||
+          hpRatio <= LOW_HP_HOME_RETURN_THRESHOLD ||
+          periodicHomeReturn ||
+          spouseBonded);
       const caution = cautionFactor(world, id);
 
       const hazardRadius = Math.max(8, movement.maxSpeed * 2.2);
@@ -314,11 +318,15 @@ export class SocialNavMindSystem implements System {
       const desireHome =
         !homeWanted || homeDoorTarget === null
           ? 0
-          : Math.max(0.22, Math.max(0, (240 - homeDoorTarget.distance) / 240));
+          : world.weather.isRaining
+            ? Math.max(0.65, Math.max(0, (240 - homeDoorTarget.distance) / 240))
+            : Math.max(0.28, Math.max(0, (240 - homeDoorTarget.distance) / 240));
       const desireShelter =
         !shelterWanted || shelterTarget === null
           ? 0
-          : Math.max(0.2, Math.max(0, (220 - shelterTarget.distance) / 220));
+          : world.weather.isRaining
+            ? Math.max(0.58, Math.max(0, (220 - shelterTarget.distance) / 220))
+            : Math.max(0.24, Math.max(0, (220 - shelterTarget.distance) / 220));
       const desireMate =
         mate === null
           ? 0

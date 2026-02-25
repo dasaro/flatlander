@@ -67,6 +67,9 @@ export class AvoidanceSteeringSystem implements System {
       if (!movement || world.staticObstacles.has(id)) {
         continue;
       }
+      if (world.dwellings.get(id)?.transit?.phase === 'exiting') {
+        continue;
+      }
       if (world.stillness.has(id)) {
         continue;
       }

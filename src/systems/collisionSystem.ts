@@ -1,5 +1,5 @@
 import { geometryFromComponents } from '../core/entityGeometry';
-import { isEntityOutside } from '../core/housing/dwelling';
+import { isEntityOutside, shouldCollideEntities } from '../core/housing/dwelling';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
 import { computeCollisionManifold, type SupportFeature } from '../geometry/collisionManifold';
@@ -173,6 +173,10 @@ export function rebuildCollisionState(world: World): void {
   const itemAabb = new Map(items.map((item) => [item.id, item.aabb]));
 
   for (const [a, b] of pairs) {
+    if (!shouldCollideEntities(world, a, b)) {
+      continue;
+    }
+
     const aShape = world.geometries.get(a);
     const bShape = world.geometries.get(b);
     const aAabb = itemAabb.get(a);

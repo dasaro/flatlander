@@ -27,9 +27,39 @@ function fatherOrder(world: World, fatherId: number): number {
 
 function maleBirthProbability(world: World, fatherId: number): number {
   const baseMale = clamp(1 - world.config.femaleBirthProbability, 0, 1);
+  if (baseMale <= 0) {
+    return 0;
+  }
+  if (baseMale >= 1) {
+    return 1;
+  }
+  let femaleCount = 0;
+  let maleCount = 0;
+  for (const entityId of world.entities) {
+    const shape = world.shapes.get(entityId);
+    if (!shape) {
+      continue;
+    }
+    if (shape.kind === 'segment') {
+      femaleCount += 1;
+    } else if (shape.kind === 'polygon' || shape.kind === 'circle') {
+      maleCount += 1;
+    }
+  }
+
+  let balanceMultiplier = 1;
+  if (femaleCount > 0 || maleCount > 0) {
+    const ratio = femaleCount / Math.max(1, maleCount);
+    if (ratio >= 1.2) {
+      balanceMultiplier = Math.min(2.6, 1 + (ratio - 1.2) * 0.55);
+    } else if (ratio <= 0.9) {
+      balanceMultiplier = Math.max(0.35, 1 - (0.9 - ratio) * 0.6);
+    }
+  }
+  const balancedMale = clamp(baseMale * balanceMultiplier, 0, 1);
   const order = fatherOrder(world, fatherId);
   if (order < 6) {
-    return baseMale;
+    return balancedMale;
   }
 
   const penaltyPerSide = Math.max(0, world.config.maleBirthHighRankPenaltyPerSide);
@@ -37,7 +67,7 @@ function maleBirthProbability(world: World, fatherId: number): number {
   const highOrderMultiplier = Math.max(1, world.config.highOrderMaleBirthPenaltyMultiplier);
   const extraSides = Math.max(0, order - highOrderThreshold + 1);
   const penalty = (order - 5) * penaltyPerSide + extraSides * penaltyPerSide * (highOrderMultiplier - 1);
-  return clamp(baseMale * Math.max(0.03, 1 - penalty), 0, 1);
+  return clamp(balancedMale * Math.max(0.03, 1 - penalty), 0, 1);
 }
 
 export function conceptionChanceForFather(world: World, fatherId: number): number {

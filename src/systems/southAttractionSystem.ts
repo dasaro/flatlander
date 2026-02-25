@@ -36,6 +36,9 @@ export class SouthAttractionSystem implements System {
       if (!isEntityOutside(world, id)) {
         continue;
       }
+      if (world.dwellings.get(id)?.transit?.phase === 'exiting') {
+        continue;
+      }
       if (world.stillness.has(id)) {
         continue;
       }

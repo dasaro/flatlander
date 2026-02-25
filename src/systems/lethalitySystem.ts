@@ -156,8 +156,11 @@ function evaluateDirectionalStab(
   const ticksToKill = Math.max(1, Math.round(world.config.pressureTicksToKill));
   const pressureSeverity =
     sharpnessPower * (pressureTicks / ticksToKill) * world.config.killSeverityThreshold;
+  const populationProtection =
+    world.entities.size <= 80 ? 1.8 : world.entities.size <= 120 ? 1.35 : 1;
+  const effectiveKillThreshold = world.config.killSeverityThreshold * populationProtection;
   const totalSeverity = impactSeverity + pressureSeverity;
-  if (totalSeverity >= world.config.killSeverityThreshold) {
+  if (totalSeverity >= effectiveKillThreshold) {
     registerKill(world, attackerId, victimId);
   }
 }

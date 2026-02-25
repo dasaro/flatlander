@@ -86,6 +86,23 @@ export class SocialNavSteeringSystem implements System {
       if (!movement || movement.type !== 'socialNav' || !transform || world.staticObstacles.has(id)) {
         continue;
       }
+      const transit = world.dwellings.get(id)?.transit;
+      if (transit?.phase === 'exiting' && transit.ticksLeft > 0) {
+        const direction = normalize(transit.dirWorld);
+        const heading = Math.atan2(direction.y, direction.x);
+        movement.heading = heading;
+        movement.smoothHeading = heading;
+        movement.speed = Math.max(movement.speed, 10);
+        movement.smoothSpeed = Math.max(movement.smoothSpeed, movement.speed);
+        movement.intention = 'seekHome';
+        movement.intentionTicksLeft = Math.max(movement.intentionTicksLeft, transit.ticksLeft);
+        movement.goal = {
+          type: 'direction',
+          heading,
+        };
+        transform.rotation = heading;
+        continue;
+      }
       const stillness = world.stillness.get(id);
       if (world.sleep.get(id)?.asleep) {
         continue;

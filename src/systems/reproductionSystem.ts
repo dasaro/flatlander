@@ -58,6 +58,13 @@ function birthPosition(world: World, motherPosition: Vec2): Vec2 {
   return { x, y };
 }
 
+function densityConceptionMultiplier(world: World): number {
+  const baselinePopulation = 140;
+  const population = Math.max(1, world.entities.size);
+  // Keep births responsive so long runs recover from troughs without runaway spikes.
+  return clamp(baselinePopulation / population, 0.5, 6);
+}
+
 function irregularBirthChance(world: World, motherId: number, fatherId: number): number {
   if (!world.config.irregularBirthsEnabled) {
     return 0;
@@ -314,8 +321,13 @@ function domesticContextSatisfied(
     return false;
   }
   const pairedDistance = distance(motherPosition, fatherTransform.position);
-  if (pairedDistance > Math.max(0, world.config.matingRadius)) {
+  const matingRadius = Math.max(0, world.config.matingRadius);
+  const lowPopulationRelaxation = world.entities.size <= 80 ? 1.8 : 1;
+  if (pairedDistance > matingRadius * lowPopulationRelaxation) {
     return false;
+  }
+  if (world.entities.size <= 80) {
+    return true;
   }
 
   const homeHouseId = sharedHomeHouseId(world, motherId, fatherId);
@@ -560,7 +572,9 @@ export class ReproductionSystem implements System {
         continue;
       }
 
-      if (world.rng.next() >= conceptionChanceForFather(world, fatherId)) {
+      const baseChance = conceptionChanceForFather(world, fatherId);
+      const effectiveChance = clamp(baseChance * densityConceptionMultiplier(world), 0, 1);
+      if (world.rng.next() >= effectiveChance) {
         continue;
       }
 

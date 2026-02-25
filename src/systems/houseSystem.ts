@@ -8,12 +8,17 @@ import { doorPoseWorld, houseCentroidWorld } from '../core/housing/houseFactory'
 import { requestStillness } from '../core/stillness';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
-import { clamp, wrap } from '../geometry/vector';
+import { clamp, normalize, wrap } from '../geometry/vector';
 import type { Vec2 } from '../geometry/vector';
 import type { System } from './system';
 
 const DOOR_ENTER_SPEED = 12;
 const DOOR_CONTACT_EPSILON = 8;
+const DOOR_EXIT_CLEARANCE = 8;
+const DOOR_EXIT_PUSH_SPEED = 16;
+const EXIT_TRANSIT_TICKS = 14;
+const IGNORE_HOUSE_COLLISION_TICKS = 16;
+const REENTER_COOLDOWN_TICKS = 120;
 const MIN_INDOOR_TICKS = 120;
 const COOLDOWN_TICKS_AFTER_EXIT = 160;
 const HOUSE_REPAIR_PER_TICK = 0.08;
@@ -45,6 +50,68 @@ function movementSpeed(world: World, entityId: EntityId): number {
   return Math.max(0, movement.speed);
 }
 
+function applyExitTransitMotion(world: World, entityId: EntityId, dirWorld: Vec2): void {
+  const movement = world.movements.get(entityId);
+  const transform = world.transforms.get(entityId);
+  if (!movement || !transform) {
+    return;
+  }
+
+  const direction = normalize(dirWorld);
+  const heading = Math.atan2(direction.y, direction.x);
+
+  if (movement.type === 'straightDrift') {
+    movement.vx = direction.x * DOOR_EXIT_PUSH_SPEED;
+    movement.vy = direction.y * DOOR_EXIT_PUSH_SPEED;
+  } else {
+    movement.heading = heading;
+    movement.speed = Math.max(movement.speed, DOOR_EXIT_PUSH_SPEED);
+    if (movement.type === 'socialNav') {
+      movement.smoothHeading = heading;
+      movement.smoothSpeed = Math.max(movement.smoothSpeed, DOOR_EXIT_PUSH_SPEED);
+      movement.intention = 'seekHome';
+      movement.intentionTicksLeft = Math.max(1, movement.intentionTicksLeft, EXIT_TRANSIT_TICKS);
+      movement.goal = {
+        type: 'direction',
+        heading,
+      };
+    }
+  }
+
+  transform.rotation = heading;
+}
+
+function tickDwellingOutdoorState(world: World, entityId: EntityId): void {
+  const dwelling = world.dwellings.get(entityId);
+  if (!dwelling) {
+    return;
+  }
+
+  if (dwelling.ignoreHouseCollisionTicks > 0) {
+    dwelling.ignoreHouseCollisionTicks -= 1;
+    if (dwelling.ignoreHouseCollisionTicks <= 0) {
+      dwelling.ignoreHouseCollisionTicks = 0;
+      dwelling.ignoreHouseCollisionHouseId = null;
+    }
+  }
+
+  if (dwelling.reenterCooldownTicks > 0) {
+    dwelling.reenterCooldownTicks -= 1;
+    if (dwelling.reenterCooldownTicks <= 0) {
+      dwelling.reenterCooldownTicks = 0;
+      dwelling.reenterHouseId = null;
+    }
+  }
+
+  if (dwelling.transit?.phase === 'exiting' && dwelling.transit.ticksLeft > 0) {
+    applyExitTransitMotion(world, entityId, dwelling.transit.dirWorld);
+    dwelling.transit.ticksLeft -= 1;
+    if (dwelling.transit.ticksLeft <= 0) {
+      dwelling.transit = null;
+    }
+  }
+}
+
 function setDwellingOutside(world: World, personId: EntityId, cooldownTicks: number): void {
   const dwelling = world.dwellings.get(personId);
   if (!dwelling) {
@@ -60,6 +127,11 @@ function setDwellingOutside(world: World, personId: EntityId, cooldownTicks: num
   dwelling.houseId = null;
   dwelling.ticksInside = 0;
   dwelling.cooldownTicks = Math.max(0, Math.round(cooldownTicks));
+  dwelling.transit = null;
+  dwelling.ignoreHouseCollisionHouseId = null;
+  dwelling.ignoreHouseCollisionTicks = 0;
+  dwelling.reenterHouseId = null;
+  dwelling.reenterCooldownTicks = 0;
 }
 
 function enterHouse(world: World, personId: EntityId, houseId: EntityId, house: HouseComponent): void {
@@ -82,6 +154,9 @@ function enterHouse(world: World, personId: EntityId, houseId: EntityId, house: 
   dwelling.houseId = houseId;
   dwelling.ticksInside = 0;
   dwelling.cooldownTicks = 0;
+  dwelling.transit = null;
+  dwelling.ignoreHouseCollisionHouseId = null;
+  dwelling.ignoreHouseCollisionTicks = 0;
 
   const occupants = world.houseOccupants.get(houseId) ?? new Set<EntityId>();
   occupants.add(personId);
@@ -107,14 +182,14 @@ function exitHouse(
 
   const door = side === 'east' ? house.doorEast : house.doorWest;
   const doorWorld = doorPoseWorld(houseTransform, door);
-  const offset = Math.max(
-    2,
-    house.doorEnterRadius * door.sizeFactor + Math.max(2, shape.boundingRadius * 0.5),
-  );
-  const outward = {
+  const outward = normalize({
     x: -doorWorld.normalInward.x,
     y: -doorWorld.normalInward.y,
-  };
+  });
+  const offset = Math.max(
+    2,
+    house.doorEnterRadius * door.sizeFactor + Math.max(2, shape.boundingRadius) + DOOR_EXIT_CLEARANCE,
+  );
   let x = doorWorld.midpoint.x + outward.x * offset;
   let y = doorWorld.midpoint.y + outward.y * offset;
 
@@ -129,6 +204,19 @@ function exitHouse(
   personTransform.position = { x, y };
   personTransform.rotation = Math.atan2(outward.y, outward.x);
   setDwellingOutside(world, personId, COOLDOWN_TICKS_AFTER_EXIT);
+  if (dwelling) {
+    dwelling.transit = {
+      phase: 'exiting',
+      houseId,
+      ticksLeft: EXIT_TRANSIT_TICKS,
+      dirWorld: outward,
+    };
+    dwelling.ignoreHouseCollisionHouseId = houseId;
+    dwelling.ignoreHouseCollisionTicks = IGNORE_HOUSE_COLLISION_TICKS;
+    dwelling.reenterHouseId = houseId;
+    dwelling.reenterCooldownTicks = REENTER_COOLDOWN_TICKS;
+  }
+  applyExitTransitMotion(world, personId, outward);
 }
 
 function shouldExitHouse(world: World, personId: EntityId, ticksInside: number): boolean {
@@ -200,9 +288,16 @@ function abortHouseApproach(world: World, personId: EntityId): void {
 }
 
 function shouldAttemptEntry(world: World, personId: EntityId, houseId: EntityId): boolean {
-  void world;
-  void personId;
-  void houseId;
+  const dwelling = world.dwellings.get(personId);
+  if (!dwelling) {
+    return false;
+  }
+  if (dwelling.transit !== null) {
+    return false;
+  }
+  if (dwelling.reenterHouseId === houseId && dwelling.reenterCooldownTicks > 0) {
+    return false;
+  }
   // Flatland Part I §2: doors are canonical portals; reaching the correct
   // doorway at controlled speed is sufficient for entry.
   return true;
@@ -283,6 +378,11 @@ export class HouseSystem implements System {
             houseId: null,
             ticksInside: 0,
             cooldownTicks: 0,
+            transit: null,
+            ignoreHouseCollisionHouseId: null,
+            ignoreHouseCollisionTicks: 0,
+            reenterHouseId: null,
+            reenterCooldownTicks: 0,
           };
           world.dwellings.set(id, created);
           return created;
@@ -311,6 +411,7 @@ export class HouseSystem implements System {
         continue;
       }
 
+      tickDwellingOutdoorState(world, id);
       if (dwelling.cooldownTicks > 0) {
         dwelling.cooldownTicks -= 1;
       }
@@ -339,12 +440,19 @@ export class HouseSystem implements System {
       if (!dwelling || dwelling.cooldownTicks > 0) {
         continue;
       }
+      if (dwelling.transit !== null) {
+        continue;
+      }
+      if (dwelling.reenterHouseId === contact.houseId && dwelling.reenterCooldownTicks > 0) {
+        continue;
+      }
       if (!hasHouseCapacity(world, contact.houseId, contact.house)) {
         continue;
       }
       const intent = socialNavShelterIntent(world, contact.personId, contact.houseId);
       if (!shouldAttemptEntry(world, contact.personId, contact.houseId)) {
         world.houseApproachDebug.delete(contact.personId);
+        world.houseContactStreaks.delete(contact.personId);
         continue;
       }
       if (intent) {
@@ -361,26 +469,30 @@ export class HouseSystem implements System {
         }
       }
 
-      const previousStreak = world.houseContactStreaks.get(contact.personId);
-      const streakTicks =
-        previousStreak && previousStreak.houseId === contact.houseId
-          ? previousStreak.ticks + 1
-          : 1;
-      world.houseContactStreaks.set(contact.personId, {
-        houseId: contact.houseId,
-        ticks: streakTicks,
-      });
-      if (streakTicks > STUCK_ALERT_TICKS) {
-        world.stuckNearHouseCount += 1;
-      }
-      if (streakTicks > STUCK_ABORT_TICKS && intent) {
-        abortHouseApproach(world, contact.personId);
-        const dw = world.dwellings.get(contact.personId);
-        if (dw) {
-          dw.cooldownTicks = Math.max(dw.cooldownTicks, 90);
+      if (intent) {
+        const previousStreak = world.houseContactStreaks.get(contact.personId);
+        const streakTicks =
+          previousStreak && previousStreak.houseId === contact.houseId
+            ? previousStreak.ticks + 1
+            : 1;
+        world.houseContactStreaks.set(contact.personId, {
+          houseId: contact.houseId,
+          ticks: streakTicks,
+        });
+        if (streakTicks > STUCK_ALERT_TICKS) {
+          world.stuckNearHouseCount += 1;
         }
-        world.houseApproachDebug.delete(contact.personId);
-        continue;
+        if (streakTicks > STUCK_ABORT_TICKS) {
+          abortHouseApproach(world, contact.personId);
+          const dw = world.dwellings.get(contact.personId);
+          if (dw) {
+            dw.cooldownTicks = Math.max(dw.cooldownTicks, 90);
+          }
+          world.houseApproachDebug.delete(contact.personId);
+          continue;
+        }
+      } else {
+        world.houseContactStreaks.delete(contact.personId);
       }
       if (movementSpeed(world, contact.personId) > DOOR_ENTER_SPEED) {
         continue;

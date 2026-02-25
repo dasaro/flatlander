@@ -2,6 +2,30 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.1] - 2026-02-25
+
+### Fixed
+- House exit collision trap:
+  - added deterministic door-transit state on exit,
+  - temporary pair-specific collision ignore against the exited house only,
+  - short outward push phase so entities clear the wall before normal steering resumes.
+- Exit transit now properly suppresses conflicting steering/force paths:
+  - movement applies transit direction override,
+  - avoidance and social steering do not flip entities back into the door during transit,
+  - south-attraction skips exit-transit entities.
+
+### Added
+- New deterministic regression coverage for post-exit clearance (`tests/housingExitClearance.test.ts`).
+- Multi-seed demography cycle integration suite (`tests/demographyCycles.test.ts`) including seed `42`, plus reusable metrics helpers.
+- Mobile off-canvas drawer menu architecture (`src/ui/mobileMenuState.ts`) with backdrop and Escape-close behavior.
+- Mobile drawer behavior test (`tests/mobileMenu.test.ts`).
+- Audit document for this patch: `AUDIT_HOUSING_DEMOGRAPHY_UX.md`.
+
+### Changed
+- Shared default world scenario extracted to `src/presets/defaultScenario.ts` and reused across app/test paths.
+- Stability harness seed set now uses a fixed deterministic list including `42` and reports cycle/extrema metrics.
+- Reproduction male-birth policy now respects strict configuration endpoints (`femaleBirthProbability = 0/1`) deterministically.
+
 ## [0.9.0] - 2026-02-25
 
 ### Added

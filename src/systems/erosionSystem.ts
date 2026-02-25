@@ -131,6 +131,8 @@ export class ErosionSystem implements System {
     const wearRate = Math.max(0, world.config.wearRate);
     const stabScale = Math.max(0, world.config.stabHpDamageScale);
     const sharpnessExponent = Math.max(0.1, world.config.stabSharpnessExponent);
+    const lowPopulationProtection =
+      world.entities.size <= 80 ? 0.35 : world.entities.size <= 120 ? 0.6 : 1;
 
     for (const manifold of world.manifolds) {
       const { aId, bId, normal } = manifold;
@@ -159,7 +161,7 @@ export class ErosionSystem implements System {
         manifold.featureB.kind === 'vertex' ||
         manifold.featureB.kind === 'endpoint';
       const contactFactor = vertexContact ? 1.25 : 0.65;
-      const wearDelta = wearRate * tangentialSpeed * dt * contactFactor;
+      const wearDelta = wearRate * tangentialSpeed * dt * contactFactor * lowPopulationProtection;
       applyWear(world, aId, wearDelta);
       applyWear(world, bId, wearDelta);
 
@@ -173,8 +175,8 @@ export class ErosionSystem implements System {
       const sharpnessB = sharpnessFromFeature(shapeB, manifold.featureB);
       const severityA = sharpnessA ** sharpnessExponent * manifold.closingSpeed;
       const severityB = sharpnessB ** sharpnessExponent * manifold.closingSpeed;
-      const damageA = stabScale * severityB * 0.11;
-      const damageB = stabScale * severityA * 0.11;
+      const damageA = stabScale * severityB * 0.11 * lowPopulationProtection;
+      const damageB = stabScale * severityA * 0.11 * lowPopulationProtection;
       applyDirectDamage(world, aId, damageA);
       applyDirectDamage(world, bId, damageB);
     }

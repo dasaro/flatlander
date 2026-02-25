@@ -148,6 +148,16 @@ export interface DwellingComponent {
   houseId: EntityId | null;
   ticksInside: number;
   cooldownTicks: number;
+  transit: {
+    phase: 'exiting' | 'entering';
+    houseId: EntityId;
+    ticksLeft: number;
+    dirWorld: Vec2;
+  } | null;
+  ignoreHouseCollisionHouseId: EntityId | null;
+  ignoreHouseCollisionTicks: number;
+  reenterHouseId: EntityId | null;
+  reenterCooldownTicks: number;
 }
 
 export interface BondComponent {

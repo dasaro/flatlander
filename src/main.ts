@@ -13,6 +13,7 @@ import { FixedTimestepSimulation } from './core/simulation';
 import { boundaryFromTopology, type WorldTopology } from './core/topology';
 import { createWorld, type WorldConfig } from './core/world';
 import { spawnHouses } from './core/worldgen/houses';
+import { applySpawnPlan as applyScenarioSpawnPlan, defaultSpawnPlan } from './presets/defaultScenario';
 import type { Vec2 } from './geometry/vector';
 import { Camera } from './render/camera';
 import { CanvasRenderer } from './render/canvasRenderer';
@@ -68,6 +69,7 @@ import {
   type SouthAttractionSettings,
   UIController,
 } from './ui/uiController';
+import { MobileMenuState } from './ui/mobileMenuState';
 import { EventDrainPipeline } from './ui/eventDrainPipeline';
 import { APP_VERSION } from './version';
 
@@ -116,7 +118,8 @@ if (!(topologyInput instanceof HTMLSelectElement)) {
 const versionBadge = document.getElementById('app-version-badge');
 const quickRunBtn = document.getElementById('quick-run-btn');
 const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
-const appShell = document.getElementById('app-shell');
+const sidebar = document.getElementById('sidebar');
+const mobileMenuBackdrop = document.getElementById('mobile-menu-backdrop');
 const primaryRunBtn = document.getElementById('run-btn');
 
 const systems = [
@@ -154,7 +157,7 @@ const systems = [
 
 let worldTopology: WorldTopology = topologyInput.value === 'bounded' ? 'bounded' : 'torus';
 const initialBoundary = boundaryFromTopology(worldTopology);
-let spawnPlan: SpawnRequest[] = applyBoundaryToSpawnPlan(defaultSpawnPlan(), initialBoundary);
+let spawnPlan: SpawnRequest[] = defaultSpawnPlan(initialBoundary);
 let environmentSettings: EnvironmentSettings = {
   housesEnabled: true,
   houseCount: 8,
@@ -300,8 +303,12 @@ document.title = `Flatlander ${APP_VERSION}`;
 if (versionBadge instanceof HTMLElement) {
   versionBadge.textContent = `v${APP_VERSION}`;
 }
-if (appShell instanceof HTMLElement && sidebarToggleBtn instanceof HTMLButtonElement) {
-  initializeResponsiveUi(appShell, sidebarToggleBtn);
+if (
+  sidebarToggleBtn instanceof HTMLButtonElement &&
+  sidebar instanceof HTMLElement &&
+  mobileMenuBackdrop instanceof HTMLElement
+) {
+  initializeMobileMenu(sidebarToggleBtn, sidebar, mobileMenuBackdrop);
 }
 if (quickRunBtn instanceof HTMLButtonElement && primaryRunBtn instanceof HTMLButtonElement) {
   syncQuickRunButton(quickRunBtn, primaryRunBtn);
@@ -1187,15 +1194,9 @@ function rankLabelForEntity(entityId: number): string {
   return rank.rank;
 }
 
-function applySpawnPlan(targetWorld: typeof world, plan: SpawnRequest[]): void {
-  for (const request of plan) {
-    spawnFromRequest(targetWorld, request);
-  }
-}
-
 function populateWorld(targetWorld: typeof world, plan: SpawnRequest[]): void {
   spawnHouses(targetWorld, targetWorld.rng, targetWorld.config);
-  applySpawnPlan(targetWorld, plan);
+  applyScenarioSpawnPlan(targetWorld, plan);
 }
 
 function mergeMovement(
@@ -1259,197 +1260,6 @@ function mergeMovement(
     target: update.target,
     heading: inheritedHeading,
   };
-}
-
-function defaultSpawnPlan(): SpawnRequest[] {
-  return [
-    {
-      shape: {
-        kind: 'segment',
-        size: 22,
-      },
-      movement: {
-        type: 'socialNav',
-        maxSpeed: 14,
-        maxTurnRate: 1.45,
-        decisionEveryTicks: 20,
-        intentionMinTicks: 95,
-        boundary: 'wrap',
-      },
-      count: 28,
-    },
-    {
-      shape: {
-        kind: 'polygon',
-        sides: 3,
-        size: 16,
-        irregular: false,
-        triangleKind: 'Equilateral',
-      },
-      movement: {
-        type: 'socialNav',
-        maxSpeed: 14,
-        maxTurnRate: 1.15,
-        decisionEveryTicks: 18,
-        intentionMinTicks: 88,
-        boundary: 'wrap',
-      },
-      count: 16,
-    },
-    {
-      shape: {
-        kind: 'polygon',
-        sides: 3,
-        size: 17,
-        irregular: false,
-        triangleKind: 'Isosceles',
-        isoscelesBaseRatio: 0.08,
-      },
-      movement: {
-        type: 'socialNav',
-        maxSpeed: 16,
-        maxTurnRate: 1.3,
-        decisionEveryTicks: 14,
-        intentionMinTicks: 72,
-        boundary: 'wrap',
-      },
-      count: 13,
-    },
-    {
-      shape: {
-        kind: 'polygon',
-        sides: 4,
-        size: 18,
-        irregular: false,
-      },
-      movement: {
-        type: 'socialNav',
-        maxSpeed: 13,
-        maxTurnRate: 1,
-        decisionEveryTicks: 20,
-        intentionMinTicks: 96,
-        boundary: 'wrap',
-      },
-      count: 4,
-    },
-    {
-      shape: {
-        kind: 'polygon',
-        sides: 4,
-        size: 18,
-        irregular: true,
-      },
-      movement: {
-        type: 'socialNav',
-        maxSpeed: 13,
-        maxTurnRate: 1.1,
-        decisionEveryTicks: 18,
-        intentionMinTicks: 82,
-        boundary: 'wrap',
-      },
-      count: 6,
-    },
-    {
-      shape: {
-        kind: 'polygon',
-        sides: 5,
-        size: 19,
-        irregular: false,
-      },
-      movement: {
-        type: 'socialNav',
-        maxSpeed: 13,
-        maxTurnRate: 1,
-        decisionEveryTicks: 20,
-        intentionMinTicks: 96,
-        boundary: 'wrap',
-      },
-      count: 4,
-    },
-    {
-      shape: {
-        kind: 'polygon',
-        sides: 5,
-        size: 19,
-        irregular: true,
-      },
-      movement: {
-        type: 'socialNav',
-        maxSpeed: 14,
-        maxTurnRate: 1.15,
-        decisionEveryTicks: 17,
-        intentionMinTicks: 80,
-        boundary: 'wrap',
-      },
-      count: 5,
-    },
-    {
-      shape: {
-        kind: 'polygon',
-        sides: 6,
-        size: 19,
-        irregular: false,
-      },
-      movement: {
-        type: 'socialNav',
-        maxSpeed: 11,
-        maxTurnRate: 0.82,
-        decisionEveryTicks: 22,
-        intentionMinTicks: 105,
-        boundary: 'wrap',
-      },
-      count: 4,
-    },
-    {
-      shape: {
-        kind: 'polygon',
-        sides: 7,
-        size: 20,
-        irregular: true,
-      },
-      movement: {
-        type: 'socialNav',
-        maxSpeed: 15,
-        maxTurnRate: 1.2,
-        decisionEveryTicks: 16,
-        intentionMinTicks: 75,
-        boundary: 'wrap',
-      },
-      count: 8,
-    },
-    {
-      shape: {
-        kind: 'polygon',
-        sides: 15,
-        size: 20,
-        irregular: false,
-      },
-      movement: {
-        type: 'socialNav',
-        maxSpeed: 8,
-        maxTurnRate: 0.7,
-        decisionEveryTicks: 24,
-        intentionMinTicks: 122,
-        boundary: 'wrap',
-      },
-      count: 1,
-    },
-    {
-      shape: {
-        kind: 'circle',
-        size: 14,
-      },
-      movement: {
-        type: 'socialNav',
-        maxSpeed: 7,
-        maxTurnRate: 0.62,
-        decisionEveryTicks: 25,
-        intentionMinTicks: 128,
-        boundary: 'wrap',
-      },
-      count: 1,
-    },
-  ];
 }
 
 function settingsToWorldConfig(
@@ -1851,17 +1661,13 @@ function syncDynamicRankFilters(): void {
   }
 }
 
-function initializeResponsiveUi(shell: HTMLElement, toggleButton: HTMLButtonElement): void {
-  const collapsedClass = 'sidebar-collapsed';
-  if (window.matchMedia('(max-width: 900px)').matches) {
-    shell.classList.add(collapsedClass);
-  }
-  toggleButton.setAttribute('aria-expanded', shell.classList.contains(collapsedClass) ? 'false' : 'true');
-
-  toggleButton.addEventListener('click', () => {
-    shell.classList.toggle(collapsedClass);
-    toggleButton.setAttribute('aria-expanded', shell.classList.contains(collapsedClass) ? 'false' : 'true');
-  });
+function initializeMobileMenu(
+  toggleButton: HTMLButtonElement,
+  sidebarNode: HTMLElement,
+  backdrop: HTMLElement,
+): void {
+  const menu = new MobileMenuState(toggleButton, sidebarNode, backdrop);
+  menu.bind();
 }
 
 function syncQuickRunButton(quickButton: HTMLButtonElement, primaryButton: HTMLButtonElement): void {

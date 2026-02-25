@@ -6,6 +6,7 @@ import { Rank, RankTag } from '../core/rank';
 import { FixedTimestepSimulation } from '../core/simulation';
 import { createWorld } from '../core/world';
 import { spawnHouses } from '../core/worldgen/houses';
+import { countPeaksAndTroughs, movingAverage } from './demographyMetrics';
 import { AvoidanceSteeringSystem } from '../systems/avoidanceSteeringSystem';
 import { CleanupSystem } from '../systems/cleanupSystem';
 import { CollisionResolutionSystem } from '../systems/collisionResolutionSystem';
@@ -34,7 +35,7 @@ import { StillnessControllerSystem } from '../systems/stillnessControllerSystem'
 import { SwaySystem } from '../systems/swaySystem';
 import { VisionSystem } from '../systems/visionSystem';
 
-const DEFAULT_SEEDS = [11, 23, 37, 53];
+const DEFAULT_SEEDS = [42, 7, 13, 101, 314, 1337, 2026, 9001];
 const DEFAULT_TICKS = 20_000;
 const SAMPLE_EVERY_TICKS = 200;
 const WINDOW_TICKS = 40_000;
@@ -76,6 +77,9 @@ interface DemographySample {
 
 interface SeedMetrics {
   amplitude: number;
+  peaks: number;
+  troughs: number;
+  alternatingTransitions: number;
   avgShannon: number;
   ranksPresentInWindow: number;
   nearCircleOrPriestSeen: boolean;
@@ -95,6 +99,9 @@ interface SeedReport {
 
 interface AcceptanceThresholds {
   minAmplitude: number;
+  minPeaks: number;
+  minTroughs: number;
+  minAlternatingTransitions: number;
   minShannon: number;
   minRanksPresent: number;
   minPopulation: number;
@@ -106,6 +113,9 @@ function acceptanceForTicks(ticks: number): AcceptanceThresholds {
   if (ticks >= LONG_HORIZON_TICKS) {
     return {
       minAmplitude: 0.12,
+      minPeaks: 2,
+      minTroughs: 2,
+      minAlternatingTransitions: 4,
       minShannon: 1.1,
       minRanksPresent: 5,
       minPopulation: 20,
@@ -115,6 +125,9 @@ function acceptanceForTicks(ticks: number): AcceptanceThresholds {
   }
   return {
     minAmplitude: 0.08,
+    minPeaks: 1,
+    minTroughs: 1,
+    minAlternatingTransitions: 2,
     minShannon: 0.95,
     minRanksPresent: 4,
     minPopulation: 20,
@@ -359,6 +372,9 @@ function computeMetrics(samples: DemographySample[]): SeedMetrics {
   if (samples.length === 0) {
     return {
       amplitude: 0,
+      peaks: 0,
+      troughs: 0,
+      alternatingTransitions: 0,
       avgShannon: 0,
       ranksPresentInWindow: 0,
       nearCircleOrPriestSeen: false,
@@ -378,6 +394,8 @@ function computeMetrics(samples: DemographySample[]): SeedMetrics {
   const minTotal = Math.min(...totals, 0);
   const meanTotal = totals.reduce((sum, value) => sum + value, 0) / Math.max(1, totals.length);
   const amplitude = meanTotal > 0 ? (maxTotal - minTotal) / meanTotal : 0;
+  const smoothedTotals = movingAverage(totals, 9);
+  const extrema = countPeaksAndTroughs(smoothedTotals);
   const avgShannon =
     windowSamples.reduce((sum, sample) => sum + sample.shannon, 0) / Math.max(1, windowSamples.length);
 
@@ -423,6 +441,9 @@ function computeMetrics(samples: DemographySample[]): SeedMetrics {
 
   return {
     amplitude,
+    peaks: extrema.peaks,
+    troughs: extrema.troughs,
+    alternatingTransitions: extrema.alternatingTransitions,
     avgShannon,
     ranksPresentInWindow: ranksPresent.size,
     nearCircleOrPriestSeen,
@@ -655,7 +676,7 @@ for (const row of reports) {
     )} gentlemen=${pct(d.gentlemen, d.total)} nobles=${pct(d.nobles, d.total)} near+priests=${pct(
       d.nearCircle + d.priests,
       d.total
-    )} irregular=${pct(d.irregular, d.total)} amp=${row.metrics.amplitude.toFixed(3)} H=${row.metrics.avgShannon.toFixed(
+    )} irregular=${pct(d.irregular, d.total)} amp=${row.metrics.amplitude.toFixed(3)} peaks=${row.metrics.peaks} troughs=${row.metrics.troughs} alt=${row.metrics.alternatingTransitions} H=${row.metrics.avgShannon.toFixed(
       3,
     )} ranks=${row.metrics.ranksPresentInWindow} rareSeen=${row.metrics.nearCircleOrPriestSeen ? 'yes' : 'no'} occupied10k=${
       row.metrics.occupiedWithinFirst10k ? 'yes' : 'no'
@@ -726,6 +747,23 @@ if (avgAmplitude < acceptance.minAmplitude) {
   failedChecks.push(
     `oscillation amplitude too low (${avgAmplitude.toFixed(3)} < ${acceptance.minAmplitude.toFixed(3)})`,
   );
+}
+for (const row of reports) {
+  if (row.metrics.peaks < acceptance.minPeaks) {
+    failedChecks.push(
+      `seed ${row.seed}: insufficient peaks (${row.metrics.peaks} < ${acceptance.minPeaks})`,
+    );
+  }
+  if (row.metrics.troughs < acceptance.minTroughs) {
+    failedChecks.push(
+      `seed ${row.seed}: insufficient troughs (${row.metrics.troughs} < ${acceptance.minTroughs})`,
+    );
+  }
+  if (row.metrics.alternatingTransitions < acceptance.minAlternatingTransitions) {
+    failedChecks.push(
+      `seed ${row.seed}: insufficient peak/trough alternation (${row.metrics.alternatingTransitions} < ${acceptance.minAlternatingTransitions})`,
+    );
+  }
 }
 if (avgShannon < acceptance.minShannon) {
   failedChecks.push(`rank diversity too low (${avgShannon.toFixed(3)} < ${acceptance.minShannon.toFixed(3)})`);
