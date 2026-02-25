@@ -1,4 +1,5 @@
 import { getEyeWorldPosition, getForwardUnitVector } from '../core/eye';
+import { visionHitClearance } from '../core/perception/bodyAwareness';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
 import { cross, normalize, sub } from '../geometry/vector';
@@ -106,24 +107,16 @@ export class AvoidanceSteeringSystem implements System {
       let usedSight = false;
 
       const visionHit = world.visionHits.get(id);
-      const obstacleAvoidPadding =
-        visionHit && world.staticObstacles.has(visionHit.hitId)
-          ? Math.min(
-              36,
-              Math.max(6, (world.shapes.get(visionHit.hitId)?.boundingRadius ?? 0) * 0.5),
-            )
-          : 0;
-      const effectiveAvoidDistance = Math.max(
-        0,
-        (vision?.avoidDistance ?? 0) + obstacleAvoidPadding,
-      );
+      const effectiveAvoidDistance = Math.max(0, vision?.avoidDistance ?? 0);
+      const visionClearance =
+        visionHit && visionHit.distance !== null ? visionHitClearance(world, id, visionHit) : null;
       if (
         vision &&
         vision.enabled &&
         visionHit &&
         effectiveAvoidDistance > 0 &&
-        visionHit.distance !== null &&
-        visionHit.distance < effectiveAvoidDistance
+        visionClearance !== null &&
+        visionClearance < effectiveAvoidDistance
       ) {
         const toHit =
           visionHit.direction ??

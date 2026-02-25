@@ -76,7 +76,7 @@ describe('house visibility and obstacle avoidance', () => {
     }
 
     vision.enabled = true;
-    vision.avoidDistance = 6;
+    vision.avoidDistance = 1;
     vision.avoidTurnRate = 2.4;
     movement.heading = 0;
 
@@ -94,6 +94,47 @@ describe('house visibility and obstacle avoidance', () => {
     const avoidance = new AvoidanceSteeringSystem();
     avoidance.update(world, 1 / world.config.tickRate);
     expect(movement.heading).toBeLessThan(initialHeading);
+  });
+
+  it('social-nav can enter avoid intention from body-aware house clearance even when raw distance is still moderate', () => {
+    const world = createWorld(3104, {
+      southAttractionEnabled: false,
+      sightEnabled: true,
+    });
+    const observerId = spawnEntity(
+      world,
+      { kind: 'segment', size: 22 },
+      {
+        type: 'socialNav',
+        boundary: 'wrap',
+        maxSpeed: 12,
+        maxTurnRate: 1.2,
+        decisionEveryTicks: 4,
+        intentionMinTicks: 16,
+      },
+      { x: 220, y: 240 },
+    );
+    const movement = world.movements.get(observerId);
+    if (!movement || movement.type !== 'socialNav') {
+      throw new Error('Missing social-nav movement in body-aware hazard-intention test.');
+    }
+    movement.intentionTicksLeft = 0;
+
+    const houseId = addHouse(world, 258, 254, 64);
+    world.visionHits.set(observerId, {
+      hitId: houseId,
+      distance: 28,
+      distanceReliable: true,
+      intensity: 0.88,
+      direction: { x: 1, y: 0.2 },
+      kind: 'entity',
+    });
+
+    const mind = new SocialNavMindSystem();
+    mind.update(world);
+    const next = world.movements.get(observerId);
+    const intention = next && next.type === 'socialNav' ? next.intention : null;
+    expect(intention).toBe('avoid');
   });
 
   it('does not treat houses as social targets for mating/feeling intentions', () => {

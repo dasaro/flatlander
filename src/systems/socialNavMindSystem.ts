@@ -1,6 +1,7 @@
 import { hashNoise } from '../core/behaviors/hashNoise';
 import type { EntityId, SocialIntention, SocialNavMovement } from '../core/components';
 import { isEntityOutside } from '../core/housing/dwelling';
+import { visionHitClearance } from '../core/perception/bodyAwareness';
 import {
   houseDoorTargetForHouse,
   LOW_HP_HOME_RETURN_THRESHOLD,
@@ -273,7 +274,10 @@ export class SocialNavMindSystem implements System {
 
       const needDecision = movement.intentionTicksLeft <= 0;
       const visionHit = world.visionHits.get(id);
-      const sightHazardDistance = visionHit?.distance ?? Number.POSITIVE_INFINITY;
+      const sightHazardDistance =
+        visionHit === undefined
+          ? Number.POSITIVE_INFINITY
+          : (visionHitClearance(world, id, visionHit) ?? Number.POSITIVE_INFINITY);
       const contactDistance = world.collisions.some((pair) => pair.a === id || pair.b === id)
         ? 0
         : Number.POSITIVE_INFINITY;
