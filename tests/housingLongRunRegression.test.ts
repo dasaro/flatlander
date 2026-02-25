@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
 
 import { FixedTimestepSimulation } from '../src/core/simulation';
 import { createDefaultWorld } from '../src/presets/defaultScenario';
@@ -14,10 +14,11 @@ import { SouthAttractionSystem } from '../src/systems/southAttractionSystem';
 import { StillnessControllerSystem } from '../src/systems/stillnessControllerSystem';
 import { SwaySystem } from '../src/systems/swaySystem';
 import { VisionSystem } from '../src/systems/visionSystem';
+import { describeLong } from './longTest';
 
 const LONG_RUN_TICKS = 4_800;
 
-describe('housing long-run regression', () => {
+describeLong('housing long-run regression', () => {
   it(
     'maintains repeatable house usage over long runs without sustained house-contact lockups',
     () => {

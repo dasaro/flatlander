@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
 
 import { FixedTimestepSimulation } from '../src/core/simulation';
 import { createDefaultWorld } from '../src/presets/defaultScenario';
@@ -32,6 +32,7 @@ import { SwaySystem } from '../src/systems/swaySystem';
 import { VisionSystem } from '../src/systems/visionSystem';
 import { movingAverage, oscillationAmplitude } from '../src/tools/demographyMetrics';
 import { DEMO_SEEDS } from './demographySeeds';
+import { describeLong } from './longTest';
 
 const TOTAL_TICKS = 3_000;
 const SAMPLE_EVERY = 100;
@@ -132,7 +133,7 @@ async function runCycleProbe(seed: number): Promise<CycleSnapshot> {
   };
 }
 
-describe('demography cycles (multi-seed)', () => {
+describeLong('demography cycles (multi-seed)', () => {
   for (const seed of TEST_SEEDS) {
     it(
       `seed ${seed} exhibits bounded cyclic dynamics with rank diversity`,

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
 
 import { FixedTimestepSimulation } from '../src/core/simulation';
 import { createDefaultWorld } from '../src/presets/defaultScenario';
@@ -14,8 +14,9 @@ import { SouthAttractionSystem } from '../src/systems/southAttractionSystem';
 import { StillnessControllerSystem } from '../src/systems/stillnessControllerSystem';
 import { SwaySystem } from '../src/systems/swaySystem';
 import { VisionSystem } from '../src/systems/visionSystem';
+import { describeLong } from './longTest';
 
-describe('housing usage smoke', () => {
+describeLong('housing usage smoke', () => {
   it(
     'shows deterministic house entries/exits in a 3k-tick run (seed 42)',
     () => {
