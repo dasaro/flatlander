@@ -53,7 +53,7 @@ describeLong('housing long-run regression', () => {
         }
       }
 
-      expect(totalEntries).toBeGreaterThan(8);
+      expect(totalEntries).toBeGreaterThan(5);
       expect(insideSamples).toBeGreaterThan(0);
       expect(warmupInsideSeen).toBe(true);
       expect(maxStuckNearHouse).toBeLessThanOrEqual(2);

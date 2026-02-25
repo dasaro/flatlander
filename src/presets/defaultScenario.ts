@@ -19,7 +19,7 @@ export function defaultSpawnPlan(boundary: BoundaryMode = 'wrap'): SpawnRequest[
         intentionMinTicks: 95,
         boundary,
       },
-      count: 28,
+      count: 11,
     },
     {
       shape: {
@@ -37,7 +37,7 @@ export function defaultSpawnPlan(boundary: BoundaryMode = 'wrap'): SpawnRequest[
         intentionMinTicks: 88,
         boundary,
       },
-      count: 16,
+      count: 7,
     },
     {
       shape: {
@@ -56,7 +56,7 @@ export function defaultSpawnPlan(boundary: BoundaryMode = 'wrap'): SpawnRequest[
         intentionMinTicks: 72,
         boundary,
       },
-      count: 13,
+      count: 5,
     },
     {
       shape: {
@@ -73,7 +73,7 @@ export function defaultSpawnPlan(boundary: BoundaryMode = 'wrap'): SpawnRequest[
         intentionMinTicks: 96,
         boundary,
       },
-      count: 4,
+      count: 1,
     },
     {
       shape: {
@@ -90,7 +90,7 @@ export function defaultSpawnPlan(boundary: BoundaryMode = 'wrap'): SpawnRequest[
         intentionMinTicks: 82,
         boundary,
       },
-      count: 6,
+      count: 1,
     },
     {
       shape: {
@@ -107,7 +107,7 @@ export function defaultSpawnPlan(boundary: BoundaryMode = 'wrap'): SpawnRequest[
         intentionMinTicks: 96,
         boundary,
       },
-      count: 4,
+      count: 1,
     },
     {
       shape: {
@@ -124,7 +124,7 @@ export function defaultSpawnPlan(boundary: BoundaryMode = 'wrap'): SpawnRequest[
         intentionMinTicks: 80,
         boundary,
       },
-      count: 5,
+      count: 2,
     },
     {
       shape: {
@@ -141,7 +141,7 @@ export function defaultSpawnPlan(boundary: BoundaryMode = 'wrap'): SpawnRequest[
         intentionMinTicks: 105,
         boundary,
       },
-      count: 4,
+      count: 1,
     },
     {
       shape: {
@@ -158,7 +158,7 @@ export function defaultSpawnPlan(boundary: BoundaryMode = 'wrap'): SpawnRequest[
         intentionMinTicks: 75,
         boundary,
       },
-      count: 8,
+      count: 2,
     },
     {
       shape: {
@@ -206,15 +206,17 @@ export function defaultWorldConfig(topology: 'torus' | 'bounded' = 'torus'): Par
     houseSize: 30,
     houseMinSpacing: 11,
     rainEnabled: true,
+    rainPeriodTicks: 2000,
+    rainDurationTicks: 700,
     peaceCryEnabled: true,
     defaultPeaceCryCadenceTicks: 20,
     defaultPeaceCryRadius: 120,
     reproductionEnabled: true,
-    gestationTicks: 220,
+    gestationTicks: 130,
     matingRadius: 52,
-    conceptionChancePerTick: 0.0038,
-    femaleBirthProbability: 0.54,
-    maxPopulation: 500,
+    conceptionChancePerTick: 0.02,
+    femaleBirthProbability: 0.52,
+    maxPopulation: 650,
     irregularBirthsEnabled: true,
     irregularBirthBaseChance: 0.14,
     irregularBirthChance: 0.14,

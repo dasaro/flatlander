@@ -1,12 +1,11 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { spawnFromRequest, type SpawnRequest } from '../core/factory';
 import { Rank, RankTag } from '../core/rank';
 import { FixedTimestepSimulation } from '../core/simulation';
-import { createWorld } from '../core/world';
-import { spawnHouses } from '../core/worldgen/houses';
+import type { World } from '../core/world';
 import { isEntityOutside } from '../core/housing/dwelling';
+import { createDefaultWorld } from '../presets/defaultScenario';
 import { countPeaksAndTroughs, movingAverage } from './demographyMetrics';
 import { AvoidanceSteeringSystem } from '../systems/avoidanceSteeringSystem';
 import { CleanupSystem } from '../systems/cleanupSystem';
@@ -80,6 +79,8 @@ interface DemographySample {
 
 interface SeedMetrics {
   amplitude: number;
+  minPopulationWindow: number;
+  maxPopulationWindow: number;
   peaks: number;
   troughs: number;
   alternatingTransitions: number;
@@ -144,133 +145,13 @@ function acceptanceForTicks(ticks: number): AcceptanceThresholds {
   };
 }
 
-function defaultPlan(): SpawnRequest[] {
-  return [
-    {
-      shape: { kind: 'segment', size: 22 },
-      movement: {
-        type: 'socialNav',
-        boundary: 'wrap',
-        maxSpeed: 14,
-        maxTurnRate: 1.45,
-        decisionEveryTicks: 20,
-        intentionMinTicks: 95,
-      },
-      count: 28,
-    },
-    {
-      shape: { kind: 'polygon', sides: 3, size: 16, irregular: false, triangleKind: 'Equilateral' },
-      movement: {
-        type: 'socialNav',
-        boundary: 'wrap',
-        maxSpeed: 14,
-        maxTurnRate: 1.15,
-        decisionEveryTicks: 18,
-        intentionMinTicks: 88,
-      },
-      count: 16,
-    },
-    {
-      shape: {
-        kind: 'polygon',
-        sides: 3,
-        size: 17,
-        irregular: false,
-        triangleKind: 'Isosceles',
-        isoscelesBaseRatio: 0.08,
-      },
-      movement: {
-        type: 'socialNav',
-        boundary: 'wrap',
-        maxSpeed: 16,
-        maxTurnRate: 1.3,
-        decisionEveryTicks: 14,
-        intentionMinTicks: 72,
-      },
-      count: 13,
-    },
-    {
-      shape: { kind: 'polygon', sides: 4, size: 18, irregular: false },
-      movement: {
-        type: 'socialNav',
-        boundary: 'wrap',
-        maxSpeed: 13,
-        maxTurnRate: 1,
-        decisionEveryTicks: 20,
-        intentionMinTicks: 96,
-      },
-      count: 8,
-    },
-    {
-      shape: { kind: 'polygon', sides: 5, size: 19, irregular: false },
-      movement: {
-        type: 'socialNav',
-        boundary: 'wrap',
-        maxSpeed: 13,
-        maxTurnRate: 1,
-        decisionEveryTicks: 20,
-        intentionMinTicks: 96,
-      },
-      count: 6,
-    },
-    {
-      shape: { kind: 'polygon', sides: 6, size: 19, irregular: false },
-      movement: {
-        type: 'socialNav',
-        boundary: 'wrap',
-        maxSpeed: 11,
-        maxTurnRate: 0.82,
-        decisionEveryTicks: 22,
-        intentionMinTicks: 105,
-      },
-      count: 4,
-    },
-    {
-      shape: { kind: 'polygon', sides: 7, size: 20, irregular: true },
-      movement: {
-        type: 'socialNav',
-        boundary: 'wrap',
-        maxSpeed: 15,
-        maxTurnRate: 1.2,
-        decisionEveryTicks: 16,
-        intentionMinTicks: 75,
-      },
-      count: 3,
-    },
-    {
-      shape: { kind: 'polygon', sides: 15, size: 20, irregular: false },
-      movement: {
-        type: 'socialNav',
-        boundary: 'wrap',
-        maxSpeed: 8,
-        maxTurnRate: 0.7,
-        decisionEveryTicks: 24,
-        intentionMinTicks: 122,
-      },
-      count: 1,
-    },
-    {
-      shape: { kind: 'circle', size: 14 },
-      movement: {
-        type: 'socialNav',
-        boundary: 'wrap',
-        maxSpeed: 7,
-        maxTurnRate: 0.62,
-        decisionEveryTicks: 25,
-        intentionMinTicks: 128,
-      },
-      count: 1,
-    },
-  ];
-}
-
-function countBirths(world: ReturnType<typeof createWorld>): number {
+function countBirths(world: World): number {
   return [...world.lineage.values()].filter(
     (lineage) => lineage.motherId !== null && lineage.fatherId !== null,
   ).length;
 }
 
-function distributionFromWorld(world: ReturnType<typeof createWorld>, initialPopulation: number): Distribution {
+function distributionFromWorld(world: World, initialPopulation: number): Distribution {
   let women = 0;
   let isosceles = 0;
   let equilateral = 0;
@@ -380,6 +261,8 @@ function computeMetrics(samples: DemographySample[]): SeedMetrics {
   if (samples.length === 0) {
     return {
       amplitude: 0,
+      minPopulationWindow: 0,
+      maxPopulationWindow: 0,
       peaks: 0,
       troughs: 0,
       alternatingTransitions: 0,
@@ -400,8 +283,8 @@ function computeMetrics(samples: DemographySample[]): SeedMetrics {
   const windowStartTick = Math.max(0, latestTick - WINDOW_TICKS);
   const windowSamples = samples.filter((sample) => sample.tick >= windowStartTick);
   const totals = windowSamples.map((sample) => sample.totalAlive);
-  const maxTotal = Math.max(...totals, 0);
-  const minTotal = Math.min(...totals, 0);
+  const maxTotal = totals.length > 0 ? Math.max(...totals) : 0;
+  const minTotal = totals.length > 0 ? Math.min(...totals) : 0;
   const meanTotal = totals.reduce((sum, value) => sum + value, 0) / Math.max(1, totals.length);
   const amplitude = meanTotal > 0 ? (maxTotal - minTotal) / meanTotal : 0;
   const smoothedTotals = movingAverage(totals, 9);
@@ -453,6 +336,8 @@ function computeMetrics(samples: DemographySample[]): SeedMetrics {
 
   return {
     amplitude,
+    minPopulationWindow: minTotal,
+    maxPopulationWindow: maxTotal,
     peaks: extrema.peaks,
     troughs: extrema.troughs,
     alternatingTransitions: extrema.alternatingTransitions,
@@ -470,28 +355,7 @@ function computeMetrics(samples: DemographySample[]): SeedMetrics {
 }
 
 function runSeed(seed: number, ticks: number): SeedReport {
-  const world = createWorld(seed, {
-    housesEnabled: true,
-    houseCount: 8,
-    rainEnabled: true,
-    rainPeriodTicks: 2200,
-    rainDurationTicks: 540,
-    crowdStressEnabled: true,
-  });
-  spawnHouses(world, world.rng, {
-    housesEnabled: world.config.housesEnabled,
-    houseCount: world.config.houseCount,
-    houseSize: world.config.houseSize,
-    houseMinSpacing: world.config.houseMinSpacing,
-    allowSquareHouses: world.config.allowSquareHouses,
-    allowTriangularForts: world.config.allowTriangularForts,
-    townPopulation: world.config.townPopulation,
-  });
-
-  const plan = defaultPlan();
-  for (const request of plan) {
-    spawnFromRequest(world, request);
-  }
+  const world = createDefaultWorld(seed);
   const initialPopulation = world.entities.size;
 
   const systems = [
@@ -758,7 +622,7 @@ for (const row of reports) {
       d.total
     )} irregular=${pct(d.irregular, d.total)} amp=${row.metrics.amplitude.toFixed(3)} peaks=${row.metrics.peaks} troughs=${row.metrics.troughs} alt=${row.metrics.alternatingTransitions} H=${row.metrics.avgShannon.toFixed(
       3,
-    )} ranks=${row.metrics.ranksPresentInWindow} rareSeen=${row.metrics.nearCircleOrPriestSeen ? 'yes' : 'no'} occupied10k=${
+    )} min/max=${row.metrics.minPopulationWindow}/${row.metrics.maxPopulationWindow} ranks=${row.metrics.ranksPresentInWindow} rareSeen=${row.metrics.nearCircleOrPriestSeen ? 'yes' : 'no'} occupied10k=${
       row.metrics.occupiedWithinFirst10k ? 'yes' : 'no'
     } insideAvg=${row.metrics.avgInsideAfterWarmup.toFixed(2)} maxStreak=${row.metrics.maxHouseContactStreak} stillTooLong=${row.metrics.stillTooLongCount} stillMax=${row.metrics.maxStillSeekingTicks} bounded=${
       row.metrics.boundedPopulation ? 'yes' : 'no'

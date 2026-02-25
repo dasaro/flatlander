@@ -183,11 +183,11 @@ let peaceCrySettings: PeaceCrySettings = {
 };
 let reproductionSettings: ReproductionSettings = {
   enabled: true,
-  gestationTicks: 220,
+  gestationTicks: 130,
   matingRadius: 52,
-  conceptionChancePerTick: 0.0038,
-  femaleBirthProbability: 0.54,
-  maxPopulation: 500,
+  conceptionChancePerTick: 0.02,
+  femaleBirthProbability: 0.52,
+  maxPopulation: 650,
   irregularBirthsEnabled: true,
   irregularBirthBaseChance: 0.14,
 };

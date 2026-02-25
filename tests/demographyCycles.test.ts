@@ -141,8 +141,9 @@ describeLong('demography cycles (multi-seed)', () => {
         const cycle = await runCycleProbe(seed);
         expect(cycle.minPopulation, `seed ${seed} min population`).toBeGreaterThanOrEqual(20);
         expect(cycle.maxPopulation, `seed ${seed} max population`).toBeLessThanOrEqual(650);
+        expect(cycle.maxPopulation, `seed ${seed} peak height`).toBeGreaterThanOrEqual(85);
         expect(cycle.diversity, `seed ${seed} rank diversity`).toBeGreaterThanOrEqual(4);
-        expect(cycle.amplitude, `seed ${seed} oscillation amplitude`).toBeGreaterThanOrEqual(0.015);
+        expect(cycle.amplitude, `seed ${seed} oscillation amplitude`).toBeGreaterThanOrEqual(0.18);
       },
       90_000,
     );

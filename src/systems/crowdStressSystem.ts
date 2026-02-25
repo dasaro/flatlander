@@ -13,6 +13,12 @@ interface StressSubject {
 }
 
 const STRESS_SAMPLE_EVERY_TICKS = 6;
+const RAIN_STRESS_BASE_BOOST = 1.8;
+const RAIN_STRESS_OCCUPANCY_BOOST = 1.15;
+const GLOBAL_OVERLOAD_STRESS_WEIGHT = 3.2;
+const RAIN_GLOBAL_OVERLOAD_MULTIPLIER = 2.8;
+const RAIN_EXPOSURE_STRESS = 5.3;
+const RAIN_SOUTH_EXPOSURE_EXTRA = 0.85;
 
 function cellKey(x: number, y: number): string {
   return `${x},${y}`;
@@ -61,9 +67,15 @@ function applyStressWear(world: World, entityId: number, stress: number, dt: num
   }
   const wearScale = Math.max(0, roundedConfig(world.config.crowdStressWearScale, 0));
   const comfortPopulation = Math.max(1, Math.round(roundedConfig(world.config.crowdComfortPopulation, 1)));
-  const overloadRatio = Math.max(0, (world.entities.size - comfortPopulation) / comfortPopulation);
+  const activePopulation = Math.max(1, world.entities.size - world.staticObstacles.size);
+  const overloadRatio = Math.max(0, (activePopulation - comfortPopulation) / comfortPopulation);
   const overloadScale = 1 + overloadRatio * Math.max(0, roundedConfig(world.config.crowdOverloadWearScale, 0));
-  durability.wear += wearScale * stress * overloadScale * dt;
+  const occupancyRatio = activePopulation <= 0 ? 0 : world.insideCountThisTick / activePopulation;
+  const rainBoost =
+    world.config.rainEnabled && world.weather.isRaining
+      ? RAIN_STRESS_BASE_BOOST + occupancyRatio * RAIN_STRESS_OCCUPANCY_BOOST
+      : 1;
+  durability.wear += wearScale * stress * overloadScale * rainBoost * dt;
 
   const step = Math.max(0.01, world.config.wearToHpStep);
   if (durability.wear < step) {
@@ -82,11 +94,22 @@ function applyStressIrregularity(world: World, entityId: number, stress: number)
   if (!shape || shape.kind !== 'polygon') {
     return;
   }
+  const comfortPopulation = Math.max(1, Math.round(world.config.crowdComfortPopulation));
+  const activePopulation = Math.max(1, world.entities.size - world.staticObstacles.size);
+  const overloadRatio = Math.max(0, (activePopulation - comfortPopulation) / comfortPopulation);
+  const overloadScale = 1 + overloadRatio * 0.75;
+  const occupancyRatio = activePopulation <= 0 ? 0 : world.insideCountThisTick / activePopulation;
+  const rainBoost =
+    world.config.rainEnabled && world.weather.isRaining
+      ? RAIN_STRESS_BASE_BOOST + occupancyRatio * RAIN_STRESS_OCCUPANCY_BOOST
+      : 1;
 
   if (!shape.irregular) {
-      const comfortPopulation = Math.max(1, Math.round(world.config.crowdComfortPopulation));
-      const overloadRatio = Math.max(0, (world.entities.size - comfortPopulation) / comfortPopulation);
-      const chance = Math.max(0, world.config.crowdStressIrregularChance) * stress * (1 + overloadRatio * 0.5);
+      const chance =
+        Math.max(0, world.config.crowdStressIrregularChance) *
+        stress *
+        overloadScale *
+        rainBoost;
     if (world.rng.next() < chance) {
       shape.irregular = true;
       shape.regular = false;
@@ -111,10 +134,11 @@ function applyStressIrregularity(world: World, entityId: number, stress: number)
     return;
   }
 
-  const comfortPopulation = Math.max(1, Math.round(world.config.crowdComfortPopulation));
-  const overloadRatio = Math.max(0, (world.entities.size - comfortPopulation) / comfortPopulation);
   const chance =
-    Math.max(0, world.config.crowdStressExecutionChance) * stress * (1 + overloadRatio * 0.65);
+    Math.max(0, world.config.crowdStressExecutionChance) *
+    stress *
+    (1 + overloadRatio * 0.95) *
+    rainBoost;
   if (world.rng.next() < chance) {
     markAttritionDeath(world, entityId);
   }
@@ -132,6 +156,7 @@ export class CrowdStressSystem implements System {
 
     const radius = Math.max(1, roundedConfig(world.config.crowdStressRadius, 1));
     const threshold = Math.max(1, Math.round(roundedConfig(world.config.crowdStressThreshold, 1)));
+    const comfortPopulation = Math.max(1, Math.round(roundedConfig(world.config.crowdComfortPopulation, 1)));
     const cellSize = radius;
     const subjects: StressSubject[] = [];
     const cells = new Map<string, number[]>();
@@ -167,6 +192,15 @@ export class CrowdStressSystem implements System {
     for (const bucket of cells.values()) {
       bucket.sort((a, b) => a - b);
     }
+    const activePopulation = Math.max(1, subjects.length);
+    const overloadRatio = Math.max(0, (activePopulation - comfortPopulation) / comfortPopulation);
+    const globalOverloadStress =
+      overloadRatio *
+      GLOBAL_OVERLOAD_STRESS_WEIGHT *
+      (world.weather.isRaining && world.config.rainEnabled ? RAIN_GLOBAL_OVERLOAD_MULTIPLIER : 1);
+    const rainExposureActive = world.config.rainEnabled && world.weather.isRaining;
+    const southStartY = world.config.height * world.config.southAttractionZoneStartFrac;
+    const southSpan = Math.max(1, world.config.height - southStartY);
 
     const radiusSq = radius * radius;
     for (const subject of subjects) {
@@ -198,7 +232,17 @@ export class CrowdStressSystem implements System {
         }
       }
 
-      const stress = crowdStressFromNeighborCount(neighbors, threshold);
+      const localStress = crowdStressFromNeighborCount(neighbors, threshold);
+      const rainExposureStress = rainExposureActive
+        ? (() => {
+            if (origin.y <= southStartY) {
+              return RAIN_EXPOSURE_STRESS;
+            }
+            const southNorm = Math.min(1, Math.max(0, (origin.y - southStartY) / southSpan));
+            return RAIN_EXPOSURE_STRESS * (1 + southNorm * RAIN_SOUTH_EXPOSURE_EXTRA);
+          })()
+        : 0;
+      const stress = localStress + globalOverloadStress + rainExposureStress;
       if (stress <= 0) {
         continue;
       }

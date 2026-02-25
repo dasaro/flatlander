@@ -101,4 +101,39 @@ describe('house entry from collision contact points', () => {
     expect(world.dwellings.get(womanWrongDoorId)?.state).toBe('outside');
     expect(world.dwellings.get(manWrongDoorId)?.state).toBe('outside');
   });
+
+  it('does not enter on incidental dry contact without shelter/home/healing motivation', () => {
+    const world = createWorld(3302, {
+      housesEnabled: true,
+      rainEnabled: true,
+    });
+    world.weather.isRaining = false;
+
+    const collisionSystem = new CollisionSystem();
+    const houseSystem = new HouseSystem();
+    const resolutionSystem = new CollisionResolutionSystem();
+    const houseId = addHouse(world, 260, 210);
+
+    const manId = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 4, size: 18, irregular: false },
+      { type: 'straightDrift', boundary: 'wrap', vx: 0, vy: 0 },
+      { x: 0, y: 0 },
+    );
+    placeForDoorContact(world, manId, houseId, 'west');
+
+    const durability = world.durability.get(manId);
+    if (!durability) {
+      throw new Error('Missing durability in incidental entry test.');
+    }
+    durability.hp = durability.maxHp;
+
+    collisionSystem.update(world, 1 / world.config.tickRate);
+    houseSystem.update(world);
+    resolutionSystem.update(world, 1 / world.config.tickRate);
+
+    expect(world.houseDoorContactsThisTick).toBeGreaterThan(0);
+    expect(world.houseEntriesThisTick).toBe(0);
+    expect(world.dwellings.get(manId)?.state).toBe('outside');
+  });
 });

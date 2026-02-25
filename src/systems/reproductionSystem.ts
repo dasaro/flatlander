@@ -23,6 +23,13 @@ const NEWBORN_TURN_RATE = 1.4;
 const BIRTH_OFFSET_MIN = 6;
 const BIRTH_OFFSET_MAX = 14;
 const HOME_REPRODUCTION_RADIUS_MULTIPLIER = 1.45;
+const ECO_LOW_POPULATION_PIVOT = 90;
+const ECO_HIGH_POPULATION_PIVOT = 260;
+const ECO_LOW_POPULATION_MULTIPLIER = 7.8;
+const ECO_HIGH_POPULATION_MULTIPLIER = 0.09;
+const ECO_DRY_PHASE_MULTIPLIER = 1.35;
+const ECO_RAIN_PHASE_MULTIPLIER = 0.08;
+const ECO_OVERLOAD_DAMPING = 2.2;
 
 function isFemaleShape(shapeKind: 'segment' | 'circle' | 'polygon'): boolean {
   return shapeKind === 'segment';
@@ -59,10 +66,38 @@ function birthPosition(world: World, motherPosition: Vec2): Vec2 {
 }
 
 function densityConceptionMultiplier(world: World): number {
-  const baselinePopulation = 140;
-  const population = Math.max(1, world.entities.size);
-  // Keep births responsive so long runs recover from troughs without runaway spikes.
-  return clamp(baselinePopulation / population, 0.5, 6);
+  let population = 0;
+  for (const id of world.entities) {
+    if (!world.staticObstacles.has(id)) {
+      population += 1;
+    }
+  }
+  const effectivePopulation = Math.max(1, population);
+
+  let baseMultiplier = ECO_HIGH_POPULATION_MULTIPLIER;
+  if (effectivePopulation <= ECO_LOW_POPULATION_PIVOT) {
+    baseMultiplier = ECO_LOW_POPULATION_MULTIPLIER;
+  } else if (effectivePopulation < ECO_HIGH_POPULATION_PIVOT) {
+    const span = ECO_HIGH_POPULATION_PIVOT - ECO_LOW_POPULATION_PIVOT;
+    const t = (effectivePopulation - ECO_LOW_POPULATION_PIVOT) / span;
+    baseMultiplier =
+      ECO_LOW_POPULATION_MULTIPLIER * (1 - t) +
+      ECO_HIGH_POPULATION_MULTIPLIER * t;
+  }
+
+  const phaseMultiplier =
+    world.config.rainEnabled && world.weather.isRaining
+      ? ECO_RAIN_PHASE_MULTIPLIER
+      : ECO_DRY_PHASE_MULTIPLIER;
+
+  const overloadRatio = Math.max(
+    0,
+    (effectivePopulation - ECO_HIGH_POPULATION_PIVOT) /
+      Math.max(1, ECO_HIGH_POPULATION_PIVOT),
+  );
+  const overloadDamping = 1 / (1 + overloadRatio * ECO_OVERLOAD_DAMPING);
+
+  return clamp(baseMultiplier * phaseMultiplier * overloadDamping, 0.03, 5.5);
 }
 
 function irregularBirthChance(world: World, motherId: number, fatherId: number): number {
@@ -322,11 +357,11 @@ function domesticContextSatisfied(
   }
   const pairedDistance = distance(motherPosition, fatherTransform.position);
   const matingRadius = Math.max(0, world.config.matingRadius);
-  const lowPopulationRelaxation = world.entities.size <= 80 ? 1.8 : 1;
+  const lowPopulationRelaxation = world.entities.size <= 180 ? 1.8 : 1;
   if (pairedDistance > matingRadius * lowPopulationRelaxation) {
     return false;
   }
-  if (world.entities.size <= 80) {
+  if (world.entities.size <= 180) {
     return true;
   }
 
@@ -348,6 +383,17 @@ function domesticContextSatisfied(
 
   const motherDwelling = world.dwellings.get(motherId);
   const fatherDwelling = world.dwellings.get(fatherId);
+  if (world.weather.isRaining) {
+    if (homeHouseId === null) {
+      return false;
+    }
+    return (
+      motherDwelling?.state === 'inside' &&
+      fatherDwelling?.state === 'inside' &&
+      motherDwelling.houseId === homeHouseId &&
+      fatherDwelling.houseId === homeHouseId
+    );
+  }
   if (
     motherDwelling?.state === 'inside' &&
     fatherDwelling?.state === 'inside' &&
@@ -356,7 +402,6 @@ function domesticContextSatisfied(
   ) {
     return true;
   }
-
   const homeCenter = houseCentroidWorld(houseTransform, house);
   const homeRadius = Math.max(12, world.config.houseSize * HOME_REPRODUCTION_RADIUS_MULTIPLIER);
   return (

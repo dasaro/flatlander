@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.4] - 2026-02-25
+
+### Changed
+- Tuned long-run ecology balancing to produce stronger boom-bust cycles and reduce flattening:
+  - adjusted default world demographic/rain/crowd parameters,
+  - reinforced high-density stress and rain-linked pressure,
+  - refined home/shelter behavior and conception dynamics.
+- Updated housing behavior to improve practical house usage over long runs:
+  - stronger shelter intent integration in AI defaults,
+  - improved door approach and entry reliability under tuned crowd conditions.
+- Stability tooling now reports cycle quality with corrected amplitude/min-max window calculations and shared default scenario wiring.
+
+### Tests
+- Updated long-run demography and housing regression tests to match the tuned deterministic behavior envelope:
+  - `tests/demographyCycles.test.ts`
+  - `tests/housingDoorEntryFromCollision.test.ts`
+  - `tests/housingLongRunRegression.test.ts`
+
 ## [0.9.3] - 2026-02-25
 
 ### Added

@@ -1293,11 +1293,11 @@ export class UIController {
     this.refs.peaceCryRadiusGlobal.value = '150';
 
     this.refs.reproductionEnabled.checked = true;
-    this.refs.reproductionGestationTicks.value = '220';
+    this.refs.reproductionGestationTicks.value = '130';
     this.refs.reproductionMatingRadius.value = '65';
-    this.refs.reproductionConceptionChance.value = '0.0042';
-    this.refs.reproductionFemaleBirthProbability.value = '0.56';
-    this.refs.reproductionMaxPopulation.value = '550';
+    this.refs.reproductionConceptionChance.value = '0.0205';
+    this.refs.reproductionFemaleBirthProbability.value = '0.52';
+    this.refs.reproductionMaxPopulation.value = '650';
     this.refs.reproductionIrregularEnabled.checked = true;
     this.refs.reproductionIrregularBaseChance.value = '0.14';
 
@@ -1375,19 +1375,19 @@ export class UIController {
   private readReproductionSettings(): ReproductionSettings {
     return {
       enabled: this.refs.reproductionEnabled.checked,
-      gestationTicks: Math.max(1, parseInteger(this.refs.reproductionGestationTicks.value, 300)),
+      gestationTicks: Math.max(1, parseInteger(this.refs.reproductionGestationTicks.value, 130)),
       matingRadius: Math.max(0, parseNumber(this.refs.reproductionMatingRadius.value, 52)),
       conceptionChancePerTick: clampRange(
-        parseNumber(this.refs.reproductionConceptionChance.value, 0.0038),
+        parseNumber(this.refs.reproductionConceptionChance.value, 0.02),
         0,
         1,
       ),
       femaleBirthProbability: clampRange(
-        parseNumber(this.refs.reproductionFemaleBirthProbability.value, 0.54),
+        parseNumber(this.refs.reproductionFemaleBirthProbability.value, 0.52),
         0,
         1,
       ),
-      maxPopulation: Math.max(1, parseInteger(this.refs.reproductionMaxPopulation.value, 400)),
+      maxPopulation: Math.max(1, parseInteger(this.refs.reproductionMaxPopulation.value, 650)),
       irregularBirthsEnabled: this.refs.reproductionIrregularEnabled.checked,
       irregularBirthBaseChance: clampRange(
         parseNumber(this.refs.reproductionIrregularBaseChance.value, 0.14),

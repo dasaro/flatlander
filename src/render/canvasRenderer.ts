@@ -7,6 +7,7 @@ import { Rank } from '../core/rank';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
 import type { HouseComponent, TransformComponent } from '../core/components';
+import { normalize } from '../geometry/vector';
 import type { Vec2 } from '../geometry/vector';
 import type { Camera } from './camera';
 import { contactCurveControlPoint, selectTopKnownIds } from './contactNetwork';
@@ -784,11 +785,21 @@ export class CanvasRenderer {
     if (!first) {
       return;
     }
+    const center = polygonCentroid(vertices);
+    const { minY, maxY } = polygonYRange(vertices);
+    const roofApexIndex = northmostVertexIndex(vertices);
+    const roofLeft = vertices[(roofApexIndex - 1 + vertices.length) % vertices.length];
+    const roofApex = vertices[roofApexIndex];
+    const roofRight = vertices[(roofApexIndex + 1) % vertices.length];
 
     this.ctx.save();
-    this.ctx.fillStyle = 'rgba(95, 89, 79, 0.18)';
-    this.ctx.strokeStyle = selected ? 'rgba(30, 28, 24, 0.9)' : 'rgba(86, 80, 71, 0.7)';
-    this.ctx.lineWidth = (selected ? 2.2 : 1.2) / camera.zoom;
+    const houseFill = this.ctx.createLinearGradient(0, minY, 0, maxY);
+    houseFill.addColorStop(0, 'rgba(121, 109, 93, 0.26)');
+    houseFill.addColorStop(1, 'rgba(103, 94, 82, 0.18)');
+    this.ctx.fillStyle = houseFill;
+    this.ctx.strokeStyle = selected ? 'rgba(28, 26, 22, 0.9)' : 'rgba(77, 71, 63, 0.78)';
+    this.ctx.lineWidth = (selected ? 2.1 : 1.25) / camera.zoom;
+    this.ctx.lineJoin = 'round';
     this.ctx.beginPath();
     this.ctx.moveTo(first.x, first.y);
     for (let i = 1; i < vertices.length; i += 1) {
@@ -802,30 +813,85 @@ export class CanvasRenderer {
     this.ctx.fill();
     this.ctx.stroke();
 
+    // Part I §2: houses are roofed on the north side; render a subtle roof plane.
+    if (roofLeft && roofApex && roofRight) {
+      this.ctx.fillStyle = selected ? 'rgba(70, 60, 50, 0.34)' : 'rgba(70, 60, 50, 0.27)';
+      this.ctx.beginPath();
+      this.ctx.moveTo(roofLeft.x, roofLeft.y);
+      this.ctx.lineTo(roofApex.x, roofApex.y);
+      this.ctx.lineTo(roofRight.x, roofRight.y);
+      this.ctx.closePath();
+      this.ctx.fill();
+      this.ctx.strokeStyle = 'rgba(56, 49, 42, 0.72)';
+      this.ctx.lineWidth = 0.95 / camera.zoom;
+      this.ctx.beginPath();
+      this.ctx.moveTo(roofApex.x, roofApex.y);
+      this.ctx.lineTo((roofLeft.x + roofRight.x) * 0.5, (roofLeft.y + roofRight.y) * 0.5);
+      this.ctx.stroke();
+    }
+
     if (showDoors) {
-      const eastDoor = doorPoseWorld(transform, house.doorEast).midpoint;
-      const westDoor = doorPoseWorld(transform, house.doorWest).midpoint;
-      this.drawDoorMarker(eastDoor, '#c67a32', camera);
-      this.drawDoorMarker(westDoor, '#396887', camera);
+      const eastDoor = doorPoseWorld(transform, house.doorEast);
+      const westDoor = doorPoseWorld(transform, house.doorWest);
+      this.drawDoorMarker(
+        eastDoor.midpoint,
+        eastDoor.normalInward,
+        house.doorEast.sizeFactor,
+        '#c67a32',
+        camera,
+      );
+      this.drawDoorMarker(
+        westDoor.midpoint,
+        westDoor.normalInward,
+        house.doorWest.sizeFactor,
+        '#396887',
+        camera,
+      );
     }
 
     if (showOccupancy) {
-      const center = polygonCentroid(vertices);
+      const badgeRadius = 6.2 / camera.zoom;
       this.ctx.fillStyle = 'rgba(30, 28, 24, 0.84)';
-      this.ctx.font = `${Math.max(8, Math.round(10 / camera.zoom))}px Trebuchet MS, sans-serif`;
-      this.ctx.fillText(String(Math.max(0, occupantCount)), center.x + 3 / camera.zoom, center.y + 3 / camera.zoom);
+      this.ctx.beginPath();
+      this.ctx.arc(center.x, center.y, badgeRadius, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.strokeStyle = 'rgba(245, 243, 236, 0.85)';
+      this.ctx.lineWidth = 0.9 / camera.zoom;
+      this.ctx.stroke();
+      this.ctx.fillStyle = '#f9f7ef';
+      this.ctx.font = `${Math.max(6, Math.round(8 / camera.zoom))}px Trebuchet MS, sans-serif`;
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'middle';
+      this.ctx.fillText(String(Math.max(0, occupantCount)), center.x, center.y + 0.4 / camera.zoom);
     }
     this.ctx.restore();
   }
 
-  private drawDoorMarker(position: Vec2, color: string, camera: Camera): void {
+  private drawDoorMarker(
+    position: Vec2,
+    normalInward: Vec2,
+    sizeFactor: number,
+    color: string,
+    camera: Camera,
+  ): void {
+    const tangent = normalize({ x: -normalInward.y, y: normalInward.x });
+    const markerHalfLength = (2.4 + sizeFactor * 1.8) / camera.zoom;
     this.ctx.save();
-    this.ctx.fillStyle = color;
-    this.ctx.strokeStyle = '#1f1d1a';
-    this.ctx.lineWidth = 0.8 / camera.zoom;
+    this.ctx.lineCap = 'round';
     this.ctx.beginPath();
-    this.ctx.arc(position.x, position.y, 2.4 / camera.zoom, 0, Math.PI * 2);
-    this.ctx.fill();
+    this.ctx.moveTo(
+      position.x - tangent.x * markerHalfLength,
+      position.y - tangent.y * markerHalfLength,
+    );
+    this.ctx.lineTo(
+      position.x + tangent.x * markerHalfLength,
+      position.y + tangent.y * markerHalfLength,
+    );
+    this.ctx.strokeStyle = 'rgba(33, 29, 24, 0.9)';
+    this.ctx.lineWidth = (3.1 + sizeFactor) / camera.zoom;
+    this.ctx.stroke();
+    this.ctx.strokeStyle = color;
+    this.ctx.lineWidth = (1.9 + sizeFactor * 0.55) / camera.zoom;
     this.ctx.stroke();
     this.ctx.restore();
   }
@@ -886,6 +952,41 @@ function polygonCentroid(vertices: Vec2[]): Vec2 {
     x: sx / vertices.length,
     y: sy / vertices.length,
   };
+}
+
+function northmostVertexIndex(vertices: Vec2[]): number {
+  let index = 0;
+  let bestY = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < vertices.length; i += 1) {
+    const vertex = vertices[i];
+    if (!vertex) {
+      continue;
+    }
+    if (vertex.y < bestY) {
+      bestY = vertex.y;
+      index = i;
+    }
+  }
+  return index;
+}
+
+function polygonYRange(vertices: Vec2[]): { minY: number; maxY: number } {
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  for (const vertex of vertices) {
+    if (!vertex) {
+      continue;
+    }
+    minY = Math.min(minY, vertex.y);
+    maxY = Math.max(maxY, vertex.y);
+  }
+  if (!Number.isFinite(minY) || !Number.isFinite(maxY)) {
+    return { minY: 0, maxY: 0 };
+  }
+  if (Math.abs(maxY - minY) < 1e-6) {
+    return { minY, maxY: minY + 1 };
+  }
+  return { minY, maxY };
 }
 
 function colorForRank(rank: Rank): string {

@@ -16,15 +16,15 @@ import { clamp, normalize, wrap } from '../geometry/vector';
 import type { Vec2 } from '../geometry/vector';
 import type { System } from './system';
 
-const DOOR_ENTER_SPEED = 12;
-const DOOR_CONTACT_EPSILON = 8;
+const DOOR_ENTER_SPEED = 16;
+const DOOR_CONTACT_EPSILON = 14;
 const DOOR_EXIT_CLEARANCE = 8;
 const DOOR_EXIT_PUSH_SPEED = 16;
 const EXIT_TRANSIT_TICKS = 14;
 const IGNORE_HOUSE_COLLISION_TICKS = 16;
 const REENTER_COOLDOWN_TICKS = 120;
-const MIN_INDOOR_TICKS = 120;
-const COOLDOWN_TICKS_AFTER_EXIT = 160;
+const MIN_INDOOR_TICKS = 90;
+const COOLDOWN_TICKS_AFTER_EXIT = 110;
 const HOUSE_REPAIR_PER_TICK = 0.08;
 const STUCK_ABORT_TICKS = 240;
 const STUCK_ALERT_TICKS = 400;
@@ -342,6 +342,25 @@ function socialNavShelterIntent(
   return movement;
 }
 
+function hasEntryMotivation(
+  world: World,
+  personId: EntityId,
+  houseId: EntityId,
+  intent: SocialNavMovement | null,
+): boolean {
+  if (intent) {
+    return true;
+  }
+  if (world.config.rainEnabled && world.weather.isRaining) {
+    return true;
+  }
+  const bond = world.bonds.get(personId);
+  if (bond?.homeHouseId === houseId) {
+    return true;
+  }
+  return healthRatio(world, personId) <= LOW_HP_HOME_RETURN_THRESHOLD;
+}
+
 function abortHouseApproach(world: World, personId: EntityId): void {
   const movement = world.movements.get(personId);
   if (!movement || movement.type !== 'socialNav') {
@@ -516,6 +535,11 @@ export class HouseSystem implements System {
         continue;
       }
       const intent = socialNavShelterIntent(world, contact.personId, contact.houseId);
+      if (!hasEntryMotivation(world, contact.personId, contact.houseId, intent)) {
+        world.houseApproachDebug.delete(contact.personId);
+        world.houseContactStreaks.delete(contact.personId);
+        continue;
+      }
       if (!shouldAttemptEntry(world, contact.personId, contact.houseId)) {
         world.houseApproachDebug.delete(contact.personId);
         world.houseContactStreaks.delete(contact.personId);
