@@ -1,5 +1,6 @@
 import type { EventType, TickSummary } from '../ui/eventAnalytics';
-import { getNearestEventfulIndexAtX, TimelineSelectionState } from '../ui/timelineSelectionState';
+import { TimelineSelectionState } from '../ui/timelineSelectionState';
+import type { RainInterval } from '../ui/rainTimelineStore';
 
 export interface TimelineRenderConfig {
   splitByRank: boolean;
@@ -8,6 +9,8 @@ export interface TimelineRenderConfig {
   showLegend: boolean;
   tickStart: number;
   tickEnd: number;
+  showRainTrack?: boolean;
+  rainIntervals?: RainInterval[];
 }
 
 const CONTENT_LEFT = 48;
@@ -16,6 +19,7 @@ const TOP_PADDING = 10;
 const BOTTOM_PADDING = 24;
 const MIN_DIAMOND_RADIUS = 2.8;
 const MAX_DIAMOND_RADIUS = 6.8;
+const RAIN_LINE_COLOR = 'rgba(58, 103, 140, 0.95)';
 
 const TYPE_COLORS: Record<EventType, string> = {
   handshakeStart: '#5f9aa2',
@@ -102,6 +106,11 @@ export class EventTimelineRenderer {
   private summaries: TickSummary[] = [];
   private visibleTypes: EventType[] = [];
   private readonly selection = new TimelineSelectionState();
+  private summaryXs: number[] = [];
+  private tickStart = 0;
+  private tickEnd = 0;
+  private showRainTrack = false;
+  private rainIntervals: RainInterval[] = [];
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -118,13 +127,10 @@ export class EventTimelineRenderer {
       const xPx = (event.clientX - rect.left) * (this.canvas.width / Math.max(1, rect.width));
       const contentLeft = CONTENT_LEFT;
       const contentRight = this.canvas.width - CONTENT_RIGHT_PADDING;
-      const contentWidth = Math.max(1, contentRight - contentLeft);
       if (xPx < contentLeft || xPx > contentRight) {
         this.selection.setHovered(null);
       } else {
-        this.selection.setHovered(
-          getNearestEventfulIndexAtX(xPx - contentLeft, contentWidth, this.summaries.length),
-        );
+        this.selection.setHovered(this.getNearestSummaryIndexAtCanvasX(xPx));
       }
       this.updateTooltip();
     });
@@ -139,13 +145,10 @@ export class EventTimelineRenderer {
       const xPx = (event.clientX - rect.left) * (this.canvas.width / Math.max(1, rect.width));
       const contentLeft = CONTENT_LEFT;
       const contentRight = this.canvas.width - CONTENT_RIGHT_PADDING;
-      const contentWidth = Math.max(1, contentRight - contentLeft);
       if (xPx < contentLeft || xPx > contentRight) {
         this.selection.clearPin();
       } else {
-        this.selection.togglePinned(
-          getNearestEventfulIndexAtX(xPx - contentLeft, contentWidth, this.summaries.length),
-        );
+        this.selection.togglePinned(this.getNearestSummaryIndexAtCanvasX(xPx));
       }
       this.updateTooltip();
     });
@@ -155,6 +158,10 @@ export class EventTimelineRenderer {
     this.resizeForDisplay();
     this.summaries = summaries;
     this.visibleTypes = uniqueTypes(config.selectedTypes);
+    this.tickStart = Math.max(0, Math.floor(config.tickStart));
+    this.tickEnd = Math.max(this.tickStart, Math.floor(config.tickEnd));
+    this.showRainTrack = Boolean(config.showRainTrack);
+    this.rainIntervals = config.rainIntervals ?? [];
 
     if (
       this.selection.pinnedIndex !== null &&
@@ -190,7 +197,7 @@ export class EventTimelineRenderer {
     this.ctx.lineTo(left + 0.5, bottom);
     this.ctx.stroke();
 
-    if (this.visibleTypes.length === 0) {
+    if (this.visibleTypes.length === 0 && !this.showRainTrack) {
       this.ctx.fillStyle = '#736a5b';
       this.ctx.font = '12px Trebuchet MS, sans-serif';
       this.ctx.fillText('Enable at least one timeline event type', left + 8, top + 14);
@@ -202,8 +209,22 @@ export class EventTimelineRenderer {
       return;
     }
 
-    const rowHeight = contentHeight / this.visibleTypes.length;
-    const rowCenters = this.visibleTypes.map((_, index) => top + rowHeight * (index + 0.5));
+    const tickSpan = Math.max(1, this.tickEnd - this.tickStart);
+    const xFromTick = (tick: number): number => {
+      const clampedTick = Math.max(this.tickStart, Math.min(this.tickEnd, tick));
+      const normalized = (clampedTick - this.tickStart) / tickSpan;
+      return left + normalized * contentWidth;
+    };
+
+    const rows: Array<{ kind: 'rain' } | { kind: 'event'; type: EventType }> = [];
+    if (this.showRainTrack) {
+      rows.push({ kind: 'rain' });
+    }
+    for (const type of this.visibleTypes) {
+      rows.push({ kind: 'event', type });
+    }
+    const rowHeight = contentHeight / Math.max(1, rows.length);
+    const rowCenters = rows.map((_, index) => top + rowHeight * (index + 0.5));
     const perTypeMax = new Map<EventType, number>();
     for (const type of this.visibleTypes) {
       perTypeMax.set(
@@ -212,10 +233,10 @@ export class EventTimelineRenderer {
       );
     }
 
-    for (let rowIndex = 0; rowIndex < this.visibleTypes.length; rowIndex += 1) {
-      const type = this.visibleTypes[rowIndex];
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+      const row = rows[rowIndex];
       const y = rowCenters[rowIndex];
-      if (!type || y === undefined) {
+      if (!row || y === undefined) {
         continue;
       }
       this.ctx.strokeStyle = 'rgba(88, 78, 62, 0.18)';
@@ -229,24 +250,43 @@ export class EventTimelineRenderer {
       this.ctx.font = '11px Trebuchet MS, sans-serif';
       this.ctx.textAlign = 'right';
       this.ctx.textBaseline = 'middle';
-      this.ctx.fillText(typeLabel(type), left - 6, y);
+      this.ctx.fillText(row.kind === 'rain' ? 'Rain' : typeLabel(row.type), left - 6, y);
     }
 
     this.ctx.textAlign = 'left';
     this.ctx.textBaseline = 'alphabetic';
 
-    if (summaries.length === 0) {
-      this.ctx.fillStyle = '#736a5b';
-      this.ctx.font = '12px Trebuchet MS, sans-serif';
-      this.ctx.fillText('No events for current filters', left + 8, top + 14);
-      this.ctx.fillStyle = '#2b2721';
-      this.ctx.font = '11px Trebuchet MS, sans-serif';
-      this.ctx.fillText('eventful slices: 0', left, height - 6);
-      this.ctx.fillText(`ticks ${config.tickStart}..${config.tickEnd}`, right - 120, height - 6);
-      this.updateTooltip();
-      return;
+    if (this.showRainTrack) {
+      const rainRowIndex = rows.findIndex((row) => row.kind === 'rain');
+      const rainY = rainRowIndex >= 0 ? rowCenters[rainRowIndex] : undefined;
+      if (rainY !== undefined) {
+        this.ctx.save();
+        this.ctx.strokeStyle = 'rgba(88, 78, 62, 0.22)';
+        this.ctx.lineWidth = 1.2;
+        this.ctx.beginPath();
+        this.ctx.moveTo(left, rainY);
+        this.ctx.lineTo(right, rainY);
+        this.ctx.stroke();
+
+        this.ctx.strokeStyle = RAIN_LINE_COLOR;
+        this.ctx.lineWidth = Math.max(2.2, rowHeight * 0.26);
+        this.ctx.lineCap = 'round';
+        for (const interval of this.rainIntervals) {
+          if (interval.endTick < this.tickStart || interval.startTick > this.tickEnd) {
+            continue;
+          }
+          const startX = xFromTick(interval.startTick);
+          const endX = xFromTick(interval.endTick);
+          this.ctx.beginPath();
+          this.ctx.moveTo(startX, rainY);
+          this.ctx.lineTo(endX, rainY);
+          this.ctx.stroke();
+        }
+        this.ctx.restore();
+      }
     }
 
+    this.summaryXs = summaries.map((summary) => xFromTick(summary.tick));
     const pitch = summaries.length <= 1 ? contentWidth : contentWidth / (summaries.length - 1);
     const rowRadiusLimit = Math.max(2.2, Math.min(7.2, rowHeight * 0.35));
     const maxRadius = Math.min(MAX_DIAMOND_RADIUS, rowRadiusLimit);
@@ -256,14 +296,15 @@ export class EventTimelineRenderer {
       if (!summary) {
         continue;
       }
-      const xCenter = summaries.length <= 1 ? left + contentWidth / 2 : left + i * pitch;
+      const xCenter = this.summaryXs[i] ?? (summaries.length <= 1 ? left + contentWidth / 2 : left + i * pitch);
 
-      for (let rowIndex = 0; rowIndex < this.visibleTypes.length; rowIndex += 1) {
-        const type = this.visibleTypes[rowIndex];
+      for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+        const row = rows[rowIndex];
         const yCenter = rowCenters[rowIndex];
-        if (!type || yCenter === undefined) {
+        if (!row || row.kind !== 'event' || yCenter === undefined) {
           continue;
         }
+        const type = row.type;
         const count = summary.countsByType[type] ?? 0;
         if (count <= 0) {
           continue;
@@ -287,7 +328,7 @@ export class EventTimelineRenderer {
     this.ctx.fillStyle = '#2b2721';
     this.ctx.font = '11px Trebuchet MS, sans-serif';
     this.ctx.fillText(`eventful slices: ${summaries.length}`, left, height - 6);
-    this.ctx.fillText(`ticks ${config.tickStart}..${config.tickEnd}`, right - 120, height - 6);
+    this.ctx.fillText(`ticks ${this.tickStart}..${this.tickEnd}`, right - 120, height - 6);
     this.updateTooltip();
   }
 
@@ -322,8 +363,10 @@ export class EventTimelineRenderer {
       const count = summary.countsByType[type] ?? 0;
       typeParts.push(`${typeLabel(type)}:${count}`);
     }
+    const rainLabel = this.isRainAtTick(summary.tick) ? 'rain:on' : 'rain:off';
     const pinLabel = this.selection.pinnedIndex !== null ? ' [pinned]' : '';
-    this.tooltipElement.textContent = `tick ${summary.tick}${pinLabel} | ${typeParts.join('  ')}`;
+    const joined = [...typeParts, rainLabel].join('  ');
+    this.tooltipElement.textContent = `tick ${summary.tick}${pinLabel} | ${joined}`;
   }
 
   private resizeForDisplay(): void {
@@ -336,5 +379,39 @@ export class EventTimelineRenderer {
     }
     this.canvas.width = width;
     this.canvas.height = height;
+  }
+
+  private getNearestSummaryIndexAtCanvasX(xPx: number): number | null {
+    if (this.summaries.length === 0 || this.summaryXs.length === 0) {
+      return null;
+    }
+    if (this.summaryXs.length === 1) {
+      return 0;
+    }
+
+    let bestIndex = 0;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < this.summaryXs.length; i += 1) {
+      const x = this.summaryXs[i];
+      if (x === undefined) {
+        continue;
+      }
+      const distance = Math.abs(xPx - x);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIndex = i;
+      }
+    }
+
+    return bestIndex;
+  }
+
+  private isRainAtTick(tick: number): boolean {
+    for (const interval of this.rainIntervals) {
+      if (tick >= interval.startTick && tick <= interval.endTick) {
+        return true;
+      }
+    }
+    return false;
   }
 }

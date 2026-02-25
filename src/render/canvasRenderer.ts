@@ -432,11 +432,10 @@ export class CanvasRenderer {
     this.ctx.fillText(versionText, this.canvas.width - versionWidth - 10, 12);
 
     const fogLabel = `Fog ${snapshot.fogDensity.toFixed(3)}`;
-    const rainLabel = snapshot.isRaining ? 'RAIN' : '';
     this.ctx.font = '11px Trebuchet MS, sans-serif';
     this.ctx.fillText(fogLabel, this.canvas.width - 120, 28);
-    if (rainLabel.length > 0) {
-      this.ctx.fillText(rainLabel, this.canvas.width - 120, 41);
+    if (snapshot.isRaining) {
+      this.drawRainBadge(this.canvas.width - 120, 33);
     }
 
     this.ctx.strokeStyle = '#2e2b25';
@@ -451,6 +450,36 @@ export class CanvasRenderer {
     this.ctx.lineTo(x + 26, y + 22);
     this.ctx.lineTo(x + 32, y + 15);
     this.ctx.stroke();
+    this.ctx.restore();
+  }
+
+  private drawRainBadge(x: number, y: number): void {
+    const width = 40;
+    const height = 14;
+    const radius = 4;
+    const x2 = x + width;
+    const y2 = y + height;
+
+    this.ctx.save();
+    this.ctx.fillStyle = 'rgba(58, 103, 140, 0.88)';
+    this.ctx.beginPath();
+    this.ctx.moveTo(x + radius, y);
+    this.ctx.lineTo(x2 - radius, y);
+    this.ctx.quadraticCurveTo(x2, y, x2, y + radius);
+    this.ctx.lineTo(x2, y2 - radius);
+    this.ctx.quadraticCurveTo(x2, y2, x2 - radius, y2);
+    this.ctx.lineTo(x + radius, y2);
+    this.ctx.quadraticCurveTo(x, y2, x, y2 - radius);
+    this.ctx.lineTo(x, y + radius);
+    this.ctx.quadraticCurveTo(x, y, x + radius, y);
+    this.ctx.closePath();
+    this.ctx.fill();
+
+    this.ctx.fillStyle = 'rgba(248, 250, 255, 0.98)';
+    this.ctx.font = '10px Trebuchet MS, sans-serif';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    this.ctx.fillText('RAIN', x + width * 0.5, y + height * 0.5 + 0.2);
     this.ctx.restore();
   }
 

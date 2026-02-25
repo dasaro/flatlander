@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.3] - 2026-02-25
+
+### Added
+- Rain timeline history store (`src/ui/rainTimelineStore.ts`) for deterministic rain interval tracking in UI adapters.
+- Timeline rain visualization as a dedicated straight line row in Event Timeline (not diamond events), including rain status in hover details.
+- 1D Flatlander view rainy overlay layer (tick-driven, deterministic visual phase) plus in-panel rain badge.
+- New tests:
+  - `tests/rainTimelineStore.test.ts` (interval tracking and reset semantics).
+
+### Changed
+- God-view rain indicator upgraded from plain text to a clearer badge near the SOUTH HUD.
+- Event timeline legend now documents the Rain line track explicitly.
+- Stability harness now reports an explicit stuckness probe:
+  - `stillTooLong` (outside entities stuck in shelter-seeking intentions),
+  - `stillMax` (max consecutive shelter-seeking near-zero-motion ticks).
+
 ## [0.9.2] - 2026-02-25
 
 ### Added

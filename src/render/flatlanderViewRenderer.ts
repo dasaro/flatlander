@@ -1,5 +1,10 @@
 import type { FlatlanderScanResult, FlatlanderViewConfig } from './flatlanderScan';
 
+interface FlatlanderEnvironmentOverlay {
+  isRaining: boolean;
+  tick: number;
+}
+
 function tintFromHitId(hitId: number, alpha: number): string {
   if (hitId < 0) {
     return `hsla(34, 24%, 38%, ${alpha.toFixed(3)})`;
@@ -58,6 +63,7 @@ export class FlatlanderViewRenderer {
     viewerHeadingRad: number,
     highlightHitId: number | null = null,
     highlightSampleIndex: number | null = null,
+    environmentOverlay: FlatlanderEnvironmentOverlay | null = null,
   ): void {
     const { width, height } = scaleCanvasToDisplay(this.canvas);
     const dpr = this.canvas.width / width;
@@ -65,6 +71,10 @@ export class FlatlanderViewRenderer {
     this.ctx.clearRect(0, 0, width, height);
     this.ctx.fillStyle = '#fffdf8';
     this.ctx.fillRect(0, 0, width, height);
+
+    if (environmentOverlay?.isRaining) {
+      this.drawRainAtmosphere(environmentOverlay.tick, width, height);
+    }
 
     const baselineY = Math.round(height * 0.58);
     this.ctx.strokeStyle = 'rgba(70, 65, 58, 0.28)';
@@ -184,5 +194,35 @@ export class FlatlanderViewRenderer {
     this.ctx.strokeStyle = 'rgba(78, 72, 61, 0.18)';
     this.ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  private drawRainAtmosphere(tick: number, width: number, height: number): void {
+    const phase = tick % 200;
+    const spacing = 18;
+    const diagonalX = -5;
+    const diagonalY = 12;
+    const streakCount = Math.ceil((width + 36) / spacing);
+
+    this.ctx.save();
+    this.ctx.fillStyle = 'rgba(70, 84, 104, 0.08)';
+    this.ctx.fillRect(0, 0, width, height);
+
+    this.ctx.strokeStyle = 'rgba(66, 86, 110, 0.32)';
+    this.ctx.lineWidth = 1;
+    for (let i = 0; i < streakCount; i += 1) {
+      const x = ((i * spacing + phase * 1.9) % (width + 36)) - 18;
+      const y = ((i * 29 + phase * 3.7) % (height + 24)) - 12;
+      this.ctx.beginPath();
+      this.ctx.moveTo(x, y);
+      this.ctx.lineTo(x + diagonalX, y + diagonalY);
+      this.ctx.stroke();
+    }
+
+    this.ctx.fillStyle = 'rgba(29, 45, 66, 0.72)';
+    this.ctx.font = '11px Trebuchet MS, sans-serif';
+    this.ctx.textAlign = 'right';
+    this.ctx.textBaseline = 'top';
+    this.ctx.fillText('RAIN', width - 8, 6);
+    this.ctx.restore();
   }
 }

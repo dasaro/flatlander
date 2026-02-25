@@ -71,7 +71,8 @@ import {
 } from './ui/uiController';
 import { MobileMenuState } from './ui/mobileMenuState';
 import { EventDrainPipeline } from './ui/eventDrainPipeline';
-import { captureFrameSnapshot } from './ui/frameSnapshot';
+import { captureFrameSnapshot, type FrameSnapshot } from './ui/frameSnapshot';
+import { RainTimelineStore } from './ui/rainTimelineStore';
 import { APP_VERSION } from './version';
 
 const TIMELINE_TYPE_CONTROL_IDS: Partial<Record<EventType, string>> = {
@@ -296,6 +297,7 @@ const eventDrainPipeline = new EventDrainPipeline(
     (events) => recordLegendEvents(events),
   ],
 );
+const rainTimeline = new RainTimelineStore();
 
 const selectedTimelineTypes = readSelectedTimelineTypes();
 const selectedTimelineRanks = readSelectedTimelineRankKeys();
@@ -351,6 +353,7 @@ const ui = new UIController({
     eventAnalytics.clear();
     populationHistogram.reset(world);
     eventDrainPipeline.reset(world.tick);
+    rainTimeline.reset();
     recentLegendEvents.length = 0;
     lastLegendSignature = '';
     selectionState.setSelected(null);
@@ -664,14 +667,15 @@ function frame(now: number): void {
     setFlatlanderHover(null, null);
   }
 
-  const clickPoint = debugClickPoint;
-  debugClickPoint = null;
   const frameSnapshot = captureFrameSnapshot(world, {
     showRainOverlay: environmentSettings.showRainOverlay,
     showFogOverlay: environmentSettings.showFogOverlay,
   });
+  rainTimeline.record(frameSnapshot.tick, frameSnapshot.isRaining);
+  const clickPoint = debugClickPoint;
+  debugClickPoint = null;
 
-  renderFlatlanderView();
+  renderFlatlanderView(frameSnapshot);
   renderer.render(world, camera, selectionState.selectedId, {
     frameSnapshot,
     showSouthZoneOverlay: southAttractionSettings.showSouthZoneOverlay,
@@ -977,7 +981,7 @@ function flatlanderConfigKey(settings: FlatlanderViewSettings): string {
   ].join('|');
 }
 
-function renderFlatlanderView(): void {
+function renderFlatlanderView(frameSnapshot: Readonly<FrameSnapshot>): void {
   if (!flatlanderViewSettings.enabled) {
     clearFlatlanderHover();
     flatlanderViewRenderer.clearWithMessage('Flatlander view disabled');
@@ -1038,6 +1042,10 @@ function renderFlatlanderView(): void {
       flatlanderViewSettings.lookOffsetRad,
     flatlanderHoverEntityId,
     flatlanderHoverSampleIndex,
+    {
+      isRaining: frameSnapshot.isRaining,
+      tick: frameSnapshot.tick,
+    },
   );
 }
 
@@ -1114,6 +1122,8 @@ function renderEventTimeline(): void {
     showLegend: timelineShowLegend,
     tickStart: 0,
     tickEnd: world.tick,
+    showRainTrack: world.config.rainEnabled && world.config.housesEnabled,
+    rainIntervals: rainTimeline.getIntervals(world.tick),
   });
   eventTimelineLegend.hidden = !timelineShowLegend;
 }

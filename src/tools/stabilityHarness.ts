@@ -6,6 +6,7 @@ import { Rank, RankTag } from '../core/rank';
 import { FixedTimestepSimulation } from '../core/simulation';
 import { createWorld } from '../core/world';
 import { spawnHouses } from '../core/worldgen/houses';
+import { isEntityOutside } from '../core/housing/dwelling';
 import { countPeaksAndTroughs, movingAverage } from './demographyMetrics';
 import { AvoidanceSteeringSystem } from '../systems/avoidanceSteeringSystem';
 import { CleanupSystem } from '../systems/cleanupSystem';
@@ -39,6 +40,8 @@ const DEFAULT_SEEDS = [42, 7, 13, 101, 314, 1337, 2026, 9001];
 const DEFAULT_TICKS = 20_000;
 const SAMPLE_EVERY_TICKS = 200;
 const WINDOW_TICKS = 40_000;
+const STALLED_SEEKING_DISTANCE_EPS = 0.05;
+const STALLED_SEEKING_TICKS_THRESHOLD = 180;
 
 const LONG_HORIZON_TICKS = 120_000;
 const WARMUP_TICKS = 10_000;
@@ -87,6 +90,8 @@ interface SeedMetrics {
   occupiedWithinFirst10k: boolean;
   avgInsideAfterWarmup: number;
   maxHouseContactStreak: number;
+  stillTooLongCount: number;
+  maxStillSeekingTicks: number;
   boundedPopulation: boolean;
 }
 
@@ -107,6 +112,7 @@ interface AcceptanceThresholds {
   minPopulation: number;
   maxPopulation: number;
   maxContactStreak: number;
+  maxStillTooLongCount: number;
 }
 
 function acceptanceForTicks(ticks: number): AcceptanceThresholds {
@@ -121,6 +127,7 @@ function acceptanceForTicks(ticks: number): AcceptanceThresholds {
       minPopulation: 20,
       maxPopulation: 650,
       maxContactStreak: 400,
+      maxStillTooLongCount: 0,
     };
   }
   return {
@@ -133,6 +140,7 @@ function acceptanceForTicks(ticks: number): AcceptanceThresholds {
     minPopulation: 20,
     maxPopulation: 700,
     maxContactStreak: 420,
+    maxStillTooLongCount: 0,
   };
 }
 
@@ -382,6 +390,8 @@ function computeMetrics(samples: DemographySample[]): SeedMetrics {
       occupiedWithinFirst10k: false,
       avgInsideAfterWarmup: 0,
       maxHouseContactStreak: 0,
+      stillTooLongCount: 0,
+      maxStillSeekingTicks: 0,
       boundedPopulation: false,
     };
   }
@@ -434,6 +444,8 @@ function computeMetrics(samples: DemographySample[]): SeedMetrics {
   const avgInsideAfterWarmup =
     afterWarmup.reduce((sum, sample) => sum + sample.insideCount, 0) / Math.max(1, afterWarmup.length);
   const maxHouseContactStreak = 0;
+  const stillTooLongCount = 0;
+  const maxStillSeekingTicks = 0;
   const boundedPopulation =
     afterWarmup.length > 0
       ? afterWarmup.every((sample) => sample.totalAlive >= 120 && sample.totalAlive <= 650)
@@ -451,6 +463,8 @@ function computeMetrics(samples: DemographySample[]): SeedMetrics {
     occupiedWithinFirst10k,
     avgInsideAfterWarmup,
     maxHouseContactStreak,
+    stillTooLongCount,
+    maxStillSeekingTicks,
     boundedPopulation,
   };
 }
@@ -518,7 +532,11 @@ function runSeed(seed: number, ticks: number): SeedReport {
   let insideAfterWarmupTotal = 0;
   let insideAfterWarmupSamples = 0;
   let maxHouseContactStreak = 0;
+  let maxStillSeekingTicks = 0;
   let boundedPopulation = true;
+  const stalledSeekingTicks = new Map<number, number>();
+  const stillTooLongEntities = new Set<number>();
+  const previousPositions = new Map<number, { x: number; y: number }>();
   const minPopulation = 20;
   const maxPopulation = 650;
 
@@ -526,6 +544,58 @@ function runSeed(seed: number, ticks: number): SeedReport {
     simulation.stepOneTick();
     for (const streak of world.houseContactStreaks.values()) {
       maxHouseContactStreak = Math.max(maxHouseContactStreak, streak.ticks);
+    }
+
+    for (const [id, movement] of world.movements) {
+      const transform = world.transforms.get(id);
+      if (!transform || movement.type !== 'socialNav') {
+        stalledSeekingTicks.delete(id);
+        continue;
+      }
+      const previous = previousPositions.get(id);
+      previousPositions.set(id, {
+        x: transform.position.x,
+        y: transform.position.y,
+      });
+
+      const seeksHouse = movement.intention === 'seekShelter' || movement.intention === 'seekHome';
+      if (
+        !seeksHouse ||
+        !isEntityOutside(world, id) ||
+        world.stillness.has(id) ||
+        world.sleep.get(id)?.asleep
+      ) {
+        stalledSeekingTicks.delete(id);
+        continue;
+      }
+
+      if (!previous) {
+        stalledSeekingTicks.set(id, 0);
+        continue;
+      }
+
+      const displacement = Math.hypot(
+        transform.position.x - previous.x,
+        transform.position.y - previous.y,
+      );
+      const nextTicks =
+        displacement <= STALLED_SEEKING_DISTANCE_EPS
+          ? (stalledSeekingTicks.get(id) ?? 0) + 1
+          : 0;
+      stalledSeekingTicks.set(id, nextTicks);
+      maxStillSeekingTicks = Math.max(maxStillSeekingTicks, nextTicks);
+      if (nextTicks >= STALLED_SEEKING_TICKS_THRESHOLD) {
+        stillTooLongEntities.add(id);
+      }
+    }
+
+    for (const id of previousPositions.keys()) {
+      if (world.entities.has(id)) {
+        continue;
+      }
+      previousPositions.delete(id);
+      stalledSeekingTicks.delete(id);
+      stillTooLongEntities.delete(id);
     }
 
     let insideCount = 0;
@@ -584,6 +654,8 @@ function runSeed(seed: number, ticks: number): SeedReport {
       occupiedWithinFirst10k,
       avgInsideAfterWarmup,
       maxHouseContactStreak,
+      stillTooLongCount: stillTooLongEntities.size,
+      maxStillSeekingTicks,
       boundedPopulation,
     },
     samples,
@@ -663,6 +735,14 @@ const maxContactStreakObserved = reports.reduce(
   (max, row) => Math.max(max, row.metrics.maxHouseContactStreak),
   0,
 );
+const stillTooLongMaxObserved = reports.reduce(
+  (max, row) => Math.max(max, row.metrics.stillTooLongCount),
+  0,
+);
+const maxStillSeekingTicksObserved = reports.reduce(
+  (max, row) => Math.max(max, row.metrics.maxStillSeekingTicks),
+  0,
+);
 const boundedPopulationCount = reports.filter((row) => row.metrics.boundedPopulation).length;
 const irregularSeenCount = reports.filter((row) => row.metrics.irregularSeen).length;
 
@@ -680,7 +760,7 @@ for (const row of reports) {
       3,
     )} ranks=${row.metrics.ranksPresentInWindow} rareSeen=${row.metrics.nearCircleOrPriestSeen ? 'yes' : 'no'} occupied10k=${
       row.metrics.occupiedWithinFirst10k ? 'yes' : 'no'
-    } insideAvg=${row.metrics.avgInsideAfterWarmup.toFixed(2)} maxStreak=${row.metrics.maxHouseContactStreak} bounded=${
+    } insideAvg=${row.metrics.avgInsideAfterWarmup.toFixed(2)} maxStreak=${row.metrics.maxHouseContactStreak} stillTooLong=${row.metrics.stillTooLongCount} stillMax=${row.metrics.maxStillSeekingTicks} bounded=${
       row.metrics.boundedPopulation ? 'yes' : 'no'
     } births=${
       d.births
@@ -708,7 +788,7 @@ console.log(
     3,
   )} ranksPresent(avg)=${avgRanksPresent.toFixed(2)} occupied10k=${occupied10kCount}/${reports.length} insideAvg=${avgInsideAfterWarmup.toFixed(
     2,
-  )} maxStreak=${maxContactStreakObserved} bounded=${boundedPopulationCount}/${reports.length} irregularSeen=${irregularSeenCount}/${reports.length} rarePresenceSeeds=${rarePresenceCount}/${reports.length}`,
+  )} maxStreak=${maxContactStreakObserved} stillTooLong(max)=${stillTooLongMaxObserved} stillTicksMax=${maxStillSeekingTicksObserved} bounded=${boundedPopulationCount}/${reports.length} irregularSeen=${irregularSeenCount}/${reports.length} rarePresenceSeeds=${rarePresenceCount}/${reports.length}`,
 );
 
 const artifactsDir = join(process.cwd(), '.artifacts', 'demography');
@@ -730,6 +810,8 @@ writeFileSync(
         occupied10kCount,
         avgInsideAfterWarmup,
         maxContactStreakObserved,
+        stillTooLongMaxObserved,
+        maxStillSeekingTicksObserved,
         boundedPopulationCount,
         irregularSeenCount,
         rarePresenceCount,
@@ -782,6 +864,11 @@ if (ticks >= 20_000 && avgInsideAfterWarmup <= 0) {
 if (maxContactStreakObserved > acceptance.maxContactStreak) {
   failedChecks.push(
     `house-contact stuck streak too high (${maxContactStreakObserved} > ${acceptance.maxContactStreak})`,
+  );
+}
+if (stillTooLongMaxObserved > acceptance.maxStillTooLongCount) {
+  failedChecks.push(
+    `still-too-long shelter seekers detected (${stillTooLongMaxObserved} > ${acceptance.maxStillTooLongCount})`,
   );
 }
 if (ticks >= LONG_HORIZON_TICKS && boundedPopulationCount <= 0) {
