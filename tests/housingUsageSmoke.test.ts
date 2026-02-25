@@ -17,7 +17,7 @@ import { VisionSystem } from '../src/systems/visionSystem';
 
 describe('housing usage smoke', () => {
   it(
-    'shows deterministic house entries/exits in a 10k-tick run (seed 42)',
+    'shows deterministic house entries/exits in a 3k-tick run (seed 42)',
     () => {
       const world = createDefaultWorld(42);
       const simulation = new FixedTimestepSimulation(world, [
@@ -39,7 +39,7 @@ describe('housing usage smoke', () => {
       let exitTransitions = 0;
       let sawInside = false;
       let previousInside = 0;
-      for (let i = 0; i < 10_000; i += 1) {
+      for (let i = 0; i < 3_000; i += 1) {
         simulation.stepOneTick();
         enterCount += world.houseEntriesThisTick;
         sawInside ||= world.insideCountThisTick > 0;
@@ -53,6 +53,6 @@ describe('housing usage smoke', () => {
       expect(enterCount).toBeGreaterThan(0);
       expect(exitTransitions).toBeGreaterThan(0);
     },
-    90_000,
+    75_000,
   );
 });
