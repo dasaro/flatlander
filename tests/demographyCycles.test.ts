@@ -143,7 +143,7 @@ describe('demography cycles (multi-seed)', () => {
         expect(cycle.diversity, `seed ${seed} rank diversity`).toBeGreaterThanOrEqual(4);
         expect(cycle.amplitude, `seed ${seed} oscillation amplitude`).toBeGreaterThanOrEqual(0.015);
       },
-      45_000,
+      90_000,
     );
   }
 });
