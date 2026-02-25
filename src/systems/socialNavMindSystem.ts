@@ -274,23 +274,7 @@ export class SocialNavMindSystem implements System {
 
       const needDecision = movement.intentionTicksLeft <= 0;
       const visionHit = world.visionHits.get(id);
-      const sightHazardDistance =
-        visionHit === undefined
-          ? Number.POSITIVE_INFINITY
-          : (visionHitClearance(world, id, visionHit) ?? Number.POSITIVE_INFINITY);
-      const contactDistance = world.collisions.some((pair) => pair.a === id || pair.b === id)
-        ? 0
-        : Number.POSITIVE_INFINITY;
-      const hazardDistance = Math.min(sightHazardDistance, contactDistance);
-      const emergencyAvoid = hazardDistance <= Math.max(4, movement.maxSpeed * 0.45);
-
       const hazardDirection: Vec2 | null = visionHit?.direction ?? null;
-
-      if (!needDecision && !emergencyAvoid) {
-        movement.intentionTicksLeft -= 1;
-        trackHousingIntentionCounts(world, movement);
-        continue;
-      }
 
       const seenId = seenEntityId(world, id);
       const higher = higherRankFromPerception(world, id, seenId);
@@ -316,6 +300,28 @@ export class SocialNavMindSystem implements System {
           periodicHomeReturn ||
           spouseBonded);
       const caution = cautionFactor(world, id);
+      const targetHouseHit =
+        visionHit?.kind === 'entity' &&
+        world.staticObstacles.has(visionHit.hitId) &&
+        ((homeWanted && homeDoorTarget?.houseId === visionHit.hitId) ||
+          (shelterWanted && shelterTarget?.houseId === visionHit.hitId) ||
+          ((movement.intention === 'seekShelter' || movement.intention === 'seekHome') &&
+            movement.goal?.targetId === visionHit.hitId));
+      const sightHazardDistance =
+        visionHit === undefined || targetHouseHit
+          ? Number.POSITIVE_INFINITY
+          : (visionHitClearance(world, id, visionHit) ?? Number.POSITIVE_INFINITY);
+      const contactDistance = world.collisions.some((pair) => pair.a === id || pair.b === id)
+        ? 0
+        : Number.POSITIVE_INFINITY;
+      const hazardDistance = Math.min(sightHazardDistance, contactDistance);
+      const emergencyAvoid = hazardDistance <= Math.max(4, movement.maxSpeed * 0.45);
+
+      if (!needDecision && !emergencyAvoid) {
+        movement.intentionTicksLeft -= 1;
+        trackHousingIntentionCounts(world, movement);
+        continue;
+      }
 
       const hazardRadius = Math.max(8, movement.maxSpeed * 2.2);
       const desireAvoid =
@@ -426,7 +432,7 @@ export class SocialNavMindSystem implements System {
       const jitter = 0.7 + hashNoise(world.seed + 17, id, durationBucket) * 0.6;
       const baseDuration = Math.max(1, movement.intentionMinTicks);
       movement.intentionTicksLeft = Math.max(1, Math.round(baseDuration * jitter));
-      if (emergencyAvoid && movement.intention !== 'avoid') {
+      if (emergencyAvoid && !targetHouseHit && movement.intention !== 'avoid') {
         movement.intention = 'avoid';
       }
       trackHousingIntentionCounts(world, movement);

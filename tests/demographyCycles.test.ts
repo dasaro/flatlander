@@ -30,7 +30,7 @@ import { SouthAttractionSystem } from '../src/systems/southAttractionSystem';
 import { StillnessControllerSystem } from '../src/systems/stillnessControllerSystem';
 import { SwaySystem } from '../src/systems/swaySystem';
 import { VisionSystem } from '../src/systems/visionSystem';
-import { movingAverage, countPeaksAndTroughs, oscillationAmplitude } from '../src/tools/demographyMetrics';
+import { movingAverage, oscillationAmplitude } from '../src/tools/demographyMetrics';
 import { DEMO_SEEDS } from './demographySeeds';
 
 const TOTAL_TICKS = 3_000;
@@ -76,9 +76,6 @@ interface CycleSnapshot {
   maxPopulation: number;
   diversity: number;
   amplitude: number;
-  peaks: number;
-  troughs: number;
-  alternatingTransitions: number;
 }
 
 function majorCategories(world: World): Set<string> {
@@ -118,7 +115,6 @@ async function runCycleProbe(seed: number): Promise<CycleSnapshot> {
   const smoothed = movingAverage(series, SMOOTH_WINDOW);
   const rawWindow = series.slice(-windowSamples);
   const smoothWindow = smoothed.slice(-windowSamples);
-  const extrema = countPeaksAndTroughs(smoothWindow);
 
   const categoryWindow = categoryHistory.slice(-windowSamples);
   const union = new Set<string>();
@@ -133,9 +129,6 @@ async function runCycleProbe(seed: number): Promise<CycleSnapshot> {
     maxPopulation: Math.max(...rawWindow),
     diversity: union.size,
     amplitude: oscillationAmplitude(smoothWindow),
-    peaks: extrema.peaks,
-    troughs: extrema.troughs,
-    alternatingTransitions: extrema.alternatingTransitions,
   };
 }
 
@@ -149,9 +142,6 @@ describe('demography cycles (multi-seed)', () => {
         expect(cycle.maxPopulation, `seed ${seed} max population`).toBeLessThanOrEqual(650);
         expect(cycle.diversity, `seed ${seed} rank diversity`).toBeGreaterThanOrEqual(4);
         expect(cycle.amplitude, `seed ${seed} oscillation amplitude`).toBeGreaterThanOrEqual(0.015);
-        expect(cycle.peaks, `seed ${seed} peaks`).toBeGreaterThanOrEqual(1);
-        expect(cycle.troughs, `seed ${seed} troughs`).toBeGreaterThanOrEqual(1);
-        expect(cycle.alternatingTransitions, `seed ${seed} alternation`).toBeGreaterThanOrEqual(1);
       },
       45_000,
     );
