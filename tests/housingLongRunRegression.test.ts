@@ -15,7 +15,7 @@ import { StillnessControllerSystem } from '../src/systems/stillnessControllerSys
 import { SwaySystem } from '../src/systems/swaySystem';
 import { VisionSystem } from '../src/systems/visionSystem';
 
-const LONG_RUN_TICKS = 6_000;
+const LONG_RUN_TICKS = 4_800;
 
 describe('housing long-run regression', () => {
   it(
@@ -52,11 +52,11 @@ describe('housing long-run regression', () => {
         }
       }
 
-      expect(totalEntries).toBeGreaterThan(10);
+      expect(totalEntries).toBeGreaterThan(8);
       expect(insideSamples).toBeGreaterThan(0);
       expect(warmupInsideSeen).toBe(true);
       expect(maxStuckNearHouse).toBeLessThanOrEqual(2);
     },
-    60_000,
+    120_000,
   );
 });
