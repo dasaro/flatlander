@@ -65,7 +65,12 @@ function sightDirectionCandidate(world: World, entityId: EntityId): DirectionCan
 
 function seenEntityId(world: World, entityId: EntityId): EntityId | null {
   const hit = world.visionHits.get(entityId);
-  if (!hit || hit.kind !== 'entity' || !world.entities.has(hit.hitId)) {
+  if (
+    !hit ||
+    hit.kind !== 'entity' ||
+    !world.entities.has(hit.hitId) ||
+    world.staticObstacles.has(hit.hitId)
+  ) {
     return null;
   }
   return hit.hitId;

@@ -106,13 +106,24 @@ export class AvoidanceSteeringSystem implements System {
       let usedSight = false;
 
       const visionHit = world.visionHits.get(id);
+      const obstacleAvoidPadding =
+        visionHit && world.staticObstacles.has(visionHit.hitId)
+          ? Math.min(
+              36,
+              Math.max(6, (world.shapes.get(visionHit.hitId)?.boundingRadius ?? 0) * 0.5),
+            )
+          : 0;
+      const effectiveAvoidDistance = Math.max(
+        0,
+        (vision?.avoidDistance ?? 0) + obstacleAvoidPadding,
+      );
       if (
         vision &&
         vision.enabled &&
         visionHit &&
-        vision.avoidDistance > 0 &&
+        effectiveAvoidDistance > 0 &&
         visionHit.distance !== null &&
-        visionHit.distance < vision.avoidDistance
+        visionHit.distance < effectiveAvoidDistance
       ) {
         const toHit =
           visionHit.direction ??

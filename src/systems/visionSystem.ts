@@ -103,7 +103,7 @@ function isBetterCandidate(next: VisionCandidate, best: VisionCandidate | null):
   return next.id < best.id;
 }
 
-function isWithinFov(forward: Vec2, toTarget: Vec2, halfFovRad: number): boolean {
+function targetIntersectsFov(forward: Vec2, toTarget: Vec2, halfFovRad: number, approxRadius: number): boolean {
   if (halfFovRad >= Math.PI - 1e-6) {
     return true;
   }
@@ -117,8 +117,17 @@ function isWithinFov(forward: Vec2, toTarget: Vec2, halfFovRad: number): boolean
     y: toTarget.y / len,
   };
   const cosine = clamp(dot(unit, forward), -1, 1);
-  const angle = Math.acos(cosine);
-  return angle <= halfFovRad + 1e-6;
+  const centerAngle = Math.acos(cosine);
+  if (centerAngle <= halfFovRad + 1e-6) {
+    return true;
+  }
+  if (approxRadius <= 0) {
+    return false;
+  }
+  // Include large targets (e.g. houses) whose center is just outside FOV but whose
+  // visible boundary intersects the gaze cone.
+  const angularRadius = Math.asin(clamp(approxRadius / len, 0, 1));
+  return centerAngle <= halfFovRad + angularRadius + 1e-6;
 }
 
 export class VisionSystem implements System {
@@ -200,7 +209,7 @@ export class VisionSystem implements System {
           }
 
           const toTarget = sub(target.center, eye);
-          if (!isWithinFov(forward, toTarget, halfFov)) {
+          if (!targetIntersectsFov(forward, toTarget, halfFov, target.approxRadius)) {
             continue;
           }
           const aheadDistance = dot(toTarget, rayDirection);
