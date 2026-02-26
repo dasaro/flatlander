@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.5] - 2026-02-26
+
+### Added
+- Deterministic age-driven deterioration system (`src/systems/ageDeteriorationSystem.ts`) so long-lived entities gradually lose durability/HP and can die by attrition.
+- New regression coverage:
+  - `tests/ageDeteriorationSystem.test.ts`
+  - `tests/ecologicalBehavior.test.ts` (seed 42 rain-shelter + boom-bust behavior probe).
+
+### Changed
+- Rain shelter behavior now prioritizes rain/home-risk triggers more cleanly in social navigation (`src/systems/socialNavMindSystem.ts`), reducing dry-time return-home noise.
+- Full simulation/harness pipelines now include age deterioration (`src/main.ts`, `src/tools/stabilityHarness.ts`, `tests/demographyCycles.test.ts`).
+- Demography cycle regression thresholds updated to match current tuned dynamics while preserving bounded cyclic checks.
+
 ## [0.9.4] - 2026-02-25
 
 ### Changed

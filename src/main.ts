@@ -32,6 +32,7 @@ import { RainSystem } from './systems/rainSystem';
 import { CleanupSystem } from './systems/cleanupSystem';
 import { CollisionSystem } from './systems/collisionSystem';
 import { ErosionSystem } from './systems/erosionSystem';
+import { AgeDeteriorationSystem } from './systems/ageDeteriorationSystem';
 import { FeelingApproachSystem } from './systems/feelingApproachSystem';
 import { FeelingSystem } from './systems/feelingSystem';
 import { HouseSystem } from './systems/houseSystem';
@@ -153,6 +154,7 @@ const systems = [
   new FeelingSystem(),
   new CollisionResolutionSystem(),
   new ErosionSystem(),
+  new AgeDeteriorationSystem(),
   new LethalitySystem(),
   new CleanupSystem(),
   new ReproductionSystem(),

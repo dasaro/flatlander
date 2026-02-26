@@ -14,6 +14,7 @@ import { CollisionSystem } from '../systems/collisionSystem';
 import { CompensationSystem } from '../systems/compensationSystem';
 import { CrowdStressSystem } from '../systems/crowdStressSystem';
 import { ErosionSystem } from '../systems/erosionSystem';
+import { AgeDeteriorationSystem } from '../systems/ageDeteriorationSystem';
 import { FeelingApproachSystem } from '../systems/feelingApproachSystem';
 import { FeelingSystem } from '../systems/feelingSystem';
 import { HearingSystem } from '../systems/hearingSystem';
@@ -382,6 +383,7 @@ function runSeed(seed: number, ticks: number): SeedReport {
     new FeelingSystem(),
     new CollisionResolutionSystem(),
     new ErosionSystem(),
+    new AgeDeteriorationSystem(),
     new LethalitySystem(),
     new CleanupSystem(),
     new ReproductionSystem(),

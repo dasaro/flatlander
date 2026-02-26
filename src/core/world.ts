@@ -131,6 +131,10 @@ export interface WorldConfig {
   wearToHpStep: number;
   stabHpDamageScale: number;
   bluntExponent: number;
+  ageWearEnabled: boolean;
+  ageWearStartTicks: number;
+  ageWearRampTicks: number;
+  ageWearRate: number;
   regularizationEnabled: boolean;
   regularizationRate: number;
   regularityTolerance: number;
@@ -343,6 +347,10 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   wearToHpStep: 7.5,
   stabHpDamageScale: 0.85,
   bluntExponent: 0.7,
+  ageWearEnabled: true,
+  ageWearStartTicks: 3_000,
+  ageWearRampTicks: 6_000,
+  ageWearRate: 0.32,
   regularizationEnabled: true,
   regularizationRate: 0.15,
   regularityTolerance: 0.015,

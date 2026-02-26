@@ -291,14 +291,13 @@ export class SocialNavMindSystem implements System {
       const shelterWanted = shelterTarget !== null && shouldSeekShelter(world, id);
       const durability = world.durability.get(id);
       const hpRatio = durability && durability.maxHp > 0 ? durability.hp / durability.maxHp : 1;
-      const periodicHomeReturn = world.tick % 720 < 90;
+      const routineHomeWindow = world.tick % 1_600 < 45;
       const spouseBonded = bond?.spouseId !== null && bond?.spouseId !== undefined;
       const homeWanted =
         homeDoorTarget !== null &&
         (world.weather.isRaining ||
           hpRatio <= LOW_HP_HOME_RETURN_THRESHOLD ||
-          periodicHomeReturn ||
-          spouseBonded);
+          (spouseBonded && routineHomeWindow && hpRatio < 0.92));
       const caution = cautionFactor(world, id);
       const targetHouseHit =
         visionHit?.kind === 'entity' &&
