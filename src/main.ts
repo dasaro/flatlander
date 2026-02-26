@@ -14,6 +14,7 @@ import { boundaryFromTopology, type WorldTopology } from './core/topology';
 import { createWorld, type WorldConfig } from './core/world';
 import { spawnHouses } from './core/worldgen/houses';
 import { applySpawnPlan as applyScenarioSpawnPlan, defaultSpawnPlan } from './presets/defaultScenario';
+import { fogDensityAt } from './core/fogField';
 import type { Vec2 } from './geometry/vector';
 import { Camera } from './render/camera';
 import { CanvasRenderer } from './render/canvasRenderer';
@@ -678,8 +679,7 @@ function frame(now: number): void {
   debugClickPoint = null;
 
   renderFlatlanderView(frameSnapshot);
-  renderer.render(world, camera, selectionState.selectedId, {
-    frameSnapshot,
+  renderer.render(world, camera, selectionState.selectedId, frameSnapshot, {
     showSouthZoneOverlay: southAttractionSettings.showSouthZoneOverlay,
     debugClickPoint: southAttractionSettings.showClickDebug ? clickPoint : null,
     effectsManager,
@@ -750,6 +750,7 @@ function renderSelection(): void {
   const movement = world.movements.get(selectedId) ?? null;
   const shape = world.shapes.get(selectedId) ?? null;
   const rank = world.ranks.get(selectedId) ?? null;
+  const job = world.jobs.get(selectedId)?.job ?? null;
   const vision = world.vision.get(selectedId) ?? null;
   const perception = world.perceptions.get(selectedId) ?? null;
   const eyePose = eyePoseWorld(world, selectedId);
@@ -799,6 +800,7 @@ function renderSelection(): void {
     movement,
     shape,
     rank,
+    job,
     vision,
     perception,
     eyePose?.eyeWorld ?? null,
@@ -853,6 +855,7 @@ function renderNoSelectionInspector(): void {
     null,
     null,
     null,
+    null,
     'N/A',
   );
   ui.renderDwellingState(null);
@@ -877,6 +880,7 @@ function renderWorldHoverInfo(): void {
   const shape = world.shapes.get(entityId);
   const rankLabel = rankLabelForEntity(entityId);
   const movement = world.movements.get(entityId);
+  const job = world.jobs.get(entityId)?.job ?? null;
   const age = world.ages.get(entityId);
   const combat = world.combatStats.get(entityId);
   const feeling = world.feeling.get(entityId);
@@ -916,6 +920,7 @@ function renderWorldHoverInfo(): void {
     : [
         `${shapeLabel} · ${movementLabel(movement)}`,
         `Speed ${speed.toFixed(1)} · Kills ${combat?.kills ?? 0} · Age ${age?.ticksAlive ?? 0}`,
+        ...(job ? [`Job ${job}`] : []),
         `Feeling ${feeling?.state ?? 'N/A'}`,
       ];
 
@@ -1017,13 +1022,17 @@ function renderFlatlanderView(frameSnapshot: Readonly<FrameSnapshot>): void {
   }
 
   const configKey = flatlanderConfigKey(flatlanderViewSettings);
+  const effectiveFlatlanderSettings: FlatlanderViewSettings = {
+    ...flatlanderViewSettings,
+    fogDensity: fogDensityAt(frameSnapshot.fogField, selectedEyePose.eyeWorld),
+  };
   if (
     flatlanderScanDirty ||
     world.tick !== lastFlatlanderScanTick ||
     selectedId !== lastFlatlanderScanViewerId ||
     configKey !== lastFlatlanderScanConfigKey
   ) {
-    cachedFlatlanderScan = computeFlatlanderScan(world, selectedId, flatlanderViewSettings);
+    cachedFlatlanderScan = computeFlatlanderScan(world, selectedId, effectiveFlatlanderSettings);
     lastFlatlanderScanTick = world.tick;
     lastFlatlanderScanViewerId = selectedId;
     lastFlatlanderScanConfigKey = configKey;
@@ -1039,9 +1048,9 @@ function renderFlatlanderView(frameSnapshot: Readonly<FrameSnapshot>): void {
 
   flatlanderViewRenderer.render(
     cachedFlatlanderScan,
-    flatlanderViewSettings,
+    effectiveFlatlanderSettings,
     Math.atan2(selectedEyePose.forwardWorld.y, selectedEyePose.forwardWorld.x) +
-      flatlanderViewSettings.lookOffsetRad,
+      effectiveFlatlanderSettings.lookOffsetRad,
     flatlanderHoverEntityId,
     flatlanderHoverSampleIndex,
     {
@@ -1341,8 +1350,8 @@ function applyEnvironmentSettingsToWorld(
   worldState.config.rainEnabled = environment.rainEnabled && environment.housesEnabled;
   if (!worldState.config.rainEnabled) {
     worldState.weather.isRaining = false;
-    worldState.weather.ticksUntilRain = Math.max(1, Math.round(worldState.config.rainPeriodTicks));
-    worldState.weather.ticksRemainingRain = Math.max(1, Math.round(worldState.config.rainDurationTicks));
+    worldState.weather.ticksUntilRain = Math.max(1, Math.round(worldState.config.rainBasePeriodTicks));
+    worldState.weather.ticksRemainingRain = Math.max(1, Math.round(worldState.config.rainBaseDurationTicks));
   }
 }
 

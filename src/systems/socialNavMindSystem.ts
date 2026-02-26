@@ -291,6 +291,7 @@ export class SocialNavMindSystem implements System {
       const shelterWanted = shelterTarget !== null && shouldSeekShelter(world, id);
       const durability = world.durability.get(id);
       const hpRatio = durability && durability.maxHp > 0 ? durability.hp / durability.maxHp : 1;
+      const isWoman = world.ranks.get(id)?.rank === Rank.Woman;
       const routineHomeWindow = world.tick % 1_600 < 45;
       const spouseBonded = bond?.spouseId !== null && bond?.spouseId !== undefined;
       const homeWanted =
@@ -315,8 +316,14 @@ export class SocialNavMindSystem implements System {
         : Number.POSITIVE_INFINITY;
       const hazardDistance = Math.min(sightHazardDistance, contactDistance);
       const emergencyAvoid = hazardDistance <= Math.max(4, movement.maxSpeed * 0.45);
+      const rainingShelterOverride =
+        world.weather.isRaining &&
+        shelterWanted &&
+        shelterTarget !== null &&
+        movement.intention !== 'seekShelter' &&
+        movement.intention !== 'seekHome';
 
-      if (!needDecision && !emergencyAvoid) {
+      if (!needDecision && !emergencyAvoid && !rainingShelterOverride) {
         movement.intentionTicksLeft -= 1;
         trackHousingIntentionCounts(world, movement);
         continue;
@@ -339,7 +346,7 @@ export class SocialNavMindSystem implements System {
         !shelterWanted || shelterTarget === null
           ? 0
           : world.weather.isRaining
-            ? Math.max(0.58, Math.max(0, (220 - shelterTarget.distance) / 220))
+            ? Math.max(1.1, Math.max(0, (220 - shelterTarget.distance) / 220)) * (isWoman ? 1.25 : 1)
             : Math.max(0.24, Math.max(0, (220 - shelterTarget.distance) / 220));
       const desireMate =
         mate === null
@@ -363,6 +370,10 @@ export class SocialNavMindSystem implements System {
         desireMate,
         desireFeel,
       );
+
+      if (rainingShelterOverride) {
+        movement.intention = 'seekShelter';
+      }
 
       if (movement.intention === 'avoid' || movement.intention === 'yield') {
         const direction =

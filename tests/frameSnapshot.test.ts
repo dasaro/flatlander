@@ -21,8 +21,11 @@ describe('frame snapshot', () => {
     expect(snapshot.tick).toBe(123);
     expect(snapshot.isRaining).toBe(true);
     expect(snapshot.fogDensity).toBeCloseTo(0.013, 8);
+    expect(snapshot.fogField.baseDensity).toBeCloseTo(0.013, 8);
+    expect(snapshot.fogField.seed).toBe(42);
     expect(snapshot.showRainOverlay).toBe(true);
     expect(snapshot.showFogOverlay).toBe(false);
     expect(Object.isFrozen(snapshot)).toBe(true);
+    expect(Object.isFrozen(snapshot.fogField)).toBe(true);
   });
 });

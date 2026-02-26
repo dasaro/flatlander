@@ -39,6 +39,7 @@ import {
 } from './isosceles';
 import { initialIntelligenceForRank } from './intelligence';
 import { computeDefaultEyeComponent } from './eyePose';
+import { deterministicJobForEntity } from './jobs';
 import { buildDeterministicName } from './names';
 import { defaultPerceptionForRank } from './perceptionPresets';
 import { rankFromShape, Rank } from './rank';
@@ -205,6 +206,7 @@ export function spawnEntity(
   const durability = durabilityForRank(rank.rank, shape);
   const legacy = createLegacy();
   const name = buildDeterministicName(world.seed, id, rank.rank, shape);
+  const job = deterministicJobForEntity(world.seed, id, rank, shape);
 
   world.entities.add(id);
   world.transforms.set(id, {
@@ -269,6 +271,7 @@ export function spawnEntity(
     bondedAtTick: Number.NEGATIVE_INFINITY,
   });
   world.names.set(id, name);
+  world.jobs.set(id, { job });
   world.combatStats.set(id, { kills: 0 });
   world.durability.set(id, durability);
   if (femaleStatus) {

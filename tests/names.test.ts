@@ -19,6 +19,23 @@ describe('deterministic display names', () => {
     expect(a.displayName).toBe(b.displayName);
   });
 
+  it('produces unique display names across entity ids in one world seed', () => {
+    const shape = {
+      kind: 'polygon' as const,
+      sides: 6,
+      vertices: [],
+      irregularity: 0,
+      regular: true,
+      boundingRadius: 16,
+    };
+    const names = new Set<string>();
+    for (let id = 1; id <= 600; id += 1) {
+      const name = buildDeterministicName(42, id, Rank.Gentleman, shape);
+      names.add(name.displayName);
+    }
+    expect(names.size).toBe(600);
+  });
+
   it('does not consume world rng state', () => {
     const worldA = createWorld(77);
     const worldB = createWorld(77);

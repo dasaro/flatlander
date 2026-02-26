@@ -172,7 +172,8 @@ export class NeoTherapySystem implements System {
         continue;
       }
 
-      const priestTargetThreshold = Math.max(world.config.maxPolygonSides - 1, threshold);
+      // Scaled canon analogue: near-circular infants can be pushed to courtesy Priest status.
+      const priestTargetThreshold = Math.max(3, Math.max(world.config.nearCircleThreshold - 2, threshold));
       const target: 'NearCircle' | 'Priest' = shape.sides >= priestTargetThreshold ? 'Priest' : 'NearCircle';
       world.neoTherapy.set(entityId, {
         enrolled: true,

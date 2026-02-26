@@ -268,6 +268,7 @@ interface InputRefs {
   inspectorNone: HTMLElement;
   inspectorFields: HTMLElement;
   inspectorRank: HTMLElement;
+  inspectorJob: HTMLElement;
   inspectorShape: HTMLElement;
   inspectorKills: HTMLElement;
   inspectorHouseSummary: HTMLElement;
@@ -434,6 +435,7 @@ export class UIController {
       null,
       null,
       null,
+      null,
       'N/A',
     );
     this.syncInspectorActionButtons();
@@ -544,6 +546,7 @@ export class UIController {
     movement: MovementComponent | null,
     shape: ShapeComponent | null,
     rank: RankComponent | null,
+    jobLabel: string | null,
     vision: VisionComponent | null,
     perception: PerceptionComponent | null,
     eyeWorld: Vec2 | null,
@@ -586,6 +589,7 @@ export class UIController {
       this.refs.selectedId.textContent = 'None';
       this.refs.selectedName.textContent = 'N/A';
       this.refs.inspectorRank.textContent = 'N/A';
+      this.refs.inspectorJob.textContent = 'N/A';
       this.refs.inspectorShape.textContent = 'N/A';
       this.refs.inspectorKills.textContent = '0';
       this.refs.inspectorDwellingRow.hidden = true;
@@ -647,6 +651,7 @@ export class UIController {
     this.refs.selectedId.textContent = String(entityId);
     this.refs.selectedName.textContent = displayName ?? `#${entityId}`;
     this.refs.inspectorRank.textContent = rankLabel(rank, shape);
+    this.refs.inspectorJob.textContent = jobLabel ?? 'N/A';
     this.refs.inspectorShape.textContent = shapeLabel(shape);
     this.refs.inspectorKills.textContent = String(Math.max(0, Math.round(killCount ?? 0)));
     this.refs.inspectorDwellingRow.hidden = false;
@@ -867,6 +872,7 @@ export class UIController {
     this.refs.selectedId.textContent = String(entityId);
     this.refs.selectedName.textContent = `House #${entityId}`;
     this.refs.inspectorRank.textContent = 'House';
+    this.refs.inspectorJob.textContent = 'N/A';
     this.refs.inspectorShape.textContent = shapeLabelText;
     this.refs.inspectorKills.textContent = '0';
     this.refs.inspectorNone.hidden = true;
@@ -1912,6 +1918,7 @@ function collectRefs(): InputRefs {
     inspectorNone: required<HTMLElement>('inspector-none'),
     inspectorFields: required<HTMLElement>('inspector-fields'),
     inspectorRank: required<HTMLElement>('inspector-rank'),
+    inspectorJob: required<HTMLElement>('inspector-job'),
     inspectorShape: required<HTMLElement>('inspector-shape'),
     inspectorKills: required<HTMLElement>('inspector-kills'),
     inspectorHouseSummary: required<HTMLElement>('inspector-house-summary'),

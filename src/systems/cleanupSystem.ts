@@ -50,6 +50,7 @@ export class CleanupSystem implements System {
       world.neoTherapy.delete(id);
       world.bonds.delete(id);
       world.names.delete(id);
+      world.jobs.delete(id);
       world.combatStats.delete(id);
       world.durability.delete(id);
       world.femaleStatus.delete(id);

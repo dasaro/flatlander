@@ -171,6 +171,23 @@ export interface NameComponent {
   given: string;
   family: string;
   title: string;
+  suffix: string;
+}
+
+export type JobKind =
+  | 'Soldier'
+  | 'Workman'
+  | 'Merchant'
+  | 'Physician'
+  | 'Lawyer'
+  | 'Gentleman'
+  | 'Noble'
+  | 'Statesman'
+  | 'Priest'
+  | 'Lady';
+
+export interface JobComponent {
+  job: JobKind;
 }
 
 export interface PeaceCryComponent {

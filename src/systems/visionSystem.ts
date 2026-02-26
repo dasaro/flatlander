@@ -1,5 +1,6 @@
 import { geometryFromComponents } from '../core/entityGeometry';
 import { eyePoseWorld } from '../core/eyePose';
+import { fogDensityAt, fogFieldConfigFromWorld } from '../core/fogField';
 import { isEntityOutside } from '../core/housing/dwelling';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
@@ -139,8 +140,8 @@ export class VisionSystem implements System {
 
     const ids = getSortedEntityIds(world);
     const targets = collectTargets(world, ids);
-    const fogDensity = Math.max(0, world.config.fogDensity);
-    const hasDimnessCue = fogDensity > 0;
+    const fogField = fogFieldConfigFromWorld(world);
+    const hasDimnessCue = fogField.baseDensity > 0;
     const fogMinIntensity = Math.max(0, world.config.fogMinIntensity);
     const fogMaxDistance = Math.max(0, world.config.fogMaxDistance);
     const boundedTopology = world.config.topology === 'bounded';
@@ -166,6 +167,7 @@ export class VisionSystem implements System {
       const eye = pose.eyeWorld;
       const forward = pose.forwardWorld;
       const halfFov = clamp(pose.fovRad * 0.5, Math.PI / 12, Math.PI);
+      const localFogDensity = hasDimnessCue ? fogDensityAt(fogField, eye) : 0;
 
       const rayCount = Math.max(3, DEFAULT_SCAN_RAY_COUNT);
       let best: VisionCandidate | null = null;
@@ -182,7 +184,7 @@ export class VisionSystem implements System {
         if (boundedTopology) {
           const boundaryHit = raycastWorldBounds(eye, rayDirection, world.config.width, world.config.height);
           if (boundaryHit && boundaryHit.distance <= vision.range && boundaryHit.distance <= fogMaxDistance) {
-            const intensity = hasDimnessCue ? Math.exp(-fogDensity * boundaryHit.distance) : 1;
+            const intensity = hasDimnessCue ? Math.exp(-localFogDensity * boundaryHit.distance) : 1;
             const effective = hasDimnessCue ? intensity * perception.sightSkill : perception.sightSkill;
             if (effective >= fogMinIntensity) {
               const candidate: VisionCandidate = {
@@ -225,7 +227,7 @@ export class VisionSystem implements System {
             continue;
           }
 
-          const intensity = hasDimnessCue ? Math.exp(-fogDensity * hitDistance) : 1;
+          const intensity = hasDimnessCue ? Math.exp(-localFogDensity * hitDistance) : 1;
           const effective = hasDimnessCue ? intensity * perception.sightSkill : perception.sightSkill;
           if (effective < fogMinIntensity) {
             continue;

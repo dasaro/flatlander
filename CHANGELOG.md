@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.6] - 2026-02-26
+
+### Added
+- Deterministic spatial fog field in core (`src/core/fogField.ts`) with dedicated tests (`tests/fogField.test.ts`).
+- Deterministic rank-compatible job/category assignment (`src/core/jobs.ts`) surfaced in inspector/hover (`tests/jobs.test.ts`).
+- Mid-run ecology/rain-housing audit tool (`npm run sim:midrun`) writing `.artifacts/midrun_report.json`.
+- New rain jitter determinism tests (`tests/rainSystemJitter.test.ts`) and a 10k rain-shelter smoke (`tests/midrunSmoke.test.ts`).
+- Implementation audit note for this patch: `IMPLEMENTATION_AUDIT_ENV_BDI.md`.
+
+### Changed
+- Rain scheduling now supports deterministic interval jitter around stated baselines (`rainBasePeriodTicks`, `rainPeriodJitterFrac`, `rainBaseDurationTicks`, `rainDurationJitterFrac`).
+- Vision now uses local fog density from the spatial field; God-view fog shading and Flatlander-view fog strength are aligned to the same field snapshot.
+- SocialNav rain shelter weighting was strengthened so shelter intent dominates during rain windows for most outside entities.
+- Pregnant women now render with a distinct color cue in God-view.
+- Neo-therapy promotion targeting was tuned (still rare) to allow occasional priest emergence in multi-seed runs.
+- Added repository-level engineering contract in `AGENTS.md` (determinism + snapshot + validation rules).
+- `NOVEL_AUDIT.md` now includes explicit Part I §2/§3/§6 quoted anchors with links and updated canon/assumption mapping for rain/fog/jobs.
+
 ## [0.9.5] - 2026-02-26
 
 ### Added

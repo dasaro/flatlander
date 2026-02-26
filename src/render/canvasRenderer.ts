@@ -1,6 +1,7 @@
 import { geometryFromComponents } from '../core/entityGeometry';
 import { eyePoseWorld } from '../core/eyePose';
 import { getEyeWorldPosition } from '../core/eye';
+import { fogDensityAt } from '../core/fogField';
 import { isEntityOutside } from '../core/housing/dwelling';
 import { doorPoseWorld } from '../core/housing/houseFactory';
 import { Rank } from '../core/rank';
@@ -16,7 +17,6 @@ import { fogIntensityAtDistance, fogRingRadiusForLevel, visualAlpha } from './vi
 import type { FrameSnapshot } from '../ui/frameSnapshot';
 
 export interface RenderOptions {
-  frameSnapshot?: Readonly<FrameSnapshot>;
   showSouthZoneOverlay?: boolean;
   debugClickPoint?: Vec2 | null;
   effectsManager?: EffectsManager;
@@ -72,6 +72,7 @@ export class CanvasRenderer {
     world: World,
     camera: Camera,
     selectedEntityId: number | null,
+    frameSnapshot: Readonly<FrameSnapshot>,
     options: RenderOptions = {},
   ): void {
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -79,19 +80,14 @@ export class CanvasRenderer {
 
     this.ctx.fillStyle = '#f3f1e8';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    const frameSnapshot: Readonly<FrameSnapshot> =
-      options.frameSnapshot ??
-      Object.freeze({
-        tick: world.tick,
-        isRaining: world.weather.isRaining,
-        fogDensity: Math.max(0, world.config.fogDensity),
-        showRainOverlay: false,
-        showFogOverlay: false,
-      });
     this.drawEnvironmentOverlay(frameSnapshot);
 
     this.ctx.save();
     camera.applyToContext(this.ctx, this.canvas);
+
+    if (frameSnapshot.showFogOverlay && frameSnapshot.fogDensity > 0) {
+      this.drawFogFieldOverlay(frameSnapshot, camera);
+    }
 
     if (options.showSouthZoneOverlay) {
       this.drawSouthZoneOverlay(world);
@@ -154,7 +150,10 @@ export class CanvasRenderer {
         options.flatlanderHoverEntityId !== null &&
         options.flatlanderHoverEntityId !== undefined &&
         options.flatlanderHoverEntityId === id;
-      const fillColor = colorForRank(rank.rank);
+      let fillColor = colorForRank(rank.rank);
+      if (shape.kind === 'segment' && world.pregnancies.has(id)) {
+        fillColor = '#d27a8c';
+      }
       const kills = world.combatStats.get(id)?.kills ?? 0;
       const killStrokeColor = colorForKillCount(kills);
       const defaultStroke =
@@ -383,17 +382,42 @@ export class CanvasRenderer {
   }
 
   private drawEnvironmentOverlay(snapshot: Readonly<FrameSnapshot>): void {
-    if (snapshot.showFogOverlay && snapshot.fogDensity > 0) {
-      const fogAlpha = Math.max(0, Math.min(0.18, snapshot.fogDensity * 10));
-      this.ctx.save();
-      this.ctx.fillStyle = `rgba(88, 95, 108, ${fogAlpha.toFixed(3)})`;
-      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-      this.ctx.restore();
-    }
-
     if (snapshot.showRainOverlay && snapshot.isRaining) {
       this.drawRainOverlay(snapshot.tick);
     }
+  }
+
+  private drawFogFieldOverlay(snapshot: Readonly<FrameSnapshot>, camera: Camera): void {
+    const cols = 36;
+    const rows = 24;
+    const worldWidth = Math.max(1, snapshot.fogField.width);
+    const worldHeight = Math.max(1, snapshot.fogField.height);
+    const cellWidth = worldWidth / cols;
+    const cellHeight = worldHeight / rows;
+    const baseDensity = Math.max(1e-6, snapshot.fogField.baseDensity);
+
+    this.ctx.save();
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        const x = col * cellWidth;
+        const y = row * cellHeight;
+        const localDensity = fogDensityAt(snapshot.fogField, {
+          x: x + cellWidth * 0.5,
+          y: y + cellHeight * 0.5,
+        });
+        const relative = localDensity / baseDensity;
+        const alpha = Math.max(
+          0,
+          Math.min(0.22, localDensity * 8 + Math.max(0, relative - 1) * 0.05 + (camera.zoom - 1) * 0.005),
+        );
+        if (alpha < 0.002) {
+          continue;
+        }
+        this.ctx.fillStyle = `rgba(88, 95, 108, ${alpha.toFixed(3)})`;
+        this.ctx.fillRect(x, y, cellWidth + 0.5, cellHeight + 0.5);
+      }
+    }
+    this.ctx.restore();
   }
 
   private drawRainOverlay(tick: number): void {

@@ -32,6 +32,22 @@ const FAMILY_NAMES = [
   'Blackwell',
 ];
 
+const ROMAN_DIGITS: Array<{ value: number; symbol: string }> = [
+  { value: 1000, symbol: 'M' },
+  { value: 900, symbol: 'CM' },
+  { value: 500, symbol: 'D' },
+  { value: 400, symbol: 'CD' },
+  { value: 100, symbol: 'C' },
+  { value: 90, symbol: 'XC' },
+  { value: 50, symbol: 'L' },
+  { value: 40, symbol: 'XL' },
+  { value: 10, symbol: 'X' },
+  { value: 9, symbol: 'IX' },
+  { value: 5, symbol: 'V' },
+  { value: 4, symbol: 'IV' },
+  { value: 1, symbol: 'I' },
+];
+
 function hash32(seed: number): number {
   let x = seed | 0;
   x ^= x >>> 16;
@@ -64,6 +80,18 @@ function titleFor(rank: Rank, shape: ShapeComponent): string {
   return 'Mr.';
 }
 
+function toRoman(value: number): string {
+  let n = Math.max(1, Math.floor(value));
+  let out = '';
+  for (const digit of ROMAN_DIGITS) {
+    while (n >= digit.value) {
+      out += digit.symbol;
+      n -= digit.value;
+    }
+  }
+  return out;
+}
+
 export function buildDeterministicName(
   worldSeed: number,
   entityId: number,
@@ -74,11 +102,13 @@ export function buildDeterministicName(
   const given = pick(GIVEN_NAMES, base ^ 0xa511e9b3);
   const family = pick(FAMILY_NAMES, base ^ 0x74a7c15d);
   const title = titleFor(rank, shape);
+  const suffix = toRoman(entityId);
   return {
     given,
     family,
     title,
-    displayName: `${title} ${family}`,
+    suffix,
+    displayName: `${title} ${given} ${family} ${suffix}`,
   };
 }
 
@@ -87,6 +117,6 @@ export function retitleName(name: NameComponent, rank: Rank, shape: ShapeCompone
   return {
     ...name,
     title,
-    displayName: `${title} ${name.family}`,
+    displayName: `${title} ${name.given} ${name.family} ${name.suffix}`,
   };
 }

@@ -208,6 +208,10 @@ export function defaultWorldConfig(topology: 'torus' | 'bounded' = 'torus'): Par
     rainEnabled: true,
     rainPeriodTicks: 2000,
     rainDurationTicks: 700,
+    rainBasePeriodTicks: 2000,
+    rainPeriodJitterFrac: 0.24,
+    rainBaseDurationTicks: 700,
+    rainDurationJitterFrac: 0.18,
     peaceCryEnabled: true,
     defaultPeaceCryCadenceTicks: 20,
     defaultPeaceCryRadius: 120,
@@ -230,6 +234,10 @@ export function defaultWorldConfig(topology: 'torus' | 'bounded' = 'torus'): Par
     southEscapeFraction: 0.5,
     sightEnabled: true,
     fogDensity: 0.012,
+    fogFieldCellSize: 84,
+    fogFieldVariation: 0.45,
+    fogTorridZoneStartFrac: 0.72,
+    fogTorridZoneRelief: 0.42,
   };
 }
 

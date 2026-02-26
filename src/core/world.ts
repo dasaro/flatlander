@@ -19,6 +19,7 @@ import type {
   HouseComponent,
   IntelligenceComponent,
   IrregularityComponent,
+  JobComponent,
   KnowledgeComponent,
   LegacyComponent,
   LineageComponent,
@@ -57,6 +58,10 @@ export interface WorldConfig {
   rainEnabled: boolean;
   rainPeriodTicks: number;
   rainDurationTicks: number;
+  rainBasePeriodTicks: number;
+  rainPeriodJitterFrac: number;
+  rainBaseDurationTicks: number;
+  rainDurationJitterFrac: number;
   peaceCryEnabled: boolean;
   defaultPeaceCryCadenceTicks: number;
   defaultPeaceCryRadius: number;
@@ -111,6 +116,10 @@ export interface WorldConfig {
   fogDensity: number;
   fogMinIntensity: number;
   fogMaxDistance: number;
+  fogFieldCellSize: number;
+  fogFieldVariation: number;
+  fogTorridZoneStartFrac: number;
+  fogTorridZoneRelief: number;
   sightEnabled: boolean;
   defaultEyeFovDeg: number;
   lineRadius: number;
@@ -198,6 +207,7 @@ export interface World {
   dwellings: Map<EntityId, DwellingComponent>;
   bonds: Map<EntityId, BondComponent>;
   names: Map<EntityId, NameComponent>;
+  jobs: Map<EntityId, JobComponent>;
   houseOccupants: Map<EntityId, Set<EntityId>>;
   weather: {
     isRaining: boolean;
@@ -273,6 +283,10 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   rainEnabled: false,
   rainPeriodTicks: 2000,
   rainDurationTicks: 700,
+  rainBasePeriodTicks: 2000,
+  rainPeriodJitterFrac: 0.24,
+  rainBaseDurationTicks: 700,
+  rainDurationJitterFrac: 0.18,
   peaceCryEnabled: true,
   defaultPeaceCryCadenceTicks: 20,
   defaultPeaceCryRadius: 120,
@@ -290,8 +304,8 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   rarityMarriageBiasEnabled: true,
   rarityMarriageBiasStrength: 0.35,
   neoTherapyEnabled: true,
-  neoTherapyEnrollmentThresholdSides: 16,
-  neoTherapyAmbitionProbability: 0.12,
+  neoTherapyEnrollmentThresholdSides: 12,
+  neoTherapyAmbitionProbability: 0.2,
   neoTherapyDurationTicks: 320,
   neoTherapySurvivalProbability: 0.1,
   postpartumCooldownTicks: 90,
@@ -327,6 +341,10 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   fogDensity: 0.012,
   fogMinIntensity: 0.1,
   fogMaxDistance: 450,
+  fogFieldCellSize: 84,
+  fogFieldVariation: 0.45,
+  fogTorridZoneStartFrac: 0.72,
+  fogTorridZoneRelief: 0.42,
   sightEnabled: true,
   defaultEyeFovDeg: 180,
   lineRadius: 1,
@@ -387,8 +405,14 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
   if (overrides.rainEnabled === undefined) {
     config.rainEnabled = config.housesEnabled;
   }
-  const rainPeriod = Math.max(1, Math.round(config.rainPeriodTicks));
-  const rainDuration = Math.max(1, Math.round(config.rainDurationTicks));
+  if (overrides.rainBasePeriodTicks === undefined) {
+    config.rainBasePeriodTicks = config.rainPeriodTicks;
+  }
+  if (overrides.rainBaseDurationTicks === undefined) {
+    config.rainBaseDurationTicks = config.rainDurationTicks;
+  }
+  const rainPeriod = Math.max(1, Math.round(config.rainBasePeriodTicks));
+  const rainDuration = Math.max(1, Math.round(config.rainBaseDurationTicks));
 
   return {
     config,
@@ -407,6 +431,7 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     dwellings: new Map(),
     bonds: new Map(),
     names: new Map(),
+    jobs: new Map(),
     houseOccupants: new Map(),
     weather: {
       isRaining: false,
