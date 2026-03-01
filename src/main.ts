@@ -209,9 +209,9 @@ let eventHighlightsSettings: EventHighlightsSettings = {
   networkMaxKnownEdges: 25,
   networkShowOnlyOnScreen: true,
   networkFocusRadius: 400,
-  dimByAge: false,
+  dimByAge: true,
   dimByDeterioration: true,
-  dimStrength: 0.25,
+  dimStrength: 0.55,
   fogPreviewEnabled: true,
   fogPreviewStrength: 0.5,
   fogPreviewHideBelowMin: false,
@@ -1022,9 +1022,11 @@ function renderFlatlanderView(frameSnapshot: Readonly<FrameSnapshot>): void {
   }
 
   const configKey = flatlanderConfigKey(flatlanderViewSettings);
+  const baseFog = Math.max(1e-6, world.config.fogDensity);
+  const localFog = fogDensityAt(frameSnapshot.fogField, selectedEyePose.eyeWorld);
   const effectiveFlatlanderSettings: FlatlanderViewSettings = {
     ...flatlanderViewSettings,
-    fogDensity: fogDensityAt(frameSnapshot.fogField, selectedEyePose.eyeWorld),
+    fogDensity: flatlanderViewSettings.fogDensity * (localFog / baseFog),
   };
   if (
     flatlanderScanDirty ||

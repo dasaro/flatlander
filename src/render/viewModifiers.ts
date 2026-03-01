@@ -13,7 +13,7 @@ export interface EntityVisualAlphaInput {
 export function ageAlphaFactor(ticksAlive: number, strength: number, ageHalfLifeTicks: number): number {
   const safeHalfLife = Math.max(1, ageHalfLifeTicks);
   const ageNorm = clamp(ticksAlive / safeHalfLife, 0, 1);
-  return 1 - 0.25 * clamp(strength, 0, 1) * ageNorm;
+  return 1 - 0.4 * clamp(strength, 0, 1) * ageNorm;
 }
 
 export function durabilityAlphaFactor(hp: number, maxHp: number, strength: number): number {
@@ -22,7 +22,7 @@ export function durabilityAlphaFactor(hp: number, maxHp: number, strength: numbe
   }
 
   const hpNorm = clamp(hp / maxHp, 0, 1);
-  const floor = 1 - 0.35 * clamp(strength, 0, 1);
+  const floor = 1 - 0.7 * clamp(strength, 0, 1);
   return floor + (1 - floor) * hpNorm;
 }
 

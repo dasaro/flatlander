@@ -21,6 +21,8 @@ describe('frame snapshot', () => {
     expect(snapshot.tick).toBe(123);
     expect(snapshot.isRaining).toBe(true);
     expect(snapshot.fogDensity).toBeCloseTo(0.013, 8);
+    expect(snapshot.fogMinIntensity).toBeCloseTo(world.config.fogMinIntensity, 8);
+    expect(snapshot.fogMaxDistance).toBeCloseTo(world.config.fogMaxDistance, 8);
     expect(snapshot.fogField.baseDensity).toBeCloseTo(0.013, 8);
     expect(snapshot.fogField.seed).toBe(42);
     expect(snapshot.showRainOverlay).toBe(true);

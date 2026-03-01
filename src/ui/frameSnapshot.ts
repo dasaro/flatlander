@@ -10,6 +10,8 @@ export interface FrameSnapshot {
   tick: number;
   isRaining: boolean;
   fogDensity: number;
+  fogMinIntensity: number;
+  fogMaxDistance: number;
   fogField: Readonly<FogFieldConfig>;
   showRainOverlay: boolean;
   showFogOverlay: boolean;
@@ -24,6 +26,8 @@ export function captureFrameSnapshot(
     tick: world.tick,
     isRaining: world.weather.isRaining,
     fogDensity: Math.max(0, world.config.fogDensity),
+    fogMinIntensity: Math.max(0, world.config.fogMinIntensity),
+    fogMaxDistance: Math.max(0, world.config.fogMaxDistance),
     fogField,
     showRainOverlay: state.showRainOverlay,
     showFogOverlay: state.showFogOverlay,

@@ -101,9 +101,9 @@ export class CanvasRenderer {
       selectedEntityId !== null ? getEyeWorldPosition(world, selectedEntityId) : null;
     const fogPreviewStrength = Math.max(0, Math.min(1, options.fogPreviewStrength ?? 0.5));
     if (selectedObserverEye && options.fogPreviewEnabled) {
-      this.drawFogFieldPreview(world, selectedObserverEye, fogPreviewStrength);
+      this.drawFogFieldPreview(frameSnapshot, selectedObserverEye, fogPreviewStrength);
       if (options.fogPreviewRings) {
-        this.drawFogPreviewRings(world, selectedObserverEye, camera);
+        this.drawFogPreviewRings(frameSnapshot, selectedObserverEye, camera);
       }
     }
 
@@ -150,14 +150,16 @@ export class CanvasRenderer {
         options.flatlanderHoverEntityId !== null &&
         options.flatlanderHoverEntityId !== undefined &&
         options.flatlanderHoverEntityId === id;
+      const isPregnantWoman = shape.kind === 'segment' && world.pregnancies.has(id);
       let fillColor = colorForRank(rank.rank);
-      if (shape.kind === 'segment' && world.pregnancies.has(id)) {
-        fillColor = '#d27a8c';
+      if (isPregnantWoman) {
+        fillColor = '#d9578a';
       }
       const kills = world.combatStats.get(id)?.kills ?? 0;
       const killStrokeColor = colorForKillCount(kills);
       const defaultStroke =
         shape.kind === 'polygon' && shape.sides === 3 && !isSelected ? fillColor : '#232323';
+      const pregnancyStrokeColor = isPregnantWoman ? '#d9578a' : defaultStroke;
       let entityAlpha = visualAlpha({
         ticksAlive: world.ages.get(id)?.ticksAlive ?? 0,
         hp: world.durability.get(id)?.hp ?? null,
@@ -176,10 +178,10 @@ export class CanvasRenderer {
         );
         const intensity = fogIntensityAtDistance(
           distance,
-          world.config.fogDensity,
-          world.config.fogMaxDistance,
+          frameSnapshot.fogDensity,
+          frameSnapshot.fogMaxDistance,
         );
-        if ((options.fogPreviewHideBelowMin ?? false) && intensity < world.config.fogMinIntensity) {
+        if ((options.fogPreviewHideBelowMin ?? false) && intensity < frameSnapshot.fogMinIntensity) {
           continue;
         }
         const fogFactor = intensity ** (1 + fogPreviewStrength * 2.5);
@@ -199,7 +201,7 @@ export class CanvasRenderer {
           ? '#d88a1f'
           : options.strokeByKills
             ? killStrokeColor
-            : defaultStroke;
+            : pregnancyStrokeColor;
       this.ctx.lineWidth = (isSelected ? 3 : isFlatlanderHovered ? 2.8 : 1.5) / camera.zoom;
 
       if (geometry.kind === 'circle') {
@@ -208,6 +210,9 @@ export class CanvasRenderer {
         this.ctx.fill();
         this.ctx.stroke();
       } else if (geometry.kind === 'segment') {
+        if (isPregnantWoman) {
+          this.ctx.lineWidth = (isSelected ? 3.6 : 2.2) / camera.zoom;
+        }
         this.ctx.beginPath();
         this.ctx.moveTo(geometry.a.x, geometry.a.y);
         this.ctx.lineTo(geometry.b.x, geometry.b.y);
@@ -721,10 +726,10 @@ export class CanvasRenderer {
     return geometryCenter(geometry);
   }
 
-  private drawFogPreviewRings(world: World, observer: Vec2, camera: Camera): void {
+  private drawFogPreviewRings(snapshot: Readonly<FrameSnapshot>, observer: Vec2, camera: Camera): void {
     const levels = [0.85, 0.65, 0.45, 0.25];
-    const fogDensity = Math.max(0, world.config.fogDensity);
-    const fogMaxDistance = Math.max(0, world.config.fogMaxDistance);
+    const fogDensity = Math.max(0, snapshot.fogDensity);
+    const fogMaxDistance = Math.max(0, snapshot.fogMaxDistance);
     if (fogDensity <= 0 || fogMaxDistance <= 0) {
       return;
     }
@@ -746,9 +751,9 @@ export class CanvasRenderer {
     this.ctx.restore();
   }
 
-  private drawFogFieldPreview(world: World, observer: Vec2, strength: number): void {
-    const fogDensity = Math.max(0, world.config.fogDensity);
-    const fogMaxDistance = Math.max(0, world.config.fogMaxDistance);
+  private drawFogFieldPreview(snapshot: Readonly<FrameSnapshot>, observer: Vec2, strength: number): void {
+    const fogDensity = Math.max(0, snapshot.fogDensity);
+    const fogMaxDistance = Math.max(0, snapshot.fogMaxDistance);
     if (fogDensity <= 0 || fogMaxDistance <= 0 || strength <= 0) {
       return;
     }

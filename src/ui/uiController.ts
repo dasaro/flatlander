@@ -395,6 +395,8 @@ export class UIController {
     this.syncBoundaryControlsToTopology(this.readTopology());
     const environment = this.readEnvironmentSettings();
     this.syncEnvironmentFieldState(environment);
+    this.syncEventHighlightsFieldState(this.readEventHighlightsSettings());
+    this.syncFlatlanderFieldState(this.readFlatlanderViewSettings());
     const peaceCry = this.readPeaceCrySettings();
     const reproduction = this.readReproductionSettings();
     this.wireControls();
@@ -1076,10 +1078,14 @@ export class UIController {
 
     for (const input of eventHighlightInputs) {
       input.addEventListener('input', () => {
-        this.callbacks.onEventHighlightsUpdate(this.readEventHighlightsSettings());
+        const settings = this.readEventHighlightsSettings();
+        this.syncEventHighlightsFieldState(settings);
+        this.callbacks.onEventHighlightsUpdate(settings);
       });
       input.addEventListener('change', () => {
-        this.callbacks.onEventHighlightsUpdate(this.readEventHighlightsSettings());
+        const settings = this.readEventHighlightsSettings();
+        this.syncEventHighlightsFieldState(settings);
+        this.callbacks.onEventHighlightsUpdate(settings);
       });
     }
 
@@ -1101,10 +1107,14 @@ export class UIController {
 
     for (const input of flatlanderInputs) {
       input.addEventListener('input', () => {
-        this.callbacks.onFlatlanderViewUpdate(this.readFlatlanderViewSettings());
+        const settings = this.readFlatlanderViewSettings();
+        this.syncFlatlanderFieldState(settings);
+        this.callbacks.onFlatlanderViewUpdate(settings);
       });
       input.addEventListener('change', () => {
-        this.callbacks.onFlatlanderViewUpdate(this.readFlatlanderViewSettings());
+        const settings = this.readFlatlanderViewSettings();
+        this.syncFlatlanderFieldState(settings);
+        this.callbacks.onFlatlanderViewUpdate(settings);
       });
     }
 
@@ -1357,17 +1367,21 @@ export class UIController {
   }
 
   private syncEnvironmentFieldState(settings: EnvironmentSettings): void {
-    this.refs.envHouseCount.disabled = !settings.housesEnabled;
-    this.refs.envHouseSize.disabled = !settings.housesEnabled;
-    this.refs.envAllowTriangularForts.disabled = !settings.housesEnabled;
-    this.refs.envTownPopulation.disabled = !settings.housesEnabled;
-    this.refs.envRainEnabled.disabled = !settings.housesEnabled;
-    this.refs.envShowHousingDebug.disabled = !settings.housesEnabled;
+    const housesEnabled = settings.housesEnabled;
+    this.refs.envHouseCount.disabled = !housesEnabled;
+    this.refs.envHouseSize.disabled = !housesEnabled;
+    this.refs.envAllowTriangularForts.disabled = !housesEnabled;
+    this.refs.envTownPopulation.disabled = !housesEnabled;
+    this.refs.envRainEnabled.disabled = !housesEnabled;
+    this.refs.envShowHousingDebug.disabled = !housesEnabled;
+    this.refs.envShowHouseDoors.disabled = !housesEnabled;
+    this.refs.envShowHouseOccupancy.disabled = !housesEnabled;
+    this.refs.envShowRainOverlay.disabled = !housesEnabled || !settings.rainEnabled;
     const squareAllowedByPopulation = settings.townPopulation < 10_000;
     if (!squareAllowedByPopulation) {
       this.refs.envAllowSquareHouses.checked = false;
     }
-    this.refs.envAllowSquareHouses.disabled = !settings.housesEnabled || !squareAllowedByPopulation;
+    this.refs.envAllowSquareHouses.disabled = !housesEnabled || !squareAllowedByPopulation;
   }
 
   private readPeaceCrySettings(): PeaceCrySettings {
@@ -1421,7 +1435,7 @@ export class UIController {
       networkFocusRadius: Math.max(0, parseNumber(this.refs.overlayNetworkFocusRadius.value, 400)),
       dimByAge: this.refs.overlayDimAge.checked,
       dimByDeterioration: this.refs.overlayDimDeterioration.checked,
-      dimStrength: clampRange(parseNumber(this.refs.overlayDimStrength.value, 0.25), 0, 1),
+      dimStrength: clampRange(parseNumber(this.refs.overlayDimStrength.value, 0.55), 0, 1),
       fogPreviewEnabled: this.refs.overlayFogPreview.checked,
       fogPreviewStrength: clampRange(parseNumber(this.refs.overlayFogPreviewStrength.value, 0.2), 0, 1),
       fogPreviewHideBelowMin: this.refs.overlayFogPreviewHideMin.checked,
@@ -1429,6 +1443,44 @@ export class UIController {
       showEyes: this.refs.overlayShowEyes.checked,
       showPovCone: this.refs.overlayShowPovCone.checked,
     };
+  }
+
+  private syncEventHighlightsFieldState(settings: EventHighlightsSettings): void {
+    const overlaysEnabled = settings.enabled;
+    this.refs.eventHighlightsIntensity.disabled = !overlaysEnabled;
+    this.refs.eventHighlightsCap.disabled = !overlaysEnabled;
+    this.refs.eventShowFeeling.disabled = !overlaysEnabled;
+    this.refs.eventFocusSelected.disabled = !overlaysEnabled;
+    this.refs.eventShowHearing.disabled = !overlaysEnabled;
+    this.refs.eventShowTalking.disabled = !overlaysEnabled || !settings.showHearingOverlay;
+    this.refs.eventStrokeKills.disabled = !overlaysEnabled;
+    this.refs.overlayContactNetwork.disabled = !overlaysEnabled;
+    this.refs.overlayDimAge.disabled = !overlaysEnabled;
+    this.refs.overlayDimDeterioration.disabled = !overlaysEnabled;
+    this.refs.overlayShowEyes.disabled = !overlaysEnabled;
+    this.refs.overlayShowPovCone.disabled = !overlaysEnabled;
+
+    const networkEnabled = overlaysEnabled && settings.showContactNetwork;
+    this.refs.overlayNetworkParents.disabled = !networkEnabled;
+    this.refs.overlayNetworkKnown.disabled = !networkEnabled;
+    this.refs.overlayNetworkMaxKnown.disabled = !networkEnabled;
+    this.refs.overlayNetworkOnScreen.disabled = !networkEnabled;
+    this.refs.overlayNetworkFocusRadius.disabled = !networkEnabled;
+
+    const dimEnabled = overlaysEnabled && (settings.dimByAge || settings.dimByDeterioration);
+    this.refs.overlayDimStrength.disabled = !dimEnabled;
+
+    this.refs.overlayFogPreview.disabled = !overlaysEnabled;
+    const fogPreviewEnabled = overlaysEnabled && settings.fogPreviewEnabled;
+    this.refs.overlayFogPreviewStrength.disabled = !fogPreviewEnabled;
+    this.refs.overlayFogPreviewHideMin.disabled = !fogPreviewEnabled;
+    this.refs.overlayFogRings.disabled = !fogPreviewEnabled;
+
+    setButtonEnabled(
+      this.refs.eventHighlightsClearButton,
+      overlaysEnabled,
+      overlaysEnabled ? undefined : 'Enable Event Highlights to clear active effects.',
+    );
   }
 
   private readFlatlanderViewSettings(): FlatlanderViewSettings {
@@ -1449,6 +1501,18 @@ export class UIController {
       includeBoundaries: this.refs.flatlanderIncludeBoundaries.checked,
       inanimateDimMultiplier: 0.65,
     };
+  }
+
+  private syncFlatlanderFieldState(settings: FlatlanderViewSettings): void {
+    const enabled = settings.enabled;
+    this.refs.flatlanderRays.disabled = !enabled;
+    this.refs.flatlanderFov.disabled = !enabled;
+    this.refs.flatlanderLookOffset.disabled = !enabled;
+    this.refs.flatlanderMaxDistance.disabled = !enabled;
+    this.refs.flatlanderFogDensity.disabled = !enabled;
+    this.refs.flatlanderGrayscale.disabled = !enabled;
+    this.refs.flatlanderIncludeObstacles.disabled = !enabled;
+    this.refs.flatlanderIncludeBoundaries.disabled = !enabled;
   }
 
   private readFogSightSettings(): FogSightSettings {
