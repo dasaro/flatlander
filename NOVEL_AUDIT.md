@@ -106,7 +106,7 @@ Canon status used in this patch:
 - **Neo-therapeutic gymnasium (high mortality, courtesy promotion)**  
   - Novel anchor: Part I, Section 11 (*Concerning our Priests*).  
   - Canon status: **Implementation assumption / extrapolation**, canon-inspired and explicitly scaled to capped side counts.  
-  - Implementation: `src/systems/neoTherapySystem.ts` with deterministic enrollment, timed institutional isolation, ~10% survival default, promotion to NearCircle/Priest by courtesy.
+  - Implementation: `src/systems/neoTherapySystem.ts` with deterministic enrollment, timed institutional isolation, low survival by default (~16%, with scarcity-mode boosts), and promotion to NearCircle/Priest by courtesy.
 - **Crowd-caused irregularity and mortality pressure**  
   - Novel anchor: Part I, Section 7 and Section 11 (irregularity in crowds and institutional consequences).  
   - Canon status: **Strongly implied by the novel**, with quantitative thresholds as assumptions.  

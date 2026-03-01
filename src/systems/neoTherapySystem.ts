@@ -10,7 +10,8 @@ import type { World } from '../core/world';
 import { regularPolygonVertices } from '../geometry/polygon';
 import type { System } from './system';
 
-const NEWBORN_ENROLLMENT_WINDOW_TICKS = 18;
+const NEWBORN_ENROLLMENT_WINDOW_TICKS = 160;
+const VETERAN_ENROLLMENT_BASE_PROBABILITY = 0.35;
 
 function hasPriorMaleChild(world: World, childId: number, fatherId: number): boolean {
   for (const [candidateId, lineage] of world.lineage) {
@@ -159,8 +160,12 @@ export class NeoTherapySystem implements System {
         0,
         Math.min(
           1,
-          priestRecoveryMode && therapy.target === 'Priest'
-            ? Math.max(world.config.neoTherapySurvivalProbability, 0.35)
+          therapy.target === 'Priest'
+            ? priestRecoveryMode
+              ? Math.max(world.config.neoTherapySurvivalProbability, 0.42)
+              : recoverySnapshot.priests <= 1
+                ? Math.max(world.config.neoTherapySurvivalProbability, 0.22)
+                : world.config.neoTherapySurvivalProbability
             : world.config.neoTherapySurvivalProbability,
         ),
       );
@@ -178,16 +183,25 @@ export class NeoTherapySystem implements System {
     const rankCounts = countRareRanks(world);
     const aliveNearCircles = rankCounts.nearCircles;
     const shouldRecoverPriests = rankCounts.priests === 0;
+    const priestScarcityMode = rankCounts.priests <= 1;
 
     const threshold = Math.max(3, Math.round(world.config.neoTherapyEnrollmentThresholdSides));
-    const scarcityBoost =
-      shouldRecoverPriests ? 2.5 : aliveNearCircles <= 1 ? 1.3 : 1;
+    const scarcityBoost = shouldRecoverPriests
+      ? 2.8
+      : priestScarcityMode
+        ? 1.6
+        : aliveNearCircles <= 1
+          ? 1.3
+          : 1;
     const ambitionProbability = Math.max(
       0,
       Math.min(1, world.config.neoTherapyAmbitionProbability * scarcityBoost),
     );
     const duration = Math.max(1, Math.round(world.config.neoTherapyDurationTicks));
-    const enrollmentThreshold = Math.max(3, threshold - (shouldRecoverPriests ? 2 : 0));
+    const enrollmentThreshold = Math.max(
+      3,
+      threshold - (shouldRecoverPriests ? 3 : priestScarcityMode ? 1 : 0),
+    );
 
     for (const entityId of getSortedEntityIds(world)) {
       if (world.neoTherapy.has(entityId) || world.pendingDeaths.has(entityId)) {
@@ -206,7 +220,9 @@ export class NeoTherapySystem implements System {
         continue;
       }
       if (!shouldRecoverPriests && hasPriorMaleChild(world, entityId, lineage.fatherId)) {
-        continue;
+        if (world.rng.next() >= VETERAN_ENROLLMENT_BASE_PROBABILITY) {
+          continue;
+        }
       }
       const priestRecoveryThreshold = Math.max(
         3,
@@ -220,7 +236,7 @@ export class NeoTherapySystem implements System {
       // Scaled canon analogue: near-circular infants can be pushed to courtesy Priest status.
       const priestTargetThreshold = Math.max(
         3,
-        Math.max(world.config.nearCircleThreshold - 2, enrollmentThreshold),
+        Math.max(world.config.nearCircleThreshold - (shouldRecoverPriests ? 5 : priestScarcityMode ? 3 : 2), enrollmentThreshold),
       );
       const target: 'NearCircle' | 'Priest' =
         forceRecoveryEnrollment || shape.sides >= priestTargetThreshold
