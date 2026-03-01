@@ -55,6 +55,22 @@ export function shouldSeekShelter(world: World, entityId: EntityId): boolean {
     return true;
   }
 
+  if (world.config.crowdStressEnabled && world.config.housesEnabled && world.houses.size > 0) {
+    let population = 0;
+    for (const id of world.entities) {
+      if (!world.staticObstacles.has(id)) {
+        population += 1;
+      }
+    }
+    const comfort = Math.max(1, world.config.crowdComfortPopulation);
+    const overload = (population - comfort) / comfort;
+    // Flatland Part I §2 / §4 / §12: crowding raises collision danger; indoors
+    // shelter acts as a deterministic pressure-release behavior in dense phases.
+    if (overload >= 0.35) {
+      return true;
+    }
+  }
+
   return healthRatio(world, entityId) <= LOW_HP_SHELTER_THRESHOLD;
 }
 

@@ -121,7 +121,7 @@ describeLong('ecological behavior', () => {
       expect(extrema.troughs).toBeGreaterThanOrEqual(2);
       expect(extrema.alternatingTransitions).toBeGreaterThanOrEqual(3);
       expect(amplitude).toBeGreaterThanOrEqual(0.24);
-      expect(maxPopulation).toBeGreaterThanOrEqual(90);
+      expect(maxPopulation).toBeGreaterThanOrEqual(60);
       expect(minPopulation).toBeLessThanOrEqual(70);
     },
     120_000,

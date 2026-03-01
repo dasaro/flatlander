@@ -1,3 +1,4 @@
+import { ensureCoherentJobForEntity } from '../core/jobs';
 import { retitleName } from '../core/names';
 import { rankFromShape, Rank } from '../core/rank';
 import { rankKeyForEntity } from '../core/rankKey';
@@ -81,6 +82,7 @@ export class RegularizationSystem implements System {
         nearCircleThreshold: world.config.nearCircleThreshold,
       });
       world.ranks.set(id, nextRank);
+      ensureCoherentJobForEntity(world, id);
       const currentName = world.names.get(id);
       if (currentName) {
         world.names.set(id, retitleName(currentName, nextRank.rank, shape));

@@ -124,4 +124,74 @@ describe('rain shelter intention', () => {
     expect(next.intention).toBe('seekShelter');
     expect(next.intentionTicksLeft).toBe(7);
   });
+
+  it('can choose seekShelter in dry weather under deterministic crowd pressure', () => {
+    const world = createWorld(4403, {
+      housesEnabled: true,
+      rainEnabled: false,
+      crowdStressEnabled: true,
+      crowdComfortPopulation: 2,
+      sightEnabled: false,
+    });
+    world.weather.isRaining = false;
+
+    const houseId = addHouse(world, 300, 240);
+    const womanId = spawnEntity(
+      world,
+      { kind: 'segment', size: 20 },
+      {
+        type: 'socialNav',
+        boundary: 'wrap',
+        maxSpeed: 12,
+        maxTurnRate: 1,
+        decisionEveryTicks: 4,
+        intentionMinTicks: 12,
+      },
+      { x: 292, y: 240 },
+    );
+    spawnEntity(
+      world,
+      { kind: 'segment', size: 20 },
+      {
+        type: 'socialNav',
+        boundary: 'wrap',
+        maxSpeed: 12,
+        maxTurnRate: 1,
+        decisionEveryTicks: 4,
+        intentionMinTicks: 12,
+      },
+      { x: 294, y: 244 },
+    );
+    spawnEntity(
+      world,
+      { kind: 'polygon', sides: 4, size: 16, irregular: false },
+      {
+        type: 'socialNav',
+        boundary: 'wrap',
+        maxSpeed: 12,
+        maxTurnRate: 1,
+        decisionEveryTicks: 4,
+        intentionMinTicks: 12,
+      },
+      { x: 288, y: 236 },
+    );
+
+    const movement = world.movements.get(womanId);
+    if (!movement || movement.type !== 'socialNav') {
+      throw new Error('Expected socialNav movement in dry crowd shelter test.');
+    }
+    movement.intention = 'roam';
+    movement.intentionTicksLeft = 0;
+
+    new SocialNavMindSystem().update(world);
+
+    const next = world.movements.get(womanId);
+    if (!next || next.type !== 'socialNav') {
+      throw new Error('Expected socialNav movement after dry crowd shelter update.');
+    }
+
+    expect(next.intention).toBe('seekShelter');
+    expect(next.goal?.type).toBe('point');
+    expect(next.goal?.targetId).toBe(houseId);
+  });
 });

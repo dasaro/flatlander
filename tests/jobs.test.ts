@@ -55,5 +55,26 @@ describe('deterministic jobs', () => {
       expect(allowed.includes(picked)).toBe(true);
     }
   });
-});
 
+  it('keeps square gentlemen in canonical professional roles', () => {
+    const rank = buildRank(Rank.Gentleman);
+    const square: ShapeComponent = {
+      kind: 'polygon',
+      sides: 4,
+      vertices: [],
+      irregularity: 0,
+      regular: true,
+      boundingRadius: 12,
+    };
+    const allowed = allowedJobsFor(rank, square);
+    expect(allowed).toEqual(['Lawyer', 'Gentleman']);
+
+    for (let i = 1; i <= 50; i += 1) {
+      const picked = deterministicJobForEntity(1337, i, rank, square);
+      expect(allowed.includes(picked)).toBe(true);
+      expect(picked).not.toBe('Physician');
+      expect(picked).not.toBe('Priest');
+      expect(picked).not.toBe('Soldier');
+    }
+  });
+});

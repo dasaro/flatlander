@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { spawnEntity } from '../src/core/factory';
+import { Rank } from '../src/core/rank';
 import { FixedTimestepSimulation } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { CollisionSystem } from '../src/systems/collisionSystem';
@@ -73,5 +74,73 @@ describe('neo-therapy system', () => {
     expect(after.x).toBe(before.x);
     expect(after.y).toBe(before.y);
     expect(world.collisions.some((pair) => pair.a === enrolled || pair.b === enrolled)).toBe(false);
+  });
+
+  it('enables deterministic priest-recovery enrollment when priests are absent', () => {
+    const world = createWorld(1203, {
+      neoTherapyEnabled: true,
+      reproductionEnabled: true,
+      nearCircleThreshold: 15,
+      neoTherapyEnrollmentThresholdSides: 12,
+      neoTherapyAmbitionProbability: 0,
+    });
+    const candidate = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 13, size: 18, irregular: false },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 200, y: 220 },
+    );
+    const lineage = world.lineage.get(candidate);
+    if (!lineage) {
+      throw new Error('Missing lineage for neo-therapy recovery test.');
+    }
+    lineage.fatherId = 10;
+    const age = world.ages.get(candidate);
+    if (!age) {
+      throw new Error('Missing age for neo-therapy recovery test.');
+    }
+    age.ticksAlive = 3;
+
+    new NeoTherapySystem().update(world);
+    const therapy = world.neoTherapy.get(candidate);
+    expect(therapy?.enrolled).toBe(true);
+    expect(therapy?.target).toBe('Priest');
+  });
+
+  it('can recover a priest by courtesy promotion from eligible polygon newborns', () => {
+    const world = createWorld(1204, {
+      neoTherapyEnabled: true,
+      reproductionEnabled: true,
+      nearCircleThreshold: 15,
+      neoTherapyEnrollmentThresholdSides: 12,
+      neoTherapyAmbitionProbability: 0,
+      neoTherapyDurationTicks: 1,
+      neoTherapySurvivalProbability: 1,
+    });
+    const candidate = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 13, size: 18, irregular: false },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 240, y: 220 },
+    );
+    const lineage = world.lineage.get(candidate);
+    if (!lineage) {
+      throw new Error('Missing lineage for neo-therapy priest recovery test.');
+    }
+    lineage.fatherId = 11;
+    const age = world.ages.get(candidate);
+    if (!age) {
+      throw new Error('Missing age for neo-therapy priest recovery test.');
+    }
+    age.ticksAlive = 2;
+
+    const system = new NeoTherapySystem();
+    system.update(world);
+    expect(world.neoTherapy.get(candidate)?.target).toBe('Priest');
+
+    system.update(world);
+    expect(world.neoTherapy.has(candidate)).toBe(false);
+    expect(world.ranks.get(candidate)?.rank).toBe(Rank.Priest);
+    expect(world.shapes.get(candidate)?.kind).toBe('circle');
   });
 });

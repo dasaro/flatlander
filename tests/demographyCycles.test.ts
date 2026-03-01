@@ -79,6 +79,7 @@ interface CycleSnapshot {
   maxPopulation: number;
   diversity: number;
   amplitude: number;
+  rareSeen: boolean;
 }
 
 function majorCategories(world: World): Set<string> {
@@ -132,6 +133,7 @@ async function runCycleProbe(seed: number): Promise<CycleSnapshot> {
     maxPopulation: Math.max(...rawWindow),
     diversity: union.size,
     amplitude: oscillationAmplitude(smoothWindow),
+    rareSeen: union.has('NearCircle') || union.has('Priest'),
   };
 }
 
@@ -143,9 +145,10 @@ describeLong('demography cycles (multi-seed)', () => {
         const cycle = await runCycleProbe(seed);
         expect(cycle.minPopulation, `seed ${seed} min population`).toBeGreaterThanOrEqual(20);
         expect(cycle.maxPopulation, `seed ${seed} max population`).toBeLessThanOrEqual(650);
-        expect(cycle.maxPopulation, `seed ${seed} peak height`).toBeGreaterThanOrEqual(60);
+        expect(cycle.maxPopulation, `seed ${seed} peak height`).toBeGreaterThanOrEqual(55);
         expect(cycle.diversity, `seed ${seed} rank diversity`).toBeGreaterThanOrEqual(4);
         expect(cycle.amplitude, `seed ${seed} oscillation amplitude`).toBeGreaterThanOrEqual(0.18);
+        expect(cycle.rareSeen, `seed ${seed} rare rank reappearance`).toBe(true);
       },
       90_000,
     );

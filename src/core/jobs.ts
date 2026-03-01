@@ -2,6 +2,7 @@ import type { RankComponent } from './rank';
 import { Rank, RankTag } from './rank';
 import type { ShapeComponent } from './shapes';
 import type { JobKind } from './components';
+import type { World } from './world';
 
 const HASH_CONST = 0x9e3779b1;
 
@@ -39,7 +40,7 @@ export function allowedJobsFor(rank: RankComponent, shape: ShapeComponent): JobK
         return ['Physician', 'Merchant', 'Gentleman'];
       }
       if (shape.kind === 'polygon' && shape.sides === 4) {
-        return ['Lawyer', 'Gentleman', 'Merchant'];
+        return ['Lawyer', 'Gentleman'];
       }
       return ['Gentleman'];
     case Rank.Triangle:
@@ -64,3 +65,13 @@ export function deterministicJobForEntity(
   return pickByHash(choices, worldSeed ^ Math.imul(entityId, HASH_CONST));
 }
 
+export function ensureCoherentJobForEntity(world: World, entityId: number): void {
+  const rank = world.ranks.get(entityId);
+  const shape = world.shapes.get(entityId);
+  if (!rank || !shape) {
+    world.jobs.delete(entityId);
+    return;
+  }
+  const nextJob = deterministicJobForEntity(world.seed, entityId, rank, shape);
+  world.jobs.set(entityId, { job: nextJob });
+}

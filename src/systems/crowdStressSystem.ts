@@ -1,4 +1,5 @@
 import { isEntityOutside } from '../core/housing/dwelling';
+import { ensureCoherentJobForEntity } from '../core/jobs';
 import { retitleName } from '../core/names';
 import { rankFromShape } from '../core/rank';
 import { rankKeyForEntity } from '../core/rankKey';
@@ -126,6 +127,7 @@ function applyStressIrregularity(world: World, entityId: number, stress: number)
         nearCircleThreshold: world.config.nearCircleThreshold,
       });
       world.ranks.set(entityId, rank);
+      ensureCoherentJobForEntity(world, entityId);
       const currentName = world.names.get(entityId);
       if (currentName) {
         world.names.set(entityId, retitleName(currentName, rank.rank, shape));

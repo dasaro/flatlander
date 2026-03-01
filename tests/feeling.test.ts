@@ -170,6 +170,63 @@ describe('recognition by feeling', () => {
     expect(bKnows?.rank).toBe(world.ranks.get(a)?.rank);
   });
 
+  it('requires explicit targetId intent for socialNav introductions', () => {
+    const { world, step } = runCollisionAndFeeling(531);
+    world.config.feelSpeedThreshold = 8;
+    world.tick = 30;
+
+    const a = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 4, size: 14, irregular: false },
+      {
+        type: 'socialNav',
+        maxSpeed: 8,
+        maxTurnRate: 1.2,
+        decisionEveryTicks: 8,
+        intentionMinTicks: 20,
+        boundary: 'wrap',
+      },
+      { x: 260, y: 220 },
+    );
+    const b = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 5, size: 14, irregular: false },
+      {
+        type: 'socialNav',
+        maxSpeed: 8,
+        maxTurnRate: 1.2,
+        decisionEveryTicks: 8,
+        intentionMinTicks: 20,
+        boundary: 'wrap',
+      },
+      { x: 260, y: 220 },
+    );
+
+    const aFeeling = world.feeling.get(a);
+    const bFeeling = world.feeling.get(b);
+    const aMovement = world.movements.get(a);
+    if (!aFeeling || !bFeeling || !aMovement || aMovement.type !== 'socialNav') {
+      throw new Error('Missing components in explicit-intent handshake test.');
+    }
+
+    aFeeling.state = 'approaching';
+    aFeeling.partnerId = b;
+    bFeeling.state = 'approaching';
+    bFeeling.partnerId = a;
+    aMovement.intention = 'approachForFeeling';
+    aMovement.goal = {
+      type: 'point',
+      x: 260,
+      y: 220,
+    };
+
+    step();
+
+    expect(world.events.drain().some((event) => event.type === 'handshakeStart')).toBe(false);
+    expect(world.knowledge.get(a)?.known.size ?? 0).toBe(0);
+    expect(world.knowledge.get(b)?.known.size ?? 0).toBe(0);
+  });
+
   it('does not learn from high-speed contact', () => {
     const { world, step } = runCollisionAndFeeling(502);
     world.config.feelSpeedThreshold = 2;

@@ -1,5 +1,6 @@
 import { hashNoise } from '../core/behaviors/hashNoise';
 import type { EntityId, SocialIntention, SocialNavMovement } from '../core/components';
+import { fogDensityAt, fogFieldConfigFromWorld } from '../core/fogField';
 import { isEntityOutside } from '../core/housing/dwelling';
 import { visionHitClearance } from '../core/perception/bodyAwareness';
 import {
@@ -23,6 +24,10 @@ function normalizeAngle(angle: number): number {
     value += Math.PI * 2;
   }
   return value;
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
 }
 
 function rankWeight(rank: Rank): number {
@@ -190,6 +195,46 @@ function cautionFactor(world: World, entityId: EntityId): number {
   }
 }
 
+function southZoneRisk(world: World, y: number, isWoman: boolean): number {
+  if (!world.config.southAttractionEnabled) {
+    return 0;
+  }
+  const zoneStart = world.config.height * world.config.southAttractionZoneStartFrac;
+  const zoneEnd = world.config.height * world.config.southAttractionZoneEndFrac;
+  if (y <= zoneStart) {
+    return 0;
+  }
+  if (y >= zoneEnd) {
+    return isWoman ? 1 : 0.9;
+  }
+  const span = Math.max(1e-6, zoneEnd - zoneStart);
+  const linearRisk = (y - zoneStart) / span;
+  return clamp01(isWoman ? linearRisk * 1.1 : linearRisk);
+}
+
+function crowdPressure(world: World): number {
+  if (!world.config.crowdStressEnabled) {
+    return 0;
+  }
+  const comfort = Math.max(1, world.config.crowdComfortPopulation);
+  let population = 0;
+  for (const id of world.entities) {
+    if (!world.staticObstacles.has(id)) {
+      population += 1;
+    }
+  }
+  return clamp01((population - comfort) / (comfort * 1.25));
+}
+
+function fogCaution(world: World, position: Vec2): number {
+  if (!world.config.sightEnabled) {
+    return 0;
+  }
+  const baseline = Math.max(1e-6, world.config.fogDensity);
+  const localFog = Math.max(0, fogDensityAt(fogFieldConfigFromWorld(world), position));
+  return clamp01((localFog - baseline) / baseline);
+}
+
 function chooseIntention(
   movement: SocialNavMovement,
   desireAvoid: number,
@@ -300,6 +345,9 @@ export class SocialNavMindSystem implements System {
           hpRatio <= LOW_HP_HOME_RETURN_THRESHOLD ||
           (spouseBonded && routineHomeWindow && hpRatio < 0.92));
       const caution = cautionFactor(world, id);
+      const southRisk = southZoneRisk(world, transform.position.y, isWoman);
+      const socialCrowdPressure = crowdPressure(world);
+      const localFogCaution = fogCaution(world, transform.position);
       const targetHouseHit =
         visionHit?.kind === 'entity' &&
         world.staticObstacles.has(visionHit.hitId) &&
@@ -352,28 +400,37 @@ export class SocialNavMindSystem implements System {
 
       const hazardRadius = Math.max(8, movement.maxSpeed * 2.2);
       const desireAvoid =
-        hazardDistance === Number.POSITIVE_INFINITY
+        (hazardDistance === Number.POSITIVE_INFINITY
           ? 0
-          : Math.max(0, (hazardRadius - hazardDistance) / hazardRadius) * (0.4 + caution * 0.6);
+          : Math.max(0, (hazardRadius - hazardDistance) / hazardRadius) * (0.4 + caution * 0.6)) +
+        southRisk * (isWoman ? 0.78 : 0.66) +
+        socialCrowdPressure * (0.2 + caution * 0.25) +
+        localFogCaution * 0.16;
       const desireYield =
-        higher === null ? 0 : Math.max(0, (140 - higher.distance) / 140) * (0.25 + caution * 0.8);
+        (higher === null ? 0 : Math.max(0, (140 - higher.distance) / 140) * (0.25 + caution * 0.8)) +
+        socialCrowdPressure * 0.08;
       const desireHome =
         !homeWanted || homeDoorTarget === null
           ? 0
           : world.weather.isRaining
             ? Math.max(0.65, Math.max(0, (240 - homeDoorTarget.distance) / 240))
-            : Math.max(0.28, Math.max(0, (240 - homeDoorTarget.distance) / 240));
+            : Math.max(0.28, Math.max(0, (240 - homeDoorTarget.distance) / 240)) +
+              socialCrowdPressure * 0.16 +
+              southRisk * 0.12;
       const desireShelter =
         !shelterWanted || shelterTarget === null
           ? 0
           : world.weather.isRaining
             ? Math.max(1.1, Math.max(0, (220 - shelterTarget.distance) / 220)) * (isWoman ? 1.25 : 1)
-            : Math.max(0.24, Math.max(0, (220 - shelterTarget.distance) / 220));
-      const desireMate =
+            : Math.max(0.24, Math.max(0, (220 - shelterTarget.distance) / 220)) +
+              socialCrowdPressure * 0.34 +
+              southRisk * 0.1;
+      let desireMate =
         mate === null
           ? 0
           : Math.max(0, (world.config.matingRadius - mate.distance) / Math.max(1, world.config.matingRadius));
-      const desireFeel =
+      desireMate *= 1 - clamp01(socialCrowdPressure * 0.3 + southRisk * 0.2);
+      let desireFeel =
         unknown === null
           ? 0
           : Math.max(
@@ -381,6 +438,7 @@ export class SocialNavMindSystem implements System {
               (world.config.introductionRadius - unknown.distance) /
                 Math.max(1, world.config.introductionRadius),
             );
+      desireFeel *= 1 - clamp01(socialCrowdPressure * 0.12);
 
       movement.intention = chooseIntention(
         movement,
@@ -405,6 +463,8 @@ export class SocialNavMindSystem implements System {
             : hazardDirection ?? higher?.direction ?? unknown?.direction;
         if (direction) {
           setGoalDirection(movement, { x: -direction.x, y: -direction.y });
+        } else if (southRisk > 0.1) {
+          setGoalDirection(movement, { x: 0, y: -1 });
         } else {
           setGoalDirection(movement, {
             x: Math.cos(movement.heading + Math.PI),

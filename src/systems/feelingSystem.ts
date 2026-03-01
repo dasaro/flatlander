@@ -61,7 +61,7 @@ function isIntentionalApproach(world: World, entityId: EntityId, partnerId: Enti
     return false;
   }
 
-  return movement.goal?.targetId === partnerId || movement.goal?.type === 'point';
+  return movement.goal?.targetId === partnerId;
 }
 
 function canInitiateFeeling(world: World, entityId: EntityId, partnerId: EntityId): boolean {

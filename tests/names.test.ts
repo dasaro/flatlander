@@ -36,6 +36,30 @@ describe('deterministic display names', () => {
     expect(names.size).toBe(600);
   });
 
+  it('builds a varied name pool from deterministic syllable composition', () => {
+    const shape = {
+      kind: 'polygon' as const,
+      sides: 5,
+      vertices: [],
+      irregularity: 0,
+      regular: true,
+      boundingRadius: 16,
+    };
+    const given = new Set<string>();
+    const family = new Set<string>();
+    const suffixes = new Set<string>();
+    for (let id = 1; id <= 900; id += 1) {
+      const name = buildDeterministicName(99, id, Rank.Gentleman, shape);
+      given.add(name.given);
+      family.add(name.family);
+      suffixes.add(name.suffix);
+    }
+
+    expect(given.size).toBeGreaterThan(120);
+    expect(family.size).toBeGreaterThan(120);
+    expect(suffixes.size).toBe(900);
+  });
+
   it('does not consume world rng state', () => {
     const worldA = createWorld(77);
     const worldB = createWorld(77);

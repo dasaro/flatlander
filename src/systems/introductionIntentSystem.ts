@@ -61,7 +61,7 @@ function isIntentionalApproach(world: World, feelerId: EntityId, feltId: EntityI
     return false;
   }
 
-  return movement.goal?.targetId === feltId || movement.goal?.type === 'point';
+  return movement.goal?.targetId === feltId;
 }
 
 function setHoldStillIntention(world: World, entityId: EntityId, ticks: number): void {
