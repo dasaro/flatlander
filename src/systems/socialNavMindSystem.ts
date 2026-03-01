@@ -322,8 +322,29 @@ export class SocialNavMindSystem implements System {
         shelterTarget !== null &&
         movement.intention !== 'seekShelter' &&
         movement.intention !== 'seekHome';
+      const rainShelterPriority =
+        world.weather.isRaining && shelterWanted && shelterTarget !== null;
+      const rainShelterCanOverrideAvoid =
+        rainShelterPriority && hazardDistance > Math.max(3, movement.maxSpeed * 0.2);
 
       if (!needDecision && !emergencyAvoid && !rainingShelterOverride) {
+        if (movement.intention === 'seekShelter' && shelterTarget) {
+          movement.goal = {
+            type: 'point',
+            targetId: shelterTarget.houseId,
+            x: shelterTarget.midpoint.x,
+            y: shelterTarget.midpoint.y,
+            doorSide: shelterTarget.side,
+          };
+        } else if (movement.intention === 'seekHome' && homeDoorTarget) {
+          movement.goal = {
+            type: 'point',
+            targetId: homeDoorTarget.houseId,
+            x: homeDoorTarget.midpoint.x,
+            y: homeDoorTarget.midpoint.y,
+            doorSide: homeDoorTarget.side,
+          };
+        }
         movement.intentionTicksLeft -= 1;
         trackHousingIntentionCounts(world, movement);
         continue;
@@ -371,7 +392,9 @@ export class SocialNavMindSystem implements System {
         desireFeel,
       );
 
-      if (rainingShelterOverride) {
+      if (rainShelterCanOverrideAvoid) {
+        movement.intention = homeWanted ? 'seekHome' : 'seekShelter';
+      } else if (rainingShelterOverride) {
         movement.intention = 'seekShelter';
       }
 
@@ -442,6 +465,15 @@ export class SocialNavMindSystem implements System {
       const jitter = 0.7 + hashNoise(world.seed + 17, id, durationBucket) * 0.6;
       const baseDuration = Math.max(1, movement.intentionMinTicks);
       movement.intentionTicksLeft = Math.max(1, Math.round(baseDuration * jitter));
+      if (
+        world.weather.isRaining &&
+        (movement.intention === 'seekShelter' || movement.intention === 'seekHome')
+      ) {
+        movement.intentionTicksLeft = Math.min(
+          movement.intentionTicksLeft,
+          Math.max(4, movement.decisionEveryTicks),
+        );
+      }
       if (emergencyAvoid && !targetHouseHit && movement.intention !== 'avoid') {
         movement.intention = 'avoid';
       }

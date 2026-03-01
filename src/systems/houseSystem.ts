@@ -17,7 +17,7 @@ import type { Vec2 } from '../geometry/vector';
 import type { System } from './system';
 
 const DOOR_ENTER_SPEED = 16;
-const DOOR_CONTACT_EPSILON = 14;
+const DOOR_CONTACT_EPSILON = 18;
 const DOOR_EXIT_CLEARANCE = 8;
 const DOOR_EXIT_PUSH_SPEED = 16;
 const EXIT_TRANSIT_TICKS = 14;
@@ -285,6 +285,10 @@ function exitHouse(
 }
 
 function shouldExitHouse(world: World, personId: EntityId, ticksInside: number): boolean {
+  // Flatland Part I §2: rain sheltering implies waiting stationary under cover.
+  if (world.config.rainEnabled && world.weather.isRaining) {
+    return false;
+  }
   const durability = world.durability.get(personId);
   const hpRatio = durability && durability.maxHp > 0 ? durability.hp / durability.maxHp : 1;
   if (ticksInside >= MIN_INDOOR_TICKS * 3) {

@@ -297,4 +297,46 @@ describe('reproduction system', () => {
 
     expect(snapshot(321)).toBe(snapshot(321));
   });
+
+  it('spawns newborns with social-nav movement so rain sheltering remains available', () => {
+    const world = createWorld(808, {
+      reproductionEnabled: true,
+      gestationTicks: 1,
+      matingRadius: 80,
+      conceptionChancePerTick: 1,
+      femaleBirthProbability: 1,
+      maxPopulation: 10,
+      southAttractionEnabled: false,
+      housesEnabled: true,
+      rainEnabled: true,
+    });
+
+    const mother = spawnEntity(
+      world,
+      { kind: 'segment', size: 24 },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 140, y: 140 },
+    );
+    const father = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 4, size: 18, irregular: false },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 140, y: 140 },
+    );
+
+    makeMature(world, mother);
+    bondPair(world, mother, father);
+
+    const sim = simulationWithReproduction(world);
+    sim.stepOneTick();
+    sim.stepOneTick();
+
+    const childEntry = [...world.lineage.entries()].find(([, lineage]) => lineage.motherId === mother);
+    if (!childEntry) {
+      throw new Error('Expected one newborn child for social-nav movement assertion.');
+    }
+    const [childId] = childEntry;
+    const movement = world.movements.get(childId);
+    expect(movement?.type).toBe('socialNav');
+  });
 });

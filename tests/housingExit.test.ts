@@ -69,6 +69,13 @@ describe('housing exit behavior', () => {
     for (let step = 0; step < 180; step += 1) {
       world.tick += 1;
       houseSystem.update(world);
+    }
+    expect(world.dwellings.get(manId)?.state).toBe('inside');
+
+    world.weather.isRaining = false;
+    for (let step = 0; step < 180; step += 1) {
+      world.tick += 1;
+      houseSystem.update(world);
       if (world.dwellings.get(manId)?.state === 'outside') {
         break;
       }

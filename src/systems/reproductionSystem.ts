@@ -18,8 +18,10 @@ import type { Vec2 } from '../geometry/vector';
 import type { System } from './system';
 
 const NEWBORN_SEGMENT_LENGTH = 12;
-const NEWBORN_SPEED = 10;
-const NEWBORN_TURN_RATE = 1.4;
+const NEWBORN_MAX_SPEED = 10;
+const NEWBORN_MAX_TURN_RATE = 1.4;
+const NEWBORN_DECISION_EVERY_TICKS = 16;
+const NEWBORN_INTENTION_MIN_TICKS = 66;
 const BIRTH_OFFSET_MIN = 6;
 const BIRTH_OFFSET_MAX = 14;
 const HOME_REPRODUCTION_RADIUS_MULTIPLIER = 1.45;
@@ -30,6 +32,7 @@ const ECO_HIGH_POPULATION_MULTIPLIER = 0.09;
 const ECO_DRY_PHASE_MULTIPLIER = 1.35;
 const ECO_RAIN_PHASE_MULTIPLIER = 0.08;
 const ECO_OVERLOAD_DAMPING = 2.2;
+const LOW_POPULATION_PAIRING_RADIUS_MULTIPLIER = 3.4;
 
 function isFemaleShape(shapeKind: 'segment' | 'circle' | 'polygon'): boolean {
   return shapeKind === 'segment';
@@ -41,9 +44,13 @@ function isMaleShape(shapeKind: 'segment' | 'circle' | 'polygon'): boolean {
 
 function newbornMovement(world: World): SpawnMovementConfig {
   return {
-    type: 'randomWalk',
-    speed: NEWBORN_SPEED,
-    turnRate: NEWBORN_TURN_RATE,
+    // Keep newborns on the same deterministic BDI lane as adults so
+    // shelter/rain intentions are available across generations.
+    type: 'socialNav',
+    maxSpeed: NEWBORN_MAX_SPEED,
+    maxTurnRate: NEWBORN_MAX_TURN_RATE,
+    decisionEveryTicks: NEWBORN_DECISION_EVERY_TICKS,
+    intentionMinTicks: NEWBORN_INTENTION_MIN_TICKS,
     boundary: boundaryFromTopology(world.config.topology),
   };
 }
@@ -164,7 +171,16 @@ function nearestUnbondedFatherId(
   ids: number[],
   maleRankShares: Map<Rank, number>,
 ): number | null {
-  const radius = Math.max(0, world.config.matingRadius * 1.35);
+  const lowPopulationPairingBoost =
+    world.entities.size <= ECO_LOW_POPULATION_PIVOT
+      ? LOW_POPULATION_PAIRING_RADIUS_MULTIPLIER
+      : world.entities.size < ECO_HIGH_POPULATION_PIVOT
+        ? LOW_POPULATION_PAIRING_RADIUS_MULTIPLIER -
+          ((world.entities.size - ECO_LOW_POPULATION_PIVOT) /
+            Math.max(1, ECO_HIGH_POPULATION_PIVOT - ECO_LOW_POPULATION_PIVOT)) *
+            (LOW_POPULATION_PAIRING_RADIUS_MULTIPLIER - 1)
+        : 1;
+  const radius = Math.max(0, world.config.matingRadius * 1.35 * lowPopulationPairingBoost);
   let bestId: number | null = null;
   let bestScore = Number.POSITIVE_INFINITY;
   const rarityBiasEnabled = world.config.rarityMarriageBiasEnabled;
@@ -357,7 +373,7 @@ function domesticContextSatisfied(
   }
   const pairedDistance = distance(motherPosition, fatherTransform.position);
   const matingRadius = Math.max(0, world.config.matingRadius);
-  const lowPopulationRelaxation = world.entities.size <= 180 ? 1.8 : 1;
+  const lowPopulationRelaxation = world.entities.size <= 180 ? 2.8 : 1;
   if (pairedDistance > matingRadius * lowPopulationRelaxation) {
     return false;
   }

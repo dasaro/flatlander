@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.7] - 2026-03-01
+
+### Changed
+- Increased baseline presence of regular squares in the default population mix (`src/presets/defaultScenario.ts`) to keep the professional class visibly represented from tick 0.
+- Reproduction now spawns newborns with deterministic `socialNav` movement (instead of `randomWalk`) so rain-shelter behavior remains active across generations (`src/systems/reproductionSystem.ts`).
+- Rain-time shelter behavior was strengthened in SocialNav mind/steering:
+  - rain can override non-critical avoidance decisions for shelter intent,
+  - shelter/home door goals are re-targeted during active intentions,
+  - shelter/home pursuit speed/arrival tuning improved door acquisition (`src/systems/socialNavMindSystem.ts`, `src/systems/socialNavSteeringSystem.ts`).
+- House lifecycle now keeps residents indoors while rain is active (wait-for-bearing behavior) and slightly widens door contact tolerance for reliable entry (`src/systems/houseSystem.ts`).
+
+### Added
+- New regression coverage for baseline regular squares (`tests/defaultScenario.test.ts`).
+- New regression coverage asserting newborns use SocialNav movement (`tests/reproduction.test.ts`).
+
+### Validation
+- Focused long-run seed 42 retest after tuning:
+  - `tick=60000`, `pop=137`, `min=45`, `max=194`,
+  - `avgInsideRain=14.86` vs `avgInsideDry=2.27` (`rainRatio=6.55`),
+  - `houseEnter=1386`, `houseExit=1385`,
+  - no collapse to empty population in the 60k horizon.
+
 ## [0.9.6] - 2026-02-26
 
 ### Added

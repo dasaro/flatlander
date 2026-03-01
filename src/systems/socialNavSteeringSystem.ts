@@ -38,9 +38,9 @@ function targetSpeedForIntention(world: World, entityId: number): number {
     case 'yield':
       return movement.maxSpeed * 0.45;
     case 'seekShelter':
-      return movement.maxSpeed * 0.55;
+      return movement.maxSpeed * 0.78;
     case 'seekHome':
-      return movement.maxSpeed * 0.5;
+      return movement.maxSpeed * 0.72;
     case 'approachMate':
       return movement.maxSpeed * 0.66;
     case 'approachForFeeling':
@@ -195,7 +195,7 @@ export class SocialNavSteeringSystem implements System {
         const targetY = movement.goal.y;
         if (targetX !== undefined && targetY !== undefined) {
           const distanceToTarget = Math.hypot(targetX - transform.position.x, targetY - transform.position.y);
-          const arriveScale = clamp(distanceToTarget / 36, 0.08, 1);
+          const arriveScale = clamp(distanceToTarget / 36, 0.18, 1);
           adjustedTargetSpeed *= arriveScale;
         }
         if (movement.goal.targetId !== undefined && targetHouseContact(world, id, movement.goal.targetId)) {

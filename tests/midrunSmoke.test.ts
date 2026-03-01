@@ -35,7 +35,7 @@ import { describeLong } from './longTest';
 describeLong('mid-run smoke', () => {
   it(
     'shows rain-driven shelter usage in a 10k deterministic run (seed 42)',
-    () => {
+    async () => {
       const world = createDefaultWorld(42);
       const simulation = new FixedTimestepSimulation(world, [
         new PeaceCrySystem(),
@@ -91,6 +91,11 @@ describeLong('mid-run smoke', () => {
           } else if (event.type === 'houseExit') {
             houseExits += 1;
           }
+        }
+        if (tick % 250 === 0) {
+          await new Promise<void>((resolve) => {
+            setTimeout(resolve, 0);
+          });
         }
       }
 

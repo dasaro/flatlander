@@ -73,7 +73,7 @@ export function defaultSpawnPlan(boundary: BoundaryMode = 'wrap'): SpawnRequest[
         intentionMinTicks: 96,
         boundary,
       },
-      count: 1,
+      count: 4,
     },
     {
       shape: {
@@ -90,7 +90,7 @@ export function defaultSpawnPlan(boundary: BoundaryMode = 'wrap'): SpawnRequest[
         intentionMinTicks: 82,
         boundary,
       },
-      count: 1,
+      count: 2,
     },
     {
       shape: {
