@@ -3,6 +3,7 @@ import { southAttractionMultiplier } from '../core/fields/southAttractionField';
 import { isEntityOutside } from '../core/housing/dwelling';
 import { rankKeyForEntity } from '../core/rankKey';
 import { Rank } from '../core/rank';
+import { requestStillness } from '../core/stillness';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
 import type { System } from './system';
@@ -20,20 +21,50 @@ function isMoving(world: World, entityId: number): boolean {
   return movement.speed > 0;
 }
 
+function requestComplianceStillness(world: World, entityId: number): void {
+  const ticks = Math.max(1, Math.round(world.config.peaceCryComplianceStillnessTicks));
+  requestStillness(world, {
+    entityId,
+    mode: 'translation',
+    reason: 'manual',
+    ticksRemaining: ticks,
+    requestedBy: null,
+  });
+
+  const movement = world.movements.get(entityId);
+  if (movement && movement.type === 'socialNav') {
+    movement.intention = 'holdStill';
+    movement.intentionTicksLeft = Math.max(1, ticks);
+    movement.speed = 0;
+    movement.smoothSpeed = 0;
+    delete movement.goal;
+  }
+}
+
 export class PeaceCrySystem implements System {
   update(world: World, _dt: number): void {
     void _dt;
     world.audiblePings = [];
+    const strictCompliance = world.config.strictPeaceCryComplianceEnabled;
+    const ids = getSortedEntityIds(world);
     if (!world.config.peaceCryEnabled) {
+      if (strictCompliance) {
+        for (const id of ids) {
+          const rank = world.ranks.get(id);
+          if (rank?.rank !== Rank.Woman || !isEntityOutside(world, id) || !isMoving(world, id)) {
+            continue;
+          }
+          requestComplianceStillness(world, id);
+        }
+      }
       return;
     }
 
-    const ids = getSortedEntityIds(world);
     for (const id of ids) {
       const rank = world.ranks.get(id);
       const peaceCry = world.peaceCry.get(id);
       const transform = world.transforms.get(id);
-      if (!rank || rank.rank !== Rank.Woman || !peaceCry || !peaceCry.enabled || !transform) {
+      if (!rank || rank.rank !== Rank.Woman || !peaceCry || !transform) {
         continue;
       }
       if (!isEntityOutside(world, id)) {
@@ -41,6 +72,13 @@ export class PeaceCrySystem implements System {
       }
 
       if (!isMoving(world, id)) {
+        continue;
+      }
+
+      if (!peaceCry.enabled) {
+        if (strictCompliance) {
+          requestComplianceStillness(world, id);
+        }
         continue;
       }
 

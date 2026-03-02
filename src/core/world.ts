@@ -64,6 +64,10 @@ export interface WorldConfig {
   rainBaseDurationTicks: number;
   rainDurationJitterFrac: number;
   peaceCryEnabled: boolean;
+  strictPeaceCryComplianceEnabled: boolean;
+  peaceCryComplianceStillnessTicks: number;
+  northYieldEtiquetteEnabled: boolean;
+  northYieldRadius: number;
   defaultPeaceCryCadenceTicks: number;
   defaultPeaceCryRadius: number;
   reproductionEnabled: boolean;
@@ -290,6 +294,10 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   rainBaseDurationTicks: 700,
   rainDurationJitterFrac: 0.18,
   peaceCryEnabled: true,
+  strictPeaceCryComplianceEnabled: true,
+  peaceCryComplianceStillnessTicks: 3,
+  northYieldEtiquetteEnabled: true,
+  northYieldRadius: 170,
   defaultPeaceCryCadenceTicks: 20,
   defaultPeaceCryRadius: 120,
   reproductionEnabled: true,

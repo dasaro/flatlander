@@ -135,6 +135,7 @@ const mobileMenuBackdrop = document.getElementById('mobile-menu-backdrop');
 const primaryRunBtn = document.getElementById('run-btn');
 
 const systems = [
+  // Peace-cry must run before hearing and SocialNav mind so etiquette reacts to same-tick signals.
   new PeaceCrySystem(),
   new RainSystem(),
   new HearingSystem(),

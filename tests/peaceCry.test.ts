@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import { spawnEntity, spawnFromRequest } from '../src/core/factory';
 import { createWorld } from '../src/core/world';
+import { MovementSystem } from '../src/systems/movementSystem';
 import { AvoidanceSteeringSystem } from '../src/systems/avoidanceSteeringSystem';
 import { PeaceCrySystem } from '../src/systems/peaceCrySystem';
+import { StillnessControllerSystem } from '../src/systems/stillnessControllerSystem';
 
 function collectPeaceCryLog(seed: number): number[][] {
   const world = createWorld(seed, {
@@ -202,5 +204,54 @@ describe('peace-cry and hearing behavior', () => {
     expect(afterA.heading).toBeLessThan(initialA);
     expect(afterA.heading).toBeCloseTo(afterB.heading, 8);
     expect(initialA).toBeCloseTo(initialB, 8);
+  });
+
+  it('applies strict compliance stillness to moving women when peace-cry is disabled', () => {
+    const world = createWorld(991, {
+      peaceCryEnabled: true,
+      strictPeaceCryComplianceEnabled: true,
+      peaceCryComplianceStillnessTicks: 3,
+    });
+
+    const womanId = spawnEntity(
+      world,
+      { kind: 'segment', size: 26 },
+      { type: 'randomWalk', speed: 14, turnRate: 1.2, boundary: 'wrap' },
+      { x: 120, y: 120 },
+    );
+    const cry = world.peaceCry.get(womanId);
+    if (!cry) {
+      throw new Error('Woman peace-cry component missing in strict compliance test.');
+    }
+    cry.enabled = false;
+
+    const transform = world.transforms.get(womanId);
+    if (!transform) {
+      throw new Error('Woman transform missing in strict compliance test.');
+    }
+    const before = { ...transform.position };
+
+    const peaceCrySystem = new PeaceCrySystem();
+    const stillness = new StillnessControllerSystem();
+    const movement = new MovementSystem();
+    const dt = 1 / world.config.tickRate;
+
+    world.tick = 1;
+    peaceCrySystem.update(world, dt);
+    stillness.update(world);
+    movement.update(world, dt);
+
+    const active = world.stillness.get(womanId);
+    expect(active?.reason).toBe('manual');
+    expect(active?.mode).toBe('translation');
+    expect(active?.ticksRemaining).toBeGreaterThan(0);
+
+    const after = world.transforms.get(womanId);
+    if (!after) {
+      throw new Error('Woman transform missing after strict compliance tick.');
+    }
+    expect(after.position.x).toBeCloseTo(before.x, 8);
+    expect(after.position.y).toBeCloseTo(before.y, 8);
+    expect(world.audiblePings).toHaveLength(0);
   });
 });

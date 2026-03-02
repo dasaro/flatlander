@@ -9,8 +9,10 @@ import {
   shouldSeekShelter,
 } from '../core/housing/shelterPolicy';
 import { Rank } from '../core/rank';
+import { requestStillness } from '../core/stillness';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
+import { normalize } from '../geometry/vector';
 import type { Vec2 } from '../geometry/vector';
 import type { System } from './system';
 
@@ -54,6 +56,13 @@ interface DirectionCandidate {
   id: EntityId;
   distance: number;
   direction: Vec2;
+}
+
+interface WomanCryCandidate {
+  emitterId: EntityId;
+  distance: number;
+  direction: Vec2;
+  pressure: number;
 }
 
 function sightDirectionCandidate(world: World, entityId: EntityId): DirectionCandidate | null {
@@ -225,6 +234,61 @@ function crowdPressure(world: World): number {
   return clamp01((population - comfort) / (comfort * 1.25));
 }
 
+function nearestWomanCryCandidate(world: World, entityId: EntityId, origin: Vec2): WomanCryCandidate | null {
+  if (!world.config.northYieldEtiquetteEnabled) {
+    return null;
+  }
+  const maxRadius = Math.max(1, world.config.northYieldRadius);
+  let best: WomanCryCandidate | null = null;
+  for (const ping of world.audiblePings) {
+    if (ping.emitterId === entityId || !world.entities.has(ping.emitterId)) {
+      continue;
+    }
+    const emitterRank = world.ranks.get(ping.emitterId);
+    if (emitterRank?.rank !== Rank.Woman) {
+      continue;
+    }
+    const dx = ping.position.x - origin.x;
+    const dy = ping.position.y - origin.y;
+    const distance = Math.hypot(dx, dy);
+    const effectiveRadius = Math.min(Math.max(1, ping.radius), maxRadius);
+    if (distance > effectiveRadius) {
+      continue;
+    }
+    const pressure = clamp01((effectiveRadius - distance) / effectiveRadius);
+    const candidate: WomanCryCandidate = {
+      emitterId: ping.emitterId,
+      distance,
+      direction: normalize({ x: dx, y: dy }),
+      pressure,
+    };
+    if (
+      best === null ||
+      candidate.distance < best.distance ||
+      (candidate.distance === best.distance && candidate.emitterId < best.emitterId)
+    ) {
+      best = candidate;
+    }
+  }
+  return best;
+}
+
+function northYieldDirection(womanDirection: Vec2): Vec2 {
+  const away = {
+    x: -womanDirection.x,
+    y: -womanDirection.y,
+  };
+  const northBiased = {
+    x: away.x * 0.7,
+    y: away.y > -0.2 ? away.y - 0.9 : away.y,
+  };
+  const magnitude = Math.hypot(northBiased.x, northBiased.y);
+  if (magnitude <= 1e-6) {
+    return { x: 0, y: -1 };
+  }
+  return normalize(northBiased);
+}
+
 function fogCaution(world: World, position: Vec2): number {
   if (!world.config.sightEnabled) {
     return 0;
@@ -319,6 +383,7 @@ export class SocialNavMindSystem implements System {
       const needDecision = movement.intentionTicksLeft <= 0;
       const visionHit = world.visionHits.get(id);
       const hazardDirection: Vec2 | null = visionHit?.direction ?? null;
+      const womanCry = nearestWomanCryCandidate(world, id, transform.position);
 
       const seenId = seenEntityId(world, id);
       const higher = higherRankFromPerception(world, id, seenId);
@@ -336,6 +401,7 @@ export class SocialNavMindSystem implements System {
       const durability = world.durability.get(id);
       const hpRatio = durability && durability.maxHp > 0 ? durability.hp / durability.maxHp : 1;
       const isWoman = world.ranks.get(id)?.rank === Rank.Woman;
+      const womanCryPressure = !isWoman && womanCry ? womanCry.pressure : 0;
       const routineHomeWindow = world.tick % 1_600 < 45;
       const spouseBonded = bond?.spouseId !== null && bond?.spouseId !== undefined;
       const homeWanted =
@@ -363,6 +429,7 @@ export class SocialNavMindSystem implements System {
         : Number.POSITIVE_INFINITY;
       const hazardDistance = Math.min(sightHazardDistance, contactDistance);
       const emergencyAvoid = hazardDistance <= Math.max(4, movement.maxSpeed * 0.45);
+      const etiquetteUrgent = womanCryPressure >= 0.45;
       const rainingShelterOverride =
         world.weather.isRaining &&
         shelterWanted &&
@@ -374,7 +441,7 @@ export class SocialNavMindSystem implements System {
       const rainShelterCanOverrideAvoid =
         rainShelterPriority && hazardDistance > Math.max(3, movement.maxSpeed * 0.2);
 
-      if (!needDecision && !emergencyAvoid && !rainingShelterOverride) {
+      if (!needDecision && !emergencyAvoid && !rainingShelterOverride && !etiquetteUrgent) {
         if (movement.intention === 'seekShelter' && shelterTarget) {
           movement.goal = {
             type: 'point',
@@ -407,6 +474,7 @@ export class SocialNavMindSystem implements System {
         localFogCaution * 0.16;
       const desireYield =
         (higher === null ? 0 : Math.max(0, (140 - higher.distance) / 140) * (0.25 + caution * 0.8)) +
+        womanCryPressure * 1.05 +
         socialCrowdPressure * 0.08;
       const desireHome =
         !homeWanted || homeDoorTarget === null
@@ -453,22 +521,44 @@ export class SocialNavMindSystem implements System {
         movement.intention = homeWanted ? 'seekHome' : 'seekShelter';
       } else if (rainingShelterOverride) {
         movement.intention = 'seekShelter';
+      } else if (etiquetteUrgent) {
+        movement.intention = 'yield';
+      }
+
+      if (
+        womanCry &&
+        !isWoman &&
+        womanCry.distance <= Math.max(4, world.config.preContactRadius) &&
+        world.config.northYieldEtiquetteEnabled
+      ) {
+        requestStillness(world, {
+          entityId: id,
+          mode: 'translation',
+          reason: 'yieldToLady',
+          ticksRemaining: 2,
+          requestedBy: womanCry.emitterId,
+        });
       }
 
       if (movement.intention === 'avoid' || movement.intention === 'yield') {
-        const direction =
-          movement.intention === 'yield'
-            ? higher?.direction
-            : hazardDirection ?? higher?.direction ?? unknown?.direction;
-        if (direction) {
-          setGoalDirection(movement, { x: -direction.x, y: -direction.y });
-        } else if (southRisk > 0.1) {
-          setGoalDirection(movement, { x: 0, y: -1 });
+        const etiquetteDirection = womanCry ? northYieldDirection(womanCry.direction) : null;
+        if (etiquetteDirection) {
+          setGoalDirection(movement, etiquetteDirection);
         } else {
-          setGoalDirection(movement, {
-            x: Math.cos(movement.heading + Math.PI),
-            y: Math.sin(movement.heading + Math.PI),
-          });
+          const direction =
+            movement.intention === 'yield'
+              ? higher?.direction
+              : hazardDirection ?? higher?.direction ?? unknown?.direction;
+          if (direction) {
+            setGoalDirection(movement, { x: -direction.x, y: -direction.y });
+          } else if (southRisk > 0.1) {
+            setGoalDirection(movement, { x: 0, y: -1 });
+          } else {
+            setGoalDirection(movement, {
+              x: Math.cos(movement.heading + Math.PI),
+              y: Math.sin(movement.heading + Math.PI),
+            });
+          }
         }
       } else if (movement.intention === 'approachMate' && mate) {
         const mateTransform = world.transforms.get(mate.id);
