@@ -68,7 +68,7 @@ function eventToNarrativeItem(event: WorldEvent): StoredNarrativeItem | null {
     case 'birth':
       return {
         tick: event.tick,
-        text: `Birth: #${event.childId} born to #${event.motherId}.`,
+        text: `Birth desk: ${event.childRankKey ?? 'A child'} #${event.childId} was born to #${event.motherId}.`,
         type: event.type,
         entityIds: [event.childId, event.motherId],
         score: scoreForType(event.type),
@@ -78,8 +78,8 @@ function eventToNarrativeItem(event: WorldEvent): StoredNarrativeItem | null {
         tick: event.tick,
         text:
           event.killerId === undefined
-            ? `Death: #${event.entityId} died.`
-            : `Death: #${event.entityId} was killed by #${event.killerId}.`,
+            ? `Obituary: ${event.rankKey ?? 'an inhabitant'} #${event.entityId} has died.`
+            : `Crime watch: ${event.rankKey ?? 'an inhabitant'} #${event.entityId} was slain by #${event.killerId}.`,
         type: event.type,
         entityIds: event.killerId === undefined ? [event.entityId] : [event.entityId, event.killerId],
         score: scoreForType(event.type),
@@ -87,7 +87,7 @@ function eventToNarrativeItem(event: WorldEvent): StoredNarrativeItem | null {
     case 'regularized':
       return {
         tick: event.tick,
-        text: `Regularization: #${event.entityId} reached ${event.rankKey ?? 'a regular rank'}.`,
+        text: `Civic registry: #${event.entityId} regularized into ${event.rankKey ?? 'a regular rank'}.`,
         type: event.type,
         entityIds: [event.entityId],
         score: scoreForType(event.type),
@@ -95,7 +95,7 @@ function eventToNarrativeItem(event: WorldEvent): StoredNarrativeItem | null {
     case 'houseEnter':
       return {
         tick: event.tick,
-        text: `#${event.entityId} entered house #${event.houseId} (${houseReasonLabel(event.reason)}).`,
+        text: `Shelter report: #${event.entityId} entered house #${event.houseId} for ${houseReasonLabel(event.reason)}.`,
         type: event.type,
         entityIds: [event.entityId, event.houseId],
         score: scoreForType(event.type),
@@ -103,7 +103,7 @@ function eventToNarrativeItem(event: WorldEvent): StoredNarrativeItem | null {
     case 'houseExit':
       return {
         tick: event.tick,
-        text: `#${event.entityId} exited house #${event.houseId} (${houseReasonLabel(event.reason)}).`,
+        text: `Street report: #${event.entityId} exited house #${event.houseId} after ${houseReasonLabel(event.reason)}.`,
         type: event.type,
         entityIds: [event.entityId, event.houseId],
         score: scoreForType(event.type),
@@ -111,7 +111,7 @@ function eventToNarrativeItem(event: WorldEvent): StoredNarrativeItem | null {
     case 'handshake':
       return {
         tick: event.tick,
-        text: `Handshake: #${event.aId} and #${event.bId} recognized each other.`,
+        text: `Society column: #${event.aId} and #${event.bId} completed a formal recognition.`,
         type: event.type,
         entityIds: [event.aId, event.bId],
         score: scoreForType(event.type),
@@ -119,7 +119,7 @@ function eventToNarrativeItem(event: WorldEvent): StoredNarrativeItem | null {
     case 'handshakeAttemptFailed':
       return {
         tick: event.tick,
-        text: `Handshake failed: #${event.aId} and #${event.bId} (${handshakeFailureLabel(event.reason)}).`,
+        text: `Etiquette note: introduction between #${event.aId} and #${event.bId} failed (${handshakeFailureLabel(event.reason)}).`,
         type: event.type,
         entityIds: [event.aId, event.bId],
         score: scoreForType(event.type),

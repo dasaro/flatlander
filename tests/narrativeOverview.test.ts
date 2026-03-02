@@ -71,6 +71,7 @@ describe('narrative overview', () => {
     );
 
     expect(overview.headline).toContain('most inhabitants are sheltering');
+    expect(overview.bulletinLine).toContain('Gazette:');
     expect(overview.reasons.some((reason) => reason.includes('rain sheltering'))).toBe(true);
   });
 
@@ -95,6 +96,7 @@ describe('narrative overview', () => {
     );
 
     expect(overview.reasons.some((reason) => reason.includes('stillness protocol was not satisfied'))).toBe(true);
+    expect(overview.bulletinLine).toContain('Gazette:');
   });
 
   it('handles collapsed worlds', () => {
@@ -113,6 +115,7 @@ describe('narrative overview', () => {
     );
 
     expect(overview.headline).toContain('Population collapsed');
+    expect(overview.bulletinLine).toContain('city is empty');
     expect(overview.reasons.length).toBeGreaterThan(0);
   });
 });

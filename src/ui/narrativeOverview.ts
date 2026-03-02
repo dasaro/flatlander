@@ -15,6 +15,7 @@ export interface NarrativeOverviewInput {
 
 export interface NarrativeOverview {
   headline: string;
+  bulletinLine: string;
   reasons: string[];
 }
 
@@ -133,6 +134,7 @@ export function buildNarrativeOverview(
 ): NarrativeOverview {
   if (input.totalPeople <= 0) {
     return {
+      bulletinLine: 'Gazette: the city is empty; no active citizens remain.',
       headline: 'Population collapsed: no inhabitants remain.',
       reasons: ['No active agents are available to reproduce, shelter, or maintain social exchange.'],
     };
@@ -197,11 +199,22 @@ export function buildNarrativeOverview(
   );
 
   const notableEvents = input.notableEvents ?? [];
+  let bulletinLine = '';
   if (notableEvents.length > 0) {
+    bulletinLine = `Gazette: ${notableEvents[0]}`;
     reasons.push(`Latest notable: ${notableEvents.slice(0, 2).join(' | ')}`);
+  } else if (deaths > births && deaths > 0) {
+    bulletinLine = `Gazette: crisis pressure dominates (${deaths} recent deaths vs ${births} births).`;
+  } else if (births > deaths && births > 0) {
+    bulletinLine = `Gazette: recovery signals (${births} births outpace ${deaths} deaths).`;
+  } else if (input.isRaining) {
+    bulletinLine = 'Gazette: rain keeps streets tense as households race for shelter.';
+  } else {
+    bulletinLine = 'Gazette: routine civic traffic; no major disruption reported.';
   }
 
   return {
+    bulletinLine,
     headline,
     reasons: reasons.slice(0, 5),
   };

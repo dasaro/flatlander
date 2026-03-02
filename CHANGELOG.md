@@ -2,6 +2,30 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.11] - 2026-03-02
+
+### Added
+- Narrative panel now includes a rotating one-line **Gazette bulletin** (newspaper style), updated periodically from notable simulation events.
+- Hover tooltips now provide richer natural-language behavior narratives with:
+  - current action,
+  - likely motivation from internal state/perception,
+  - concise recent history snippets.
+
+### Changed
+- Narrative overview now reports additional high-value social signals (birth/death pressure, house transition volume, regularizations, and latest notable events) while keeping concise formatting.
+- Notable event text has been rewritten in plain-language “column” style for readability.
+- Priest recovery tuning improved (deterministic, scarcity-driven) in `NeoTherapySystem`:
+  - stronger recovery mode when priest count is critically low,
+  - broader veteran eligibility window under scarcity,
+  - higher effective survival floor for priest-target therapy under priest scarcity.
+- Default scenario and world config neo-therapy parameters were tuned upward to reduce priest disappearance persistence.
+
+### Tests
+- Added/updated:
+  - `tests/entityHoverNarrative.test.ts`
+  - `tests/recentEventNarrativeStore.test.ts`
+  - `tests/neoTherapySystem.test.ts` (veteran scarcity recovery case)
+
 ## [0.9.10] - 2026-03-02
 
 ### Added

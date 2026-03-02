@@ -143,4 +143,40 @@ describe('neo-therapy system', () => {
     expect(world.ranks.get(candidate)?.rank).toBe(Rank.Priest);
     expect(world.shapes.get(candidate)?.kind).toBe('circle');
   });
+
+  it('can recover a priest from scarce veteran near-circular polygons', () => {
+    const world = createWorld(1205, {
+      neoTherapyEnabled: true,
+      reproductionEnabled: true,
+      nearCircleThreshold: 15,
+      neoTherapyEnrollmentThresholdSides: 9,
+      neoTherapyAmbitionProbability: 1,
+      neoTherapyDurationTicks: 1,
+      neoTherapySurvivalProbability: 1,
+    });
+    const candidate = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 12, size: 18, irregular: false },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 220, y: 240 },
+    );
+    const lineage = world.lineage.get(candidate);
+    if (!lineage) {
+      throw new Error('Missing lineage for neo-therapy veteran recovery test.');
+    }
+    lineage.fatherId = 12;
+    const age = world.ages.get(candidate);
+    if (!age) {
+      throw new Error('Missing age for neo-therapy veteran recovery test.');
+    }
+    age.ticksAlive = 500;
+
+    const system = new NeoTherapySystem();
+    system.update(world);
+    expect(world.neoTherapy.get(candidate)?.target).toBe('Priest');
+
+    system.update(world);
+    expect(world.ranks.get(candidate)?.rank).toBe(Rank.Priest);
+    expect(world.pendingDeaths.has(candidate)).toBe(false);
+  });
 });

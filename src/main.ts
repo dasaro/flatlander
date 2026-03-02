@@ -115,6 +115,7 @@ if (!(flatlanderCanvasNode instanceof HTMLCanvasElement)) {
 }
 const flatlanderCanvas: HTMLCanvasElement = flatlanderCanvasNode;
 const worldHoverInfo = document.getElementById('world-hover-info');
+const narrativeBulletin = document.getElementById('narrative-overview-bulletin');
 const narrativeHeadline = document.getElementById('narrative-overview-headline');
 const narrativeReasons = document.getElementById('narrative-overview-reasons');
 
@@ -298,6 +299,8 @@ let hoveredWorldEntityId: number | null = null;
 let hoveredWorldPoint: Vec2 | null = null;
 let hoveredWorldClientPoint: Vec2 | null = null;
 let lastNarrativeTick = -1;
+let lastBulletinTick = -1;
+let lastBulletinText = 'Gazette: waiting for the first notable civic development.';
 const eventDrainPipeline = new EventDrainPipeline(
   world.tick,
   () => world.events.drain(),
@@ -367,6 +370,8 @@ const ui = new UIController({
     rainTimeline.reset();
     recentEventNarrative.clear();
     lastNarrativeTick = -1;
+    lastBulletinTick = -1;
+    lastBulletinText = 'Gazette: waiting for the first notable civic development.';
     recentLegendEvents.length = 0;
     lastLegendSignature = '';
     selectionState.setSelected(null);
@@ -1193,6 +1198,15 @@ function renderNarrativeOverview(): void {
   );
 
   narrativeHeadline.textContent = overview.headline;
+  if (narrativeBulletin instanceof HTMLElement) {
+    const shouldRotateBulletin =
+      lastBulletinTick < 0 || world.tick - lastBulletinTick >= 180 || overview.bulletinLine !== lastBulletinText;
+    if (shouldRotateBulletin) {
+      lastBulletinTick = world.tick;
+      lastBulletinText = overview.bulletinLine;
+    }
+    narrativeBulletin.textContent = lastBulletinText;
+  }
   narrativeReasons.innerHTML = '';
   for (const reason of overview.reasons) {
     const item = document.createElement('li');
