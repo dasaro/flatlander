@@ -39,6 +39,7 @@ import type {
   VoiceComponent,
   VisionComponent,
   VisionHitComponent,
+  VisibleShelterTargetComponent,
 } from './components';
 import { SeededRng } from './rng';
 import type { RankComponent } from './rank';
@@ -217,6 +218,7 @@ export interface World {
   vision: Map<EntityId, VisionComponent>;
   eyes: Map<EntityId, EyeComponent>;
   visionHits: Map<EntityId, VisionHitComponent>;
+  visibleShelterTargets: Map<EntityId, VisibleShelterTargetComponent>;
   perceptions: Map<EntityId, PerceptionComponent>;
   voices: Map<EntityId, VoiceComponent>;
   hearingHits: Map<EntityId, HearingHitComponent>;
@@ -441,6 +443,7 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     vision: new Map(),
     eyes: new Map(),
     visionHits: new Map(),
+    visibleShelterTargets: new Map(),
     perceptions: new Map(),
     voices: new Map(),
     hearingHits: new Map(),

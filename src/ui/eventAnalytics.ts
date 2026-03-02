@@ -9,6 +9,7 @@ export interface TickSummary {
   countsByType: Record<EventType, number>;
   countsByRankKey: Record<string, number>;
   byTypeByRankKey: Record<EventType, Record<string, number>>;
+  reasonsByType: Record<EventType, Record<string, number>>;
   involvedIds: Set<number>;
 }
 
@@ -16,6 +17,7 @@ interface StoredEvent {
   type: EventType;
   rankKeys: string[];
   involvedIds: number[];
+  reason: string | null;
 }
 
 interface TickBucket {
@@ -70,6 +72,34 @@ function emptyByTypeByRank(): Record<EventType, Record<string, number>> {
     houseExit: {},
     regularized: {},
   };
+}
+
+function emptyReasonsByType(): Record<EventType, Record<string, number>> {
+  return {
+    handshakeStart: {},
+    handshakeAttemptFailed: {},
+    touch: {},
+    handshake: {},
+    peaceCry: {},
+    stab: {},
+    death: {},
+    birth: {},
+    houseEnter: {},
+    houseExit: {},
+    regularized: {},
+  };
+}
+
+function reasonForEvent(event: WorldEvent): string | null {
+  switch (event.type) {
+    case 'handshakeAttemptFailed':
+      return event.reason;
+    case 'houseEnter':
+    case 'houseExit':
+      return event.reason;
+    default:
+      return null;
+  }
 }
 
 function rankKeysForEvent(event: WorldEvent): string[] {
@@ -131,6 +161,7 @@ export class EventAnalytics {
         type: event.type,
         rankKeys: rankKeysForEvent(event),
         involvedIds: eventInvolvedIds(event),
+        reason: reasonForEvent(event),
       });
       byTick.set(event.tick, storedEvents);
     }
@@ -181,6 +212,7 @@ export class EventAnalytics {
       const countsByType = emptyCountsByType();
       const countsByRankKey: Record<string, number> = {};
       const byTypeByRankKey = emptyByTypeByRank();
+      const reasonsByType = emptyReasonsByType();
       const involvedIds = new Set<number>();
 
       for (const event of bucket.events) {
@@ -215,6 +247,11 @@ export class EventAnalytics {
           involvedIds.add(involvedId);
         }
 
+        if (event.reason !== null) {
+          reasonsByType[event.type][event.reason] =
+            (reasonsByType[event.type][event.reason] ?? 0) + 1;
+        }
+
         if (selectedRanks && rankKeys.length === 0) {
           continue;
         }
@@ -230,6 +267,7 @@ export class EventAnalytics {
         countsByType,
         countsByRankKey,
         byTypeByRankKey,
+        reasonsByType,
         involvedIds,
       });
     }

@@ -6,7 +6,6 @@ import { visionHitClearance } from '../core/perception/bodyAwareness';
 import {
   houseDoorTargetForHouse,
   LOW_HP_HOME_RETURN_THRESHOLD,
-  nearestHouseDoorTarget,
   shouldSeekShelter,
 } from '../core/housing/shelterPolicy';
 import { Rank } from '../core/rank';
@@ -332,7 +331,7 @@ export class SocialNavMindSystem implements System {
         world.houses.has(bond.homeHouseId)
           ? houseDoorTargetForHouse(world, id, bond.homeHouseId, transform.position)
           : null;
-      const shelterTarget = nearestHouseDoorTarget(world, id, transform.position);
+      const shelterTarget = world.visibleShelterTargets.get(id) ?? null;
       const shelterWanted = shelterTarget !== null && shouldSeekShelter(world, id);
       const durability = world.durability.get(id);
       const hpRatio = durability && durability.maxHp > 0 ? durability.hp / durability.maxHp : 1;

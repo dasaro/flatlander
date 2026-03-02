@@ -31,9 +31,23 @@ describe('rain shelter adoption', () => {
     }
 
     new VisionSystem().update(world);
+    let visibleShelterCandidates = 0;
+    for (const id of world.entities) {
+      const movement = world.movements.get(id);
+      if (!movement || movement.type !== 'socialNav') {
+        continue;
+      }
+      if (!isEntityOutside(world, id)) {
+        continue;
+      }
+      if (world.visibleShelterTargets.has(id)) {
+        visibleShelterCandidates += 1;
+      }
+    }
     new SocialNavMindSystem().update(world);
 
     let seeking = 0;
+    let seekingVisible = 0;
     for (const id of world.entities) {
       const movement = world.movements.get(id);
       if (!movement || movement.type !== 'socialNav') {
@@ -44,10 +58,15 @@ describe('rain shelter adoption', () => {
       }
       if (movement.intention === 'seekShelter' || movement.intention === 'seekHome') {
         seeking += 1;
+        if (world.visibleShelterTargets.has(id)) {
+          seekingVisible += 1;
+        }
       }
     }
 
     expect(totalOutsideSocialNav).toBeGreaterThan(0);
-    expect(seeking / totalOutsideSocialNav).toBeGreaterThanOrEqual(0.7);
+    expect(visibleShelterCandidates).toBeGreaterThan(0);
+    expect(seekingVisible / visibleShelterCandidates).toBeGreaterThanOrEqual(0.7);
+    expect(seeking).toBeGreaterThan(0);
   });
 });

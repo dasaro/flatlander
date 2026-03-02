@@ -8,6 +8,7 @@ import {
 } from '../src/core/housing/houseFactory';
 import { createWorld } from '../src/core/world';
 import { SocialNavMindSystem } from '../src/systems/socialNavMindSystem';
+import { VisionSystem } from '../src/systems/visionSystem';
 
 function addHouse(world: ReturnType<typeof createWorld>, x: number, y: number): number {
   const layout = createHouseLayout('Pentagon', 30);
@@ -28,7 +29,7 @@ describe('rain shelter intention', () => {
     const world = createWorld(4401, {
       housesEnabled: true,
       rainEnabled: true,
-      sightEnabled: false,
+      sightEnabled: true,
     });
     world.weather.isRaining = true;
 
@@ -52,7 +53,14 @@ describe('rain shelter intention', () => {
       throw new Error('Expected socialNav movement in shelter intention test.');
     }
     movement.intentionTicksLeft = 0;
+    movement.heading = 0;
+    movement.smoothHeading = 0;
+    const transform = world.transforms.get(womanId);
+    if (transform) {
+      transform.rotation = 0;
+    }
 
+    new VisionSystem().update(world);
     new SocialNavMindSystem().update(world);
 
     const next = world.movements.get(womanId);
@@ -66,6 +74,52 @@ describe('rain shelter intention', () => {
     expect(next.goal?.doorSide).toBe('east');
     expect(typeof next.goal?.x).toBe('number');
     expect(typeof next.goal?.y).toBe('number');
+  });
+
+  it('does not assign seekShelter without a visible house target', () => {
+    const world = createWorld(4404, {
+      housesEnabled: true,
+      rainEnabled: true,
+      sightEnabled: true,
+    });
+    world.weather.isRaining = true;
+
+    addHouse(world, 300, 240);
+    const womanId = spawnEntity(
+      world,
+      { kind: 'segment', size: 20 },
+      {
+        type: 'socialNav',
+        boundary: 'wrap',
+        maxSpeed: 12,
+        maxTurnRate: 1,
+        decisionEveryTicks: 4,
+        intentionMinTicks: 12,
+      },
+      { x: 280, y: 240 },
+    );
+
+    const movement = world.movements.get(womanId);
+    if (!movement || movement.type !== 'socialNav') {
+      throw new Error('Expected socialNav movement in visibility-gated shelter test.');
+    }
+    movement.intentionTicksLeft = 0;
+    movement.heading = Math.PI;
+    movement.smoothHeading = Math.PI;
+    const transform = world.transforms.get(womanId);
+    if (transform) {
+      transform.rotation = Math.PI;
+    }
+
+    new VisionSystem().update(world);
+    new SocialNavMindSystem().update(world);
+
+    const next = world.movements.get(womanId);
+    if (!next || next.type !== 'socialNav') {
+      throw new Error('Expected socialNav movement after visibility-gated shelter update.');
+    }
+
+    expect(next.intention).not.toBe('seekShelter');
   });
 
   it('does not switch to avoid when the current hazard hit is the same target house door', () => {
@@ -131,7 +185,7 @@ describe('rain shelter intention', () => {
       rainEnabled: false,
       crowdStressEnabled: true,
       crowdComfortPopulation: 2,
-      sightEnabled: false,
+      sightEnabled: true,
     });
     world.weather.isRaining = false;
 
@@ -160,7 +214,7 @@ describe('rain shelter intention', () => {
         decisionEveryTicks: 4,
         intentionMinTicks: 12,
       },
-      { x: 294, y: 244 },
+      { x: 120, y: 120 },
     );
     spawnEntity(
       world,
@@ -173,7 +227,7 @@ describe('rain shelter intention', () => {
         decisionEveryTicks: 4,
         intentionMinTicks: 12,
       },
-      { x: 288, y: 236 },
+      { x: 160, y: 140 },
     );
 
     const movement = world.movements.get(womanId);
@@ -182,7 +236,14 @@ describe('rain shelter intention', () => {
     }
     movement.intention = 'roam';
     movement.intentionTicksLeft = 0;
+    movement.heading = 0;
+    movement.smoothHeading = 0;
+    const transform = world.transforms.get(womanId);
+    if (transform) {
+      transform.rotation = 0;
+    }
 
+    new VisionSystem().update(world);
     new SocialNavMindSystem().update(world);
 
     const next = world.movements.get(womanId);

@@ -366,7 +366,26 @@ export class EventTimelineRenderer {
     const rainLabel = this.isRainAtTick(summary.tick) ? 'rain:on' : 'rain:off';
     const pinLabel = this.selection.pinnedIndex !== null ? ' [pinned]' : '';
     const joined = [...typeParts, rainLabel].join('  ');
-    this.tooltipElement.textContent = `tick ${summary.tick}${pinLabel} | ${joined}`;
+    const reasonParts: string[] = [];
+    for (const type of this.visibleTypes) {
+      const reasons = summary.reasonsByType[type];
+      const entries = Object.entries(reasons ?? {})
+        .filter(([, count]) => count > 0)
+        .sort((left, right) => {
+          if (right[1] !== left[1]) {
+            return right[1] - left[1];
+          }
+          return left[0].localeCompare(right[0]);
+        })
+        .slice(0, 3);
+      if (entries.length === 0) {
+        continue;
+      }
+      const rendered = entries.map(([reason, count]) => `${reason}:${count}`).join(', ');
+      reasonParts.push(`${typeLabel(type)}[${rendered}]`);
+    }
+    const reasonsLabel = reasonParts.length > 0 ? ` | reasons ${reasonParts.join('  ')}` : '';
+    this.tooltipElement.textContent = `tick ${summary.tick}${pinLabel} | ${joined}${reasonsLabel}`;
   }
 
   private resizeForDisplay(): void {

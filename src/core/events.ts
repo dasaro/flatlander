@@ -8,6 +8,11 @@ export type HouseTransitionReason =
   | 'WaitForBearing'
   | 'Wander';
 
+export type HandshakeFailureReason =
+  | 'PartnerMissing'
+  | 'StillnessNotSatisfied'
+  | 'KnowledgeNotEstablished';
+
 export type WorldEvent =
   | {
       type: 'handshakeStart';
@@ -24,6 +29,7 @@ export type WorldEvent =
       aId: number;
       bId: number;
       pos: Vec2;
+      reason: HandshakeFailureReason;
       aRankKey?: string;
       bRankKey?: string;
     }

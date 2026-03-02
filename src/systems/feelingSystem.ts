@@ -1,4 +1,5 @@
 import { orderedEntityPairs } from '../core/events';
+import type { HandshakeFailureReason } from '../core/events';
 import type { EntityId } from '../core/components';
 import { houseCentroidWorld } from '../core/housing/houseFactory';
 import { hasHouseCapacity } from '../core/housing/shelterPolicy';
@@ -123,6 +124,7 @@ function emitUnsuccessfulHandshakeAttempt(
   feelerId: EntityId,
   feltId: EntityId,
   pos: Vec2 | null,
+  reason: HandshakeFailureReason,
 ): void {
   if (!pos) {
     return;
@@ -133,6 +135,7 @@ function emitUnsuccessfulHandshakeAttempt(
     aId: feelerId,
     bId: feltId,
     pos,
+    reason,
     aRankKey: rankKeyForEntity(world, feelerId),
     bRankKey: rankKeyForEntity(world, feltId),
   });
@@ -164,6 +167,7 @@ function tickFeelingStates(world: World): void {
             id,
             feeling.partnerId,
             endpointPosition(world, id),
+            'PartnerMissing',
           );
         }
       } else if (currentState === 'beingFelt') {
@@ -174,6 +178,7 @@ function tickFeelingStates(world: World): void {
             feeling.partnerId,
             id,
             endpointPosition(world, id),
+            'PartnerMissing',
           );
         }
       }
@@ -204,7 +209,16 @@ function tickFeelingStates(world: World): void {
     if (currentState === 'feeling' && partnerId !== null) {
       const completed = pairKnowledgeEstablished(world, id, partnerId);
       if (!completed) {
-        emitUnsuccessfulHandshakeAttempt(world, id, partnerId, midpointForPair(world, id, partnerId));
+        const reason = canLearnFromFeeling(world, id, partnerId)
+          ? 'KnowledgeNotEstablished'
+          : 'StillnessNotSatisfied';
+        emitUnsuccessfulHandshakeAttempt(
+          world,
+          id,
+          partnerId,
+          midpointForPair(world, id, partnerId),
+          reason,
+        );
       }
     }
 

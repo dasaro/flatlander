@@ -32,3 +32,11 @@ This repository enforces the following rules for all implementation work.
 ## 6) Documentation maintenance
 - Update `NOVEL_AUDIT.md` when mechanics change, explicitly marking canon vs assumption.
 - Keep release notes in `CHANGELOG.md` aligned with shipped behavior.
+
+## 7) Default release policy
+- Unless the user explicitly says otherwise, any code-change task should finish with:
+  - version bump (`package.json`),
+  - `CHANGELOG.md` update,
+  - commit to `main`,
+  - push and GitHub Pages deployment check.
+- If a task is explicitly marked local-only or no-deploy, follow that instruction instead.

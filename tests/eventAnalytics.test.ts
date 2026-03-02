@@ -7,7 +7,16 @@ describe('event analytics', () => {
     const analytics = new EventAnalytics(20);
     analytics.ingest([
       { type: 'touch', tick: 10, aId: 1, bId: 2, pos: { x: 0, y: 0 }, aRankKey: 'Woman:Middle', bRankKey: 'Gentleman' },
-      { type: 'handshakeAttemptFailed', tick: 11, aId: 1, bId: 4, pos: { x: 1, y: 1 }, aRankKey: 'Woman:Middle', bRankKey: 'Gentleman' },
+      {
+        type: 'handshakeAttemptFailed',
+        tick: 11,
+        aId: 1,
+        bId: 4,
+        pos: { x: 1, y: 1 },
+        reason: 'StillnessNotSatisfied',
+        aRankKey: 'Woman:Middle',
+        bRankKey: 'Gentleman',
+      },
       {
         type: 'houseEnter',
         tick: 11,
@@ -33,6 +42,8 @@ describe('event analytics', () => {
     const tickEleven = summaries.find((summary) => summary.tick === 11);
     expect(tickEleven?.countsByType.handshakeAttemptFailed).toBe(1);
     expect(tickEleven?.countsByType.houseEnter).toBe(1);
+    expect(tickEleven?.reasonsByType.handshakeAttemptFailed.StillnessNotSatisfied).toBe(1);
+    expect(tickEleven?.reasonsByType.houseEnter.RainShelter).toBe(1);
     const tickTwelve = summaries.find((summary) => summary.tick === 12);
     expect(tickTwelve?.countsByType.death).toBe(1);
   });

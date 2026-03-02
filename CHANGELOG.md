@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.8] - 2026-03-02
+
+### Changed
+- SocialNav shelter targeting is now observer-driven rather than omniscient:
+  - `VisionSystem` computes per-entity visible shelter door targets from actual scan hits,
+  - `SocialNavMindSystem` consumes those perceived targets for `seekShelter` decisions.
+  This removes global nearest-house lookup from shelter intent selection (`src/systems/visionSystem.ts`, `src/systems/socialNavMindSystem.ts`, `src/core/world.ts`, `src/core/components.ts`).
+- Timeline/debug analytics now include reason-level breakdowns for key outcomes:
+  - unsuccessful handshakes carry explicit failure reasons,
+  - timeline hover text reports reason counts for failed handshakes and house transitions (`src/core/events.ts`, `src/systems/feelingSystem.ts`, `src/ui/eventAnalytics.ts`, `src/render/eventTimelineRenderer.ts`).
+
+### Added
+- Perception-gated shelter tests and reason-aggregation assertions:
+  - `tests/rainShelterIntention.test.ts`
+  - `tests/rainShelterMajority.test.ts`
+  - `tests/eventAnalytics.test.ts`
+
 ## [0.9.7] - 2026-03-01
 
 ### Changed

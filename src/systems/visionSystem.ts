@@ -1,5 +1,6 @@
 import { eyePoseWorld } from '../core/eyePose';
 import { fogDensityAt, fogFieldConfigFromWorld } from '../core/fogField';
+import { houseDoorTargetForHouse } from '../core/housing/shelterPolicy';
 import { isEntityOutside } from '../core/housing/dwelling';
 import { computeObserverRayScan, type ObserverScanSample } from '../core/perception/observerScan';
 import { getSortedEntityIds } from '../core/world';
@@ -10,6 +11,62 @@ const DEFAULT_SCAN_RAY_COUNT = 11;
 
 interface VisionCandidate {
   sample: ObserverScanSample;
+}
+
+function selectVisibleShelterTarget(
+  world: World,
+  observerId: number,
+  origin: { x: number; y: number },
+  samples: ObserverScanSample[],
+):
+  | {
+      houseId: number;
+      side: 'east' | 'west';
+      midpoint: { x: number; y: number };
+      normalInward: { x: number; y: number };
+      enterRadius: number;
+      distance: number;
+    }
+  | null {
+  const houseHits = new Map<number, number>();
+  for (const sample of samples) {
+    if (sample.kind !== 'entity' || sample.hitId === null || sample.distance === null) {
+      continue;
+    }
+    if (!world.houses.has(sample.hitId)) {
+      continue;
+    }
+    const previousDistance = houseHits.get(sample.hitId);
+    if (previousDistance === undefined || sample.distance < previousDistance) {
+      houseHits.set(sample.hitId, sample.distance);
+    }
+  }
+
+  const orderedHouseIds = [...houseHits.entries()]
+    .sort((left, right) => {
+      if (left[1] !== right[1]) {
+        return left[1] - right[1];
+      }
+      return left[0] - right[0];
+    })
+    .map(([houseId]) => houseId);
+
+  for (const houseId of orderedHouseIds) {
+    const doorTarget = houseDoorTargetForHouse(world, observerId, houseId, origin);
+    if (!doorTarget) {
+      continue;
+    }
+    return {
+      houseId: doorTarget.houseId,
+      side: doorTarget.side,
+      midpoint: doorTarget.midpoint,
+      normalInward: doorTarget.normalInward,
+      enterRadius: doorTarget.enterRadius,
+      distance: doorTarget.distance,
+    };
+  }
+
+  return null;
 }
 
 function isBetterCandidate(next: VisionCandidate, current: VisionCandidate | null): boolean {
@@ -33,6 +90,7 @@ function isBetterCandidate(next: VisionCandidate, current: VisionCandidate | nul
 export class VisionSystem implements System {
   update(world: World): void {
     world.visionHits.clear();
+    world.visibleShelterTargets.clear();
     if (!world.config.sightEnabled) {
       return;
     }
@@ -72,6 +130,11 @@ export class VisionSystem implements System {
       });
       if (!scan) {
         continue;
+      }
+
+      const visibleShelterTarget = selectVisibleShelterTarget(world, id, pose.eyeWorld, scan.samples);
+      if (visibleShelterTarget) {
+        world.visibleShelterTargets.set(id, visibleShelterTarget);
       }
 
       let best: VisionCandidate | null = null;

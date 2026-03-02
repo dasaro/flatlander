@@ -97,6 +97,15 @@ export interface VisionHitComponent {
   boundarySide?: 'north' | 'south' | 'west' | 'east';
 }
 
+export interface VisibleShelterTargetComponent {
+  houseId: EntityId;
+  side: 'east' | 'west';
+  midpoint: Vec2;
+  normalInward: Vec2;
+  enterRadius: number;
+  distance: number;
+}
+
 export interface PerceptionComponent {
   sightSkill: number;
   hearingSkill: number;
