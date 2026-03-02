@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.18] - 2026-03-03
+
+### Fixed
+- `Cry Compliance Halt` events now appear in normal seeded runs (including seed 42), instead of remaining effectively absent.
+
+### Changed
+- Strict peace-cry compliance now distinguishes two cases:
+  - `peaceCry.enabled = false` while moving woman outdoors: stillness halt + event.
+  - cadence-window silent movement while cry is enabled: emits `Cry Compliance Halt` event with deterministic per-entity cooldown (no forced stillness), preserving ecological dynamics.
+- Added deterministic anti-spam cooldown for `Cry Compliance Halt` event emission.
+
+### Tests
+- Extended `tests/peaceCry.test.ts` with cadence-window compliance coverage and cooldown behavior.
+
+### Validation
+- `npm test` passed (87 files, 224 tests).
+- `npm run lint` passed.
+- `npm run build` passed.
+
 ## [0.9.17] - 2026-03-02
 
 ### Fixed

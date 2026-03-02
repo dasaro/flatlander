@@ -254,4 +254,50 @@ describe('peace-cry and hearing behavior', () => {
     expect(after.position.y).toBeCloseTo(before.y, 8);
     expect(world.audiblePings).toHaveLength(0);
   });
+
+  it('applies strict compliance stillness when moving women are within cry cadence cooldown', () => {
+    const world = createWorld(992, {
+      peaceCryEnabled: true,
+      strictPeaceCryComplianceEnabled: true,
+      peaceCryComplianceStillnessTicks: 3,
+      defaultPeaceCryCadenceTicks: 20,
+    });
+
+    const womanId = spawnEntity(
+      world,
+      { kind: 'segment', size: 26 },
+      { type: 'randomWalk', speed: 14, turnRate: 1.2, boundary: 'wrap' },
+      { x: 120, y: 120 },
+    );
+    const cry = world.peaceCry.get(womanId);
+    if (!cry) {
+      throw new Error('Woman peace-cry component missing in strict cadence test.');
+    }
+    cry.enabled = true;
+    cry.cadenceTicks = 20;
+    cry.lastEmitTick = 1;
+
+    const peaceCrySystem = new PeaceCrySystem();
+    const stillness = new StillnessControllerSystem();
+    const movement = new MovementSystem();
+    const dt = 1 / world.config.tickRate;
+
+    world.tick = 2;
+    peaceCrySystem.update(world, dt);
+    stillness.update(world);
+    movement.update(world, dt);
+
+    const active = world.stillness.get(womanId);
+    expect(active).toBeUndefined();
+    const firstEvents = world.events.drain();
+    expect(firstEvents.some((event) => event.type === 'peaceCryComplianceHalt')).toBe(true);
+
+    world.tick = 3;
+    peaceCrySystem.update(world, dt);
+    stillness.update(world);
+    movement.update(world, dt);
+    const secondEvents = world.events.drain();
+    expect(secondEvents.some((event) => event.type === 'peaceCryComplianceHalt')).toBe(false);
+    expect(world.audiblePings).toHaveLength(0);
+  });
 });

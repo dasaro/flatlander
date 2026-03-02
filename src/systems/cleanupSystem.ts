@@ -62,6 +62,7 @@ export class CleanupSystem implements System {
       world.irregularity.delete(id);
       world.handshakeCounts.delete(id);
       world.yieldEventLastTick.delete(id);
+      world.cryComplianceHaltLastTick.delete(id);
       world.geometries.delete(id);
       world.lastCorrections.delete(id);
       world.houseContactStreaks.delete(id);

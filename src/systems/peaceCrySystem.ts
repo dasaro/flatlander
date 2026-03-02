@@ -21,13 +21,31 @@ function isMoving(world: World, entityId: number): boolean {
   return movement.speed > 0;
 }
 
-function requestComplianceStillness(world: World, entityId: number, position: { x: number; y: number }): void {
-  const ticks = Math.max(1, Math.round(world.config.peaceCryComplianceStillnessTicks));
+const CRY_COMPLIANCE_EVENT_COOLDOWN_TICKS = 90;
+
+function emitComplianceHaltEvent(world: World, entityId: number, position: { x: number; y: number }): void {
   const existing = world.stillness.get(entityId);
   const alreadyActive =
     existing?.reason === 'manual' &&
     existing.mode === 'translation' &&
     existing.ticksRemaining > 1;
+  const lastEventTick = world.cryComplianceHaltLastTick.get(entityId) ?? Number.NEGATIVE_INFINITY;
+  const canEmitEvent =
+    !alreadyActive && world.tick - lastEventTick >= CRY_COMPLIANCE_EVENT_COOLDOWN_TICKS;
+  if (canEmitEvent) {
+    world.events.push({
+      type: 'peaceCryComplianceHalt',
+      tick: world.tick,
+      entityId,
+      pos: position,
+      rankKey: rankKeyForEntity(world, entityId),
+    });
+    world.cryComplianceHaltLastTick.set(entityId, world.tick);
+  }
+}
+
+function requestComplianceStillness(world: World, entityId: number, position: { x: number; y: number }): void {
+  const ticks = Math.max(1, Math.round(world.config.peaceCryComplianceStillnessTicks));
 
   requestStillness(world, {
     entityId,
@@ -46,15 +64,7 @@ function requestComplianceStillness(world: World, entityId: number, position: { 
     delete movement.goal;
   }
 
-  if (!alreadyActive) {
-    world.events.push({
-      type: 'peaceCryComplianceHalt',
-      tick: world.tick,
-      entityId,
-      pos: position,
-      rankKey: rankKeyForEntity(world, entityId),
-    });
-  }
+  emitComplianceHaltEvent(world, entityId, position);
 }
 
 export class PeaceCrySystem implements System {
@@ -106,6 +116,8 @@ export class PeaceCrySystem implements System {
         continue;
       }
 
+      const eye = getEyeWorldPosition(world, id);
+
       const cadenceTicks = Math.max(1, Math.round(peaceCry.cadenceTicks));
 
       let effectiveRadius = Math.max(0, peaceCry.radius);
@@ -123,10 +135,12 @@ export class PeaceCrySystem implements System {
       }
 
       if (world.tick - peaceCry.lastEmitTick < effectiveCadence) {
+        if (strictCompliance) {
+          emitComplianceHaltEvent(world, id, eye ?? transform.position);
+        }
         continue;
       }
 
-      const eye = getEyeWorldPosition(world, id);
       world.audiblePings.push({
         emitterId: id,
         position: eye ?? transform.position,
