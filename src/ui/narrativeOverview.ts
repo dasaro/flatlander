@@ -9,6 +9,7 @@ export interface NarrativeOverviewInput {
   seekingShelter: number;
   seekingHome: number;
   stuckNearHouse: number;
+  notableEvents?: string[];
   recentWindowTicks?: number;
 }
 
@@ -141,6 +142,9 @@ export function buildNarrativeOverview(
   const recent = aggregateRecent(summaries, input.tick, windowTicks);
   const births = recent.countsByType.birth;
   const deaths = recent.countsByType.death;
+  const regularized = recent.countsByType.regularized;
+  const houseEnter = recent.countsByType.houseEnter;
+  const houseExit = recent.countsByType.houseExit;
   const shelterCoverage =
     (input.insidePeople + input.seekingShelter + input.seekingHome) / Math.max(1, input.totalPeople);
 
@@ -188,8 +192,17 @@ export function buildNarrativeOverview(
     `Demography (recent): births ${births}, deaths ${deaths}. Stuck-near-house count this tick: ${input.stuckNearHouse}.`,
   );
 
+  reasons.push(
+    `Notable events (recent): house entries ${houseEnter}, exits ${houseExit}, regularizations ${regularized}.`,
+  );
+
+  const notableEvents = input.notableEvents ?? [];
+  if (notableEvents.length > 0) {
+    reasons.push(`Latest notable: ${notableEvents.slice(0, 2).join(' | ')}`);
+  }
+
   return {
     headline,
-    reasons: reasons.slice(0, 4),
+    reasons: reasons.slice(0, 5),
   };
 }

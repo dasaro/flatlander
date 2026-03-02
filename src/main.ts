@@ -72,7 +72,9 @@ import {
   UIController,
 } from './ui/uiController';
 import { MobileMenuState } from './ui/mobileMenuState';
+import { buildEntityHoverNarrative } from './ui/entityHoverNarrative';
 import { buildNarrativeOverview } from './ui/narrativeOverview';
+import { RecentEventNarrativeStore } from './ui/recentEventNarrativeStore';
 import { EventDrainPipeline } from './ui/eventDrainPipeline';
 import { captureFrameSnapshot, type FrameSnapshot } from './ui/frameSnapshot';
 import { RainTimelineStore } from './ui/rainTimelineStore';
@@ -275,6 +277,7 @@ const populationHistogram =
     ? new PopulationHistogram(histogramCanvas, populationTooltip)
     : new PopulationHistogram(histogramCanvas);
 const eventAnalytics = new EventAnalytics(Number.POSITIVE_INFINITY);
+const recentEventNarrative = new RecentEventNarrativeStore();
 const eventTimelineRenderer = hasEventTimelineUi
   ? new EventTimelineRenderer(eventTimelineCanvas, eventTimelineTooltip)
   : null;
@@ -301,6 +304,7 @@ const eventDrainPipeline = new EventDrainPipeline(
   [
     (events) => effectsManager.ingest(events),
     (events) => eventAnalytics.ingest(events),
+    (events) => recentEventNarrative.ingest(events),
     (events) => recordLegendEvents(events),
   ],
 );
@@ -361,6 +365,7 @@ const ui = new UIController({
     populationHistogram.reset(world);
     eventDrainPipeline.reset(world.tick);
     rainTimeline.reset();
+    recentEventNarrative.clear();
     lastNarrativeTick = -1;
     recentLegendEvents.length = 0;
     lastLegendSignature = '';
@@ -885,17 +890,6 @@ function renderWorldHoverInfo(): void {
   const house = world.houses.get(entityId);
   const shape = world.shapes.get(entityId);
   const rankLabel = rankLabelForEntity(entityId);
-  const movement = world.movements.get(entityId);
-  const job = world.jobs.get(entityId)?.job ?? null;
-  const age = world.ages.get(entityId);
-  const combat = world.combatStats.get(entityId);
-  const feeling = world.feeling.get(entityId);
-  const speed =
-    movement?.type === 'straightDrift'
-      ? Math.hypot(movement.vx, movement.vy)
-      : movement
-        ? movement.speed
-        : 0;
 
   let shapeLabel = 'Unknown';
   if (house) {
@@ -912,27 +906,28 @@ function renderWorldHoverInfo(): void {
   }
 
   const displayName = world.names.get(entityId)?.displayName;
-  const title = displayName
-    ? `${displayName} (#${entityId}) · ${rankLabel}`
-    : `#${entityId} · ${rankLabel}`;
-  const lines = house
-    ? [
-        `${shapeLabel}`,
-        `Occupants: ${world.houseOccupants.get(entityId)?.size ?? 0}`,
-        hoveredWorldPoint
-          ? `x ${hoveredWorldPoint.x.toFixed(1)} · y ${hoveredWorldPoint.y.toFixed(1)}`
-          : '',
-      ]
-    : [
-        `${shapeLabel} · ${movementLabel(movement)}`,
-        `Speed ${speed.toFixed(1)} · Kills ${combat?.kills ?? 0} · Age ${age?.ticksAlive ?? 0}`,
-        ...(job ? [`Job ${job}`] : []),
-        `Feeling ${feeling?.state ?? 'N/A'}`,
-      ];
+
+  const history = recentEventNarrative.getEntityHighlights(entityId, world.tick, 2, 3200);
+  const narrative = buildEntityHoverNarrative(
+    world,
+    entityId,
+    rankLabel,
+    shapeLabel,
+    displayName ?? null,
+    history,
+  );
+  const lines = [
+    ...narrative.lines,
+    hoveredWorldPoint
+      ? `Position: x ${hoveredWorldPoint.x.toFixed(1)} · y ${hoveredWorldPoint.y.toFixed(1)}`
+      : '',
+  ];
 
   worldHoverInfo.innerHTML = [
-    `<div class="world-hover-title">${title}</div>`,
-    ...lines.filter((line) => line.length > 0).map((line) => `<div>${line}</div>`),
+    `<div class="world-hover-title">${escapeHtml(narrative.title)}</div>`,
+    ...lines
+      .filter((line) => line.length > 0)
+      .map((line) => `<div>${escapeHtml(line)}</div>`),
   ].join('');
 
   const offset = 14;
@@ -941,21 +936,13 @@ function renderWorldHoverInfo(): void {
   worldHoverInfo.hidden = false;
 }
 
-function movementLabel(movement: MovementComponent | undefined): string {
-  if (!movement) {
-    return 'Static';
-  }
-  switch (movement.type) {
-    case 'straightDrift':
-      return 'Straight Drift';
-    case 'seekPoint':
-      return 'Seek Point';
-    case 'socialNav':
-      return `SocialNav (${movement.intention})`;
-    case 'randomWalk':
-    default:
-      return 'Random Walk';
-  }
+function escapeHtml(raw: string): string {
+  return raw
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function applyTopology(topology: WorldTopology): void {
@@ -1198,6 +1185,9 @@ function renderNarrativeOverview(): void {
       seekingShelter: world.seekShelterIntentCount,
       seekingHome: world.seekHomeIntentCount,
       stuckNearHouse: world.stuckNearHouseCount,
+      notableEvents: recentEventNarrative
+        .getGlobalHighlights(world.tick, 2, 1800)
+        .map((event) => `t${event.tick}: ${event.text}`),
     },
     summaries,
   );

@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.10] - 2026-03-02
+
+### Added
+- Natural-language hover behavior narration for individual entities in God-view, including:
+  - what the entity is currently doing,
+  - why (derived from internal state such as intention, stillness, perception, HP/risk),
+  - short recent-history snippets from notable events.
+- UI-side recent notable-event narrative store (`src/ui/recentEventNarrativeStore.ts`) for both hover and global storytelling.
+- New tests:
+  - `tests/entityHoverNarrative.test.ts`
+  - `tests/recentEventNarrativeStore.test.ts`
+
+### Changed
+- Narrative Overview panel now includes broader novel-relevant context without clutter:
+  - births/deaths balance,
+  - house transition activity,
+  - regularizations,
+  - latest notable events.
+- Main render loop now feeds narrative/hover summaries from the same drained event stream (adapter-only), preserving headless core boundaries.
+
 ## [0.9.9] - 2026-03-02
 
 ### Added
