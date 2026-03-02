@@ -109,5 +109,11 @@ describe('social-nav environmental adaptation', () => {
     );
     expect(pendingYieldStillness).toBeDefined();
     expect(pendingYieldStillness?.requestedBy).toBe(womanId);
+
+    const yieldEvent = world.events
+      .drain()
+      .find((event) => event.type === 'yieldToLady' && event.entityId === manId);
+    expect(yieldEvent).toBeDefined();
+    expect(yieldEvent?.type === 'yieldToLady' ? yieldEvent.womanId : null).toBe(womanId);
   });
 });

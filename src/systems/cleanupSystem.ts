@@ -61,6 +61,7 @@ export class CleanupSystem implements System {
       world.brainAngles.delete(id);
       world.irregularity.delete(id);
       world.handshakeCounts.delete(id);
+      world.yieldEventLastTick.delete(id);
       world.geometries.delete(id);
       world.lastCorrections.delete(id);
       world.houseContactStreaks.delete(id);

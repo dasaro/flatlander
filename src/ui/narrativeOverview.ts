@@ -189,48 +189,58 @@ export function buildNarrativeOverview(
     headline = 'Recovery phase: births currently outpace losses.';
   }
 
-  const reasons: string[] = [];
+  const reasonCandidates: Array<{ score: number; text: string }> = [];
   if (input.isRaining) {
-    reasons.push(
-      `Rain is active; ${input.insidePeople + input.seekingShelter + input.seekingHome}/${input.totalPeople} are inside or explicitly seeking shelter.`,
-    );
+    reasonCandidates.push({
+      score: 0.95,
+      text: `Rain is active; ${input.insidePeople + input.seekingShelter + input.seekingHome}/${input.totalPeople} are inside or explicitly seeking shelter.`,
+    });
   } else {
-    reasons.push(
-      `Dry phase; ${input.insidePeople}/${input.totalPeople} remain indoors while ${input.outsidePeople} stay active outside.`,
-    );
+    reasonCandidates.push({
+      score: 0.5,
+      text: `Dry phase; ${input.insidePeople}/${input.totalPeople} remain indoors while ${input.outsidePeople} stay active outside.`,
+    });
   }
 
   const topEntryReason = topReason(recent.reasonsByType.houseEnter);
   if (topEntryReason) {
-    reasons.push(
-      `House entries are mainly driven by ${describeHouseReason(topEntryReason.reason)} (${topEntryReason.count} recent events).`,
-    );
+    reasonCandidates.push({
+      score: input.isRaining ? 0.9 : 0.72,
+      text: `House entries are mainly driven by ${describeHouseReason(topEntryReason.reason)} (${topEntryReason.count} recent events).`,
+    });
   }
 
   const handshakeOk = recent.countsByType.handshake;
   const handshakeFail = recent.countsByType.handshakeAttemptFailed;
   const topHandshakeFailure = topReason(recent.reasonsByType.handshakeAttemptFailed);
   if (handshakeFail > 0 && topHandshakeFailure) {
-    reasons.push(
-      `Social recognition: ${handshakeOk} completed vs ${handshakeFail} failed; dominant failure reason is ${describeHandshakeFailureReason(topHandshakeFailure.reason)}.`,
-    );
+    reasonCandidates.push({
+      score: 0.92,
+      text: `Social recognition: ${handshakeOk} completed vs ${handshakeFail} failed; dominant failure reason is ${describeHandshakeFailureReason(topHandshakeFailure.reason)}.`,
+    });
   } else {
-    reasons.push(`Social recognition: ${handshakeOk} successful handshakes in the recent window.`);
+    reasonCandidates.push({
+      score: handshakeOk > 0 ? 0.62 : 0.35,
+      text: `Social recognition: ${handshakeOk} successful handshakes in the recent window.`,
+    });
   }
 
   if (yieldEvents > 0 || cryHalts > 0) {
-    reasons.push(
-      `Etiquette protocol: ${yieldEvents} yield-to-lady responses and ${cryHalts} peace-cry compliance halts in the recent window.`,
-    );
+    reasonCandidates.push({
+      score: 0.78,
+      text: `Etiquette protocol: ${yieldEvents} yield-to-lady responses and ${cryHalts} peace-cry compliance halts in the recent window.`,
+    });
   }
 
-  reasons.push(
-    `Demography (recent): births ${births}, deaths ${deaths}. Stuck-near-house count this tick: ${input.stuckNearHouse}.`,
-  );
+  reasonCandidates.push({
+    score: Math.max(0.55, deaths > births ? 0.88 : births > deaths ? 0.84 : 0.68),
+    text: `Demography (recent): births ${births}, deaths ${deaths}. Stuck-near-house count this tick: ${input.stuckNearHouse}.`,
+  });
 
-  reasons.push(
-    `Notable events (recent): house entries ${houseEnter}, exits ${houseExit}, stabs ${stabs}, peace-cries ${peaceCries}, regularizations ${regularized}.`,
-  );
+  reasonCandidates.push({
+    score: stabs > Math.max(2, births + 1) ? 0.87 : 0.52,
+    text: `Notable events (recent): house entries ${houseEnter}, exits ${houseExit}, stabs ${stabs}, peace-cries ${peaceCries}, regularizations ${regularized}.`,
+  });
 
   const notableEvents = input.notableEvents ?? [];
   let bulletinLine = '';
@@ -242,7 +252,10 @@ export function buildNarrativeOverview(
       ? `${input.insidePeople + input.seekingShelter}/${Math.max(1, input.totalPeople)} sheltering in rain`
       : `${births} births vs ${deaths} deaths; ${stabs} sharp clashes`;
     bulletinLine = `Gazette: ${selected} (${socialTag}).`;
-    reasons.push(`Latest notable: ${notableEvents.slice(0, 2).join(' | ')}`);
+    reasonCandidates.push({
+      score: 0.83,
+      text: `Latest notable: ${notableEvents.slice(0, 2).join(' | ')}`,
+    });
   } else if (deaths > births && deaths > 0) {
     bulletinLine = pickByTick(input.tick, [
       `Gazette: crisis watch reports ${deaths} deaths against ${births} births.`,
@@ -275,9 +288,17 @@ export function buildNarrativeOverview(
     ]);
   }
 
+  reasonCandidates.sort((left, right) => {
+    if (right.score !== left.score) {
+      return right.score - left.score;
+    }
+    return left.text.localeCompare(right.text);
+  });
+  const reasons = reasonCandidates.slice(0, 3).map((candidate) => candidate.text);
+
   return {
     bulletinLine,
     headline,
-    reasons: reasons.slice(0, 5),
+    reasons,
   };
 }

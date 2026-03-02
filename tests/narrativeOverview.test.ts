@@ -79,6 +79,7 @@ describe('narrative overview', () => {
     expect(overview.headline).toContain('most inhabitants are sheltering');
     expect(overview.bulletinLine).toContain('Gazette:');
     expect(overview.reasons.some((reason) => reason.includes('rain sheltering'))).toBe(true);
+    expect(overview.reasons.length).toBeLessThanOrEqual(3);
   });
 
   it('surfaces unsuccessful handshake reasons', () => {
@@ -103,6 +104,7 @@ describe('narrative overview', () => {
 
     expect(overview.reasons.some((reason) => reason.includes('stillness protocol was not satisfied'))).toBe(true);
     expect(overview.bulletinLine).toContain('Gazette:');
+    expect(overview.reasons.length).toBeLessThanOrEqual(3);
   });
 
   it('handles collapsed worlds', () => {

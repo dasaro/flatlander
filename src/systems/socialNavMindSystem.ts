@@ -66,6 +66,8 @@ interface WomanCryCandidate {
   pressure: number;
 }
 
+const YIELD_EVENT_COOLDOWN_TICKS = 90;
+
 function sightDirectionCandidate(world: World, entityId: EntityId): DirectionCandidate | null {
   const hit = world.visionHits.get(entityId);
   if (!hit) {
@@ -382,6 +384,7 @@ export class SocialNavMindSystem implements System {
       }
 
       const needDecision = movement.intentionTicksLeft <= 0;
+      const previousIntention = movement.intention;
       const visionHit = world.visionHits.get(id);
       const hazardDirection: Vec2 | null = visionHit?.direction ?? null;
       const womanCry = nearestWomanCryCandidate(world, id, transform.position);
@@ -430,7 +433,7 @@ export class SocialNavMindSystem implements System {
         : Number.POSITIVE_INFINITY;
       const hazardDistance = Math.min(sightHazardDistance, contactDistance);
       const emergencyAvoid = hazardDistance <= Math.max(4, movement.maxSpeed * 0.45);
-      const etiquetteUrgent = womanCryPressure >= 0.45;
+      const etiquetteUrgent = womanCryPressure >= 0.28;
       const rainingShelterOverride =
         world.weather.isRaining &&
         shelterWanted &&
@@ -529,23 +532,11 @@ export class SocialNavMindSystem implements System {
       if (
         womanCry &&
         !isWoman &&
-        womanCry.distance <= Math.max(4, world.config.preContactRadius) &&
-        world.config.northYieldEtiquetteEnabled
+        movement.intention === 'yield' &&
+        previousIntention !== 'yield'
       ) {
-        const existing = world.stillness.get(id);
-        const alreadyYieldingToSameWoman =
-          existing?.reason === 'yieldToLady' &&
-          existing.requestedBy === womanCry.emitterId &&
-          existing.mode === 'translation' &&
-          existing.ticksRemaining > 1;
-        requestStillness(world, {
-          entityId: id,
-          mode: 'translation',
-          reason: 'yieldToLady',
-          ticksRemaining: 2,
-          requestedBy: womanCry.emitterId,
-        });
-        if (!alreadyYieldingToSameWoman) {
+        const lastTick = world.yieldEventLastTick.get(id) ?? Number.NEGATIVE_INFINITY;
+        if (world.tick - lastTick >= YIELD_EVENT_COOLDOWN_TICKS) {
           const womanTransform = world.transforms.get(womanCry.emitterId);
           const eventPos =
             womanTransform === undefined
@@ -563,7 +554,23 @@ export class SocialNavMindSystem implements System {
             entityRankKey: rankKeyForEntity(world, id),
             womanRankKey: rankKeyForEntity(world, womanCry.emitterId),
           });
+          world.yieldEventLastTick.set(id, world.tick);
         }
+      }
+
+      if (
+        womanCry &&
+        !isWoman &&
+        womanCry.distance <= Math.max(4, world.config.preContactRadius) &&
+        world.config.northYieldEtiquetteEnabled
+      ) {
+        requestStillness(world, {
+          entityId: id,
+          mode: 'translation',
+          reason: 'yieldToLady',
+          ticksRemaining: 2,
+          requestedBy: womanCry.emitterId,
+        });
       }
 
       if (movement.intention === 'avoid' || movement.intention === 'yield') {

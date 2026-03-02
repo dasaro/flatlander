@@ -247,6 +247,7 @@ export interface World {
   brainAngles: Map<EntityId, BrainAngleComponent>;
   irregularity: Map<EntityId, IrregularityComponent>;
   handshakeCounts: Map<EntityId, number>;
+  yieldEventLastTick: Map<EntityId, number>;
   audiblePings: AudiblePing[];
   stabPressure: Map<string, { ticks: number }>;
   pendingDeaths: Set<EntityId>;
@@ -477,6 +478,7 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     brainAngles: new Map(),
     irregularity: new Map(),
     handshakeCounts: new Map(),
+    yieldEventLastTick: new Map(),
     audiblePings: [],
     stabPressure: new Map(),
     pendingDeaths: new Set(),

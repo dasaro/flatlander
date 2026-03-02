@@ -2,6 +2,27 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.16] - 2026-03-02
+
+### Fixed
+- `yieldToLady` observability in long runs:
+  - moved event emission from near-contact-only to intention-transition activation, so yield etiquette is recorded when entities actually enter yield behavior.
+  - added deterministic per-entity cooldown to prevent timeline spam while preserving visibility.
+- Narrative readability:
+  - reduced narrative reason lines to high-signal top-3 messages (priority-ranked),
+  - throttled narrative panel refresh cadence to avoid rapid unreadable updates.
+
+### Added
+- Regression assertions:
+  - `tests/socialNavEnvironmentAdaptation.test.ts` now verifies `yieldToLady` event emission.
+  - `tests/narrativeOverview.test.ts` now enforces compact reason output.
+
+### Validation
+- `npm test` passed (87 files, 222 tests).
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm run sim:midrun -- 20000` executed for deterministic audit output (existing rain-response acceptance thresholds remain stricter than current tuned behavior).
+
 ## [0.9.15] - 2026-03-02
 
 ### Added

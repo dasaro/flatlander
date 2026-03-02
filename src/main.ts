@@ -306,6 +306,7 @@ let hoveredWorldEntityId: number | null = null;
 let hoveredWorldPoint: Vec2 | null = null;
 let hoveredWorldClientPoint: Vec2 | null = null;
 let lastNarrativeTick = -1;
+const NARRATIVE_UPDATE_INTERVAL_TICKS = 45;
 let lastBulletinTick = -1;
 let lastBulletinText = 'Gazette: waiting for the first notable civic development.';
 const narrativeLabelCache = new Map<number, string>();
@@ -1199,6 +1200,9 @@ function renderNarrativeOverview(): void {
     return;
   }
   if (lastNarrativeTick === world.tick) {
+    return;
+  }
+  if (lastNarrativeTick >= 0 && world.tick - lastNarrativeTick < NARRATIVE_UPDATE_INTERVAL_TICKS) {
     return;
   }
   lastNarrativeTick = world.tick;
