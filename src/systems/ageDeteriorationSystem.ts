@@ -37,6 +37,13 @@ export class AgeDeteriorationSystem implements System {
       return;
     }
     const wearStep = Math.max(0.01, world.config.wearToHpStep);
+    const dynamicPopulation = Math.max(1, world.entities.size - world.staticObstacles.size);
+    const lowPopulationProtection =
+      dynamicPopulation <= 70
+        ? 0.28
+        : dynamicPopulation <= 120
+          ? 0.56
+          : 1;
 
     for (const id of getSortedEntityIds(world)) {
       if (world.staticObstacles.has(id)) {
@@ -51,7 +58,7 @@ export class AgeDeteriorationSystem implements System {
         continue;
       }
       const ageProgress = clamp((age.ticksAlive - startTicks) / rampTicks, 0, 1);
-      const wearDelta = wearRate * ageProgress * dt;
+      const wearDelta = wearRate * ageProgress * dt * lowPopulationProtection;
       if (wearDelta <= 0) {
         continue;
       }
@@ -70,4 +77,3 @@ export class AgeDeteriorationSystem implements System {
     }
   }
 }
-

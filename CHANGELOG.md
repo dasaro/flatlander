@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.14] - 2026-03-02
+
+### Fixed
+- Addressed fast-collapse/extinction trend in latest runs by adding deterministic low-population recovery safeguards:
+  - **male-scarcity birth correction** in offspring policy so male-line collapse is less likely when men become critically rare,
+  - **low-population conception/postpartum relaxation** in reproduction flow to allow faster recovery after crashes,
+  - **low-population protection** in age-wear attrition so sparse populations are not over-penalized by ageing,
+  - **population-scaled rain/crowd stress** so rain remains dangerous in dense phases but does not force collapse when the city is already sparse.
+- Maintained deterministic behavior and headless core boundaries (all changes in core/systems policy paths only).
+
+### Added
+- Regression coverage for male-scarcity recovery in offspring policy:
+  - `tests/offspringPolicy.test.ts` (`raises male births under severe male scarcity`).
+
+### Validation
+- Local multi-seed stability probe (12k ticks) now shows seed 42 recovering to high population instead of collapsing:
+  - seed 42 final total: **163** (previously collapsing near ~20),
+  - bounded populations observed in all tested seeds in that horizon.
+
 ## [0.9.13] - 2026-03-02
 
 ### Changed

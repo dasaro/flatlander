@@ -20,6 +20,7 @@ const GLOBAL_OVERLOAD_STRESS_WEIGHT = 3.2;
 const RAIN_GLOBAL_OVERLOAD_MULTIPLIER = 2.8;
 const RAIN_EXPOSURE_STRESS = 5.3;
 const RAIN_SOUTH_EXPOSURE_EXTRA = 0.85;
+const LOW_POPULATION_STRESS_FLOOR = 0.22;
 
 function cellKey(x: number, y: number): string {
   return `${x},${y}`;
@@ -196,6 +197,10 @@ export class CrowdStressSystem implements System {
     }
     const activePopulation = Math.max(1, subjects.length);
     const overloadRatio = Math.max(0, (activePopulation - comfortPopulation) / comfortPopulation);
+    const lowPopulationStressScale = Math.max(
+      LOW_POPULATION_STRESS_FLOOR,
+      Math.min(1, activePopulation / comfortPopulation),
+    );
     const globalOverloadStress =
       overloadRatio *
       GLOBAL_OVERLOAD_STRESS_WEIGHT *
@@ -238,10 +243,14 @@ export class CrowdStressSystem implements System {
       const rainExposureStress = rainExposureActive
         ? (() => {
             if (origin.y <= southStartY) {
-              return RAIN_EXPOSURE_STRESS;
+              return RAIN_EXPOSURE_STRESS * lowPopulationStressScale;
             }
             const southNorm = Math.min(1, Math.max(0, (origin.y - southStartY) / southSpan));
-            return RAIN_EXPOSURE_STRESS * (1 + southNorm * RAIN_SOUTH_EXPOSURE_EXTRA);
+            return (
+              RAIN_EXPOSURE_STRESS *
+              (1 + southNorm * RAIN_SOUTH_EXPOSURE_EXTRA) *
+              lowPopulationStressScale
+            );
           })()
         : 0;
       const stress = localStress + globalOverloadStress + rainExposureStress;

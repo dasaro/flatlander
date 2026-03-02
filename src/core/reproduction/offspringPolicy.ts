@@ -8,6 +8,11 @@ const NEWBORN_CIRCLE_RADIUS = 10;
 
 export type ChildSex = 'female' | 'male';
 
+interface SexPopulationSnapshot {
+  femaleCount: number;
+  maleCount: number;
+}
+
 function fatherOrder(world: World, fatherId: number): number {
   const fatherShape = world.shapes.get(fatherId);
   if (!fatherShape) {
@@ -25,17 +30,13 @@ function fatherOrder(world: World, fatherId: number): number {
   return 3;
 }
 
-function maleBirthProbability(world: World, fatherId: number): number {
-  const baseMale = clamp(1 - world.config.femaleBirthProbability, 0, 1);
-  if (baseMale <= 0) {
-    return 0;
-  }
-  if (baseMale >= 1) {
-    return 1;
-  }
+function sexPopulationSnapshot(world: World): SexPopulationSnapshot {
   let femaleCount = 0;
   let maleCount = 0;
   for (const entityId of world.entities) {
+    if (world.staticObstacles.has(entityId)) {
+      continue;
+    }
     const shape = world.shapes.get(entityId);
     if (!shape) {
       continue;
@@ -46,6 +47,18 @@ function maleBirthProbability(world: World, fatherId: number): number {
       maleCount += 1;
     }
   }
+  return { femaleCount, maleCount };
+}
+
+function maleBirthProbability(world: World, fatherId: number): number {
+  const baseMale = clamp(1 - world.config.femaleBirthProbability, 0, 1);
+  if (baseMale <= 0) {
+    return 0;
+  }
+  if (baseMale >= 1) {
+    return 1;
+  }
+  const { femaleCount, maleCount } = sexPopulationSnapshot(world);
 
   let balanceMultiplier = 1;
   if (femaleCount > 0 || maleCount > 0) {
@@ -58,8 +71,13 @@ function maleBirthProbability(world: World, fatherId: number): number {
   }
   const balancedMale = clamp(baseMale * balanceMultiplier, 0, 1);
   const order = fatherOrder(world, fatherId);
+  const maleScarcity =
+    maleCount <= 4 || (femaleCount >= 8 && femaleCount / Math.max(1, maleCount) >= 2.2);
+  const maleScarcityFloor = maleScarcity
+    ? clamp(0.62 + Math.max(0, femaleCount - maleCount) * 0.004, 0.62, 0.84)
+    : 0;
   if (order < 6) {
-    return balancedMale;
+    return Math.max(balancedMale, maleScarcityFloor);
   }
 
   const penaltyPerSide = Math.max(0, world.config.maleBirthHighRankPenaltyPerSide);
@@ -67,7 +85,8 @@ function maleBirthProbability(world: World, fatherId: number): number {
   const highOrderMultiplier = Math.max(1, world.config.highOrderMaleBirthPenaltyMultiplier);
   const extraSides = Math.max(0, order - highOrderThreshold + 1);
   const penalty = (order - 5) * penaltyPerSide + extraSides * penaltyPerSide * (highOrderMultiplier - 1);
-  return clamp(balancedMale * Math.max(0.03, 1 - penalty), 0, 1);
+  const penalized = clamp(balancedMale * Math.max(0.03, 1 - penalty), 0, 1);
+  return Math.max(penalized, maleScarcityFloor);
 }
 
 export function conceptionChanceForFather(world: World, fatherId: number): number {

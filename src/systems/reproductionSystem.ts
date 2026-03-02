@@ -33,6 +33,9 @@ const ECO_DRY_PHASE_MULTIPLIER = 1.35;
 const ECO_RAIN_PHASE_MULTIPLIER = 0.08;
 const ECO_OVERLOAD_DAMPING = 2.2;
 const LOW_POPULATION_PAIRING_RADIUS_MULTIPLIER = 3.4;
+const LOW_POPULATION_RECOVERY_POSTPARTUM_FACTOR = 0.55;
+const LOW_POPULATION_RECOVERY_CONCEPTION_BOOST = 1.65;
+const LOW_POPULATION_RECOVERY_PIVOT = 120;
 
 function isFemaleShape(shapeKind: 'segment' | 'circle' | 'polygon'): boolean {
   return shapeKind === 'segment';
@@ -426,6 +429,26 @@ function domesticContextSatisfied(
   );
 }
 
+function countSexes(world: World): { female: number; male: number } {
+  let female = 0;
+  let male = 0;
+  for (const id of world.entities) {
+    if (world.staticObstacles.has(id)) {
+      continue;
+    }
+    const shape = world.shapes.get(id);
+    if (!shape) {
+      continue;
+    }
+    if (shape.kind === 'segment') {
+      female += 1;
+    } else if (shape.kind === 'polygon' || shape.kind === 'circle') {
+      male += 1;
+    }
+  }
+  return { female, male };
+}
+
 export class ReproductionSystem implements System {
   update(world: World, _dt: number): void {
     void _dt;
@@ -581,6 +604,12 @@ export class ReproductionSystem implements System {
       return;
     }
 
+    const sexCounts = countSexes(world);
+    const maleScarcityConceptionBoost =
+      sexCounts.male <= 4 || (sexCounts.female >= 10 && sexCounts.female / Math.max(1, sexCounts.male) >= 2.3)
+        ? LOW_POPULATION_RECOVERY_CONCEPTION_BOOST
+        : 1;
+
     const maleRankShares = buildMaleRankShares(world, ids);
 
     for (const motherId of ids) {
@@ -615,7 +644,12 @@ export class ReproductionSystem implements System {
         Math.max(0, Math.round(fertility.cooldownTicks)),
         Math.max(0, Math.round(world.config.postpartumCooldownTicks)),
       );
-      if (world.tick - fertility.lastBirthTick < effectiveCooldown) {
+      const lowPopulationRecoveryFactor =
+        world.entities.size <= LOW_POPULATION_RECOVERY_PIVOT
+          ? LOW_POPULATION_RECOVERY_POSTPARTUM_FACTOR
+          : 1;
+      const adjustedCooldown = Math.max(14, Math.round(effectiveCooldown * lowPopulationRecoveryFactor));
+      if (world.tick - fertility.lastBirthTick < adjustedCooldown) {
         continue;
       }
 
@@ -634,7 +668,11 @@ export class ReproductionSystem implements System {
       }
 
       const baseChance = conceptionChanceForFather(world, fatherId);
-      const effectiveChance = clamp(baseChance * densityConceptionMultiplier(world), 0, 1);
+      const effectiveChance = clamp(
+        baseChance * densityConceptionMultiplier(world) * maleScarcityConceptionBoost,
+        0,
+        1,
+      );
       if (world.rng.next() >= effectiveChance) {
         continue;
       }

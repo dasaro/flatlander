@@ -113,6 +113,37 @@ describe('offspring policy (canon laws)', () => {
     expect(sample()).toBe(sample());
   });
 
+  it('raises male births under severe male scarcity', () => {
+    const world = createWorld(806, {
+      femaleBirthProbability: 0.52,
+      reproductionEnabled: true,
+    });
+    const father = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 12, size: 20, irregular: false },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 120, y: 120 },
+    );
+    for (let i = 0; i < 18; i += 1) {
+      spawnEntity(
+        world,
+        { kind: 'segment', size: 20 },
+        { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+        { x: 140 + i, y: 120 },
+      );
+    }
+
+    let male = 0;
+    const draws = 40;
+    for (let i = 0; i < draws; i += 1) {
+      if (determineChildSex(world, father) === 'male') {
+        male += 1;
+      }
+    }
+
+    expect(male).toBeGreaterThanOrEqual(23);
+  });
+
   it('applies stronger high-order fertility penalties monotonically', () => {
     const world = createWorld(804, {
       reproductionEnabled: true,
