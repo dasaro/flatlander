@@ -8,6 +8,7 @@ import {
   LOW_HP_HOME_RETURN_THRESHOLD,
   shouldSeekShelter,
 } from '../core/housing/shelterPolicy';
+import { rankKeyForEntity } from '../core/rankKey';
 import { Rank } from '../core/rank';
 import { requestStillness } from '../core/stillness';
 import { getSortedEntityIds } from '../core/world';
@@ -531,6 +532,12 @@ export class SocialNavMindSystem implements System {
         womanCry.distance <= Math.max(4, world.config.preContactRadius) &&
         world.config.northYieldEtiquetteEnabled
       ) {
+        const existing = world.stillness.get(id);
+        const alreadyYieldingToSameWoman =
+          existing?.reason === 'yieldToLady' &&
+          existing.requestedBy === womanCry.emitterId &&
+          existing.mode === 'translation' &&
+          existing.ticksRemaining > 1;
         requestStillness(world, {
           entityId: id,
           mode: 'translation',
@@ -538,6 +545,25 @@ export class SocialNavMindSystem implements System {
           ticksRemaining: 2,
           requestedBy: womanCry.emitterId,
         });
+        if (!alreadyYieldingToSameWoman) {
+          const womanTransform = world.transforms.get(womanCry.emitterId);
+          const eventPos =
+            womanTransform === undefined
+              ? transform.position
+              : {
+                  x: (transform.position.x + womanTransform.position.x) * 0.5,
+                  y: (transform.position.y + womanTransform.position.y) * 0.5,
+                };
+          world.events.push({
+            type: 'yieldToLady',
+            tick: world.tick,
+            entityId: id,
+            womanId: womanCry.emitterId,
+            pos: eventPos,
+            entityRankKey: rankKeyForEntity(world, id),
+            womanRankKey: rankKeyForEntity(world, womanCry.emitterId),
+          });
+        }
       }
 
       if (movement.intention === 'avoid' || movement.intention === 'yield') {

@@ -318,6 +318,22 @@
             <label for="peace-cry-radius">Peace-Cry Radius</label>
             <input id="peace-cry-radius" type="number" min="0" step="1" value="120" />
           </div>
+          <div class="row">
+            <label for="peace-cry-strict-compliance">Strict Cry Compliance</label>
+            <input id="peace-cry-strict-compliance" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="peace-cry-compliance-stillness">Compliance Stillness Ticks</label>
+            <input id="peace-cry-compliance-stillness" type="number" min="1" step="1" value="3" />
+          </div>
+          <div class="row">
+            <label for="peace-cry-north-yield-enabled">North-Yield Etiquette</label>
+            <input id="peace-cry-north-yield-enabled" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="peace-cry-north-yield-radius">North-Yield Radius</label>
+            <input id="peace-cry-north-yield-radius" type="number" min="1" step="1" value="170" />
+          </div>
           <div class="button-row">
             <button id="peace-cry-apply-all" type="button">Apply Cry To Women</button>
           </div>
@@ -859,6 +875,8 @@
             <label><input id="timeline-show-legend" type="checkbox" checked /> Show timeline legend</label>
           </div>
           <div class="timeline-controls timeline-type-controls">
+            <label><input id="timeline-type-cry-halt" type="checkbox" checked /> cry compliance halt</label>
+            <label><input id="timeline-type-yield-to-lady" type="checkbox" checked /> yield to lady</label>
             <label><input id="timeline-type-handshake-failed" type="checkbox" checked /> unsuccessful handshake</label>
             <label><input id="timeline-type-handshake" type="checkbox" checked /> handshake</label>
             <label><input id="timeline-type-house-enter" type="checkbox" checked /> enter house</label>
@@ -884,7 +902,7 @@
           </details>
           <canvas id="event-timeline-canvas" aria-label="Event timeline"></canvas>
           <div id="event-timeline-legend" class="hint">
-            Rain (line) / Handshake Failed / Handshake / Enter House / Exit House / Death / Birth / Regularized
+            Rain (line) / Cry Halt / Yield To Lady / Handshake Failed / Handshake / Enter House / Exit House / Death / Birth / Regularized
           </div>
           <div id="event-timeline-tooltip" class="hint">Hover or click markers for tick details.</div>
         </section>

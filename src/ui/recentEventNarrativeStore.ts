@@ -62,6 +62,9 @@ function handshakeFailureLabel(reason: string): string {
 
 function scoreForType(type: WorldEvent['type']): number {
   switch (type) {
+    case 'peaceCryComplianceHalt':
+    case 'yieldToLady':
+      return 2;
     case 'death':
       return 6;
     case 'regularized':
@@ -85,6 +88,38 @@ function scoreForType(type: WorldEvent['type']): number {
 
 function eventToNarrativeItem(event: WorldEvent): StoredNarrativeItem | null {
   switch (event.type) {
+    case 'peaceCryComplianceHalt': {
+      const text = pickTemplate(
+        [event.tick, event.entityId],
+        [
+          `Safety desk: #${event.entityId} was halted for moving without an active peace-cry.`,
+          `Traffic note: #${event.entityId} paused to restore peace-cry compliance.`,
+        ],
+      );
+      return {
+        tick: event.tick,
+        text,
+        type: event.type,
+        entityIds: [event.entityId],
+        score: scoreForType(event.type),
+      };
+    }
+    case 'yieldToLady': {
+      const text = pickTemplate(
+        [event.tick, event.entityId, event.womanId],
+        [
+          `Etiquette desk: #${event.entityId} yielded right of way to #${event.womanId}.`,
+          `Street manners: #${event.entityId} paused and gave way to #${event.womanId}.`,
+        ],
+      );
+      return {
+        tick: event.tick,
+        text,
+        type: event.type,
+        entityIds: [event.entityId, event.womanId],
+        score: scoreForType(event.type),
+      };
+    }
     case 'birth': {
       const text = pickTemplate(
         [event.tick, event.childId, event.motherId],

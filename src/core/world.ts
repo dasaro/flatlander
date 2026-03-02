@@ -91,6 +91,7 @@ export interface WorldConfig {
   postpartumCooldownTicks: number;
   maxPopulation: number;
   handshakeStillnessTicks: number;
+  handshakePreStillnessTicks: number;
   handshakeCooldownTicks: number;
   introductionRadius: number;
   preContactRadius: number;
@@ -321,6 +322,7 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   postpartumCooldownTicks: 90,
   maxPopulation: 650,
   handshakeStillnessTicks: 12,
+  handshakePreStillnessTicks: 2,
   handshakeCooldownTicks: 40,
   introductionRadius: 150,
   preContactRadius: 22,

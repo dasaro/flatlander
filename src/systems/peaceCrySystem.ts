@@ -21,8 +21,14 @@ function isMoving(world: World, entityId: number): boolean {
   return movement.speed > 0;
 }
 
-function requestComplianceStillness(world: World, entityId: number): void {
+function requestComplianceStillness(world: World, entityId: number, position: { x: number; y: number }): void {
   const ticks = Math.max(1, Math.round(world.config.peaceCryComplianceStillnessTicks));
+  const existing = world.stillness.get(entityId);
+  const alreadyActive =
+    existing?.reason === 'manual' &&
+    existing.mode === 'translation' &&
+    existing.ticksRemaining > 1;
+
   requestStillness(world, {
     entityId,
     mode: 'translation',
@@ -39,6 +45,16 @@ function requestComplianceStillness(world: World, entityId: number): void {
     movement.smoothSpeed = 0;
     delete movement.goal;
   }
+
+  if (!alreadyActive) {
+    world.events.push({
+      type: 'peaceCryComplianceHalt',
+      tick: world.tick,
+      entityId,
+      pos: position,
+      rankKey: rankKeyForEntity(world, entityId),
+    });
+  }
 }
 
 export class PeaceCrySystem implements System {
@@ -51,10 +67,17 @@ export class PeaceCrySystem implements System {
       if (strictCompliance) {
         for (const id of ids) {
           const rank = world.ranks.get(id);
-          if (rank?.rank !== Rank.Woman || !isEntityOutside(world, id) || !isMoving(world, id)) {
+          const transform = world.transforms.get(id);
+          if (
+            rank?.rank !== Rank.Woman ||
+            !transform ||
+            !isEntityOutside(world, id) ||
+            !isMoving(world, id)
+          ) {
             continue;
           }
-          requestComplianceStillness(world, id);
+          const eye = getEyeWorldPosition(world, id);
+          requestComplianceStillness(world, id, eye ?? transform.position);
         }
       }
       return;
@@ -77,7 +100,8 @@ export class PeaceCrySystem implements System {
 
       if (!peaceCry.enabled) {
         if (strictCompliance) {
-          requestComplianceStillness(world, id);
+          const eye = getEyeWorldPosition(world, id);
+          requestComplianceStillness(world, id, eye ?? transform.position);
         }
         continue;
       }

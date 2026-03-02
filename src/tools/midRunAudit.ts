@@ -73,6 +73,9 @@ interface RunSummary {
   rainResponseMean: number;
   houseEnterCount: number;
   houseExitCount: number;
+  movingWomenWithoutCryRate: number;
+  etiquetteYieldResponseRate: number;
+  handshakeCompletionRate: number;
   newPriests: number;
   priestBirthEvents: number;
   priestPromotionEvents: number;
@@ -88,6 +91,7 @@ interface AggregateSummary {
     required: MidRunAcceptance;
     cyclesPassingSeeds: number;
     rainShelterPassingSeeds: number;
+    compliancePassingSeeds: number;
     priestAppearancePassingSeeds: number;
     allPassed: boolean;
   };
@@ -98,6 +102,9 @@ interface MidRunAcceptance {
   minRainShelterSeeds: number;
   minRainRatio: number;
   minRainResponse: number;
+  maxMovingWomenWithoutCryRate: number;
+  minYieldResponse: number;
+  minHandshakeCompletion: number;
   minPriestSeeds: number;
 }
 
@@ -108,6 +115,9 @@ function acceptanceForTicks(ticks: number): MidRunAcceptance {
     minRainShelterSeeds: 3,
     minRainRatio: 1.2,
     minRainResponse: 0.7,
+    maxMovingWomenWithoutCryRate: 0.02,
+    minYieldResponse: 0.55,
+    minHandshakeCompletion: 0.35,
     minPriestSeeds: priestRequirement,
   };
 }
@@ -222,6 +232,43 @@ function isShelterEligibleOutside(sim: FixedTimestepSimulation, id: number): boo
   return isEntityOutside(world, id);
 }
 
+function nearestWomanCryForEntity(
+  sim: FixedTimestepSimulation,
+  entityId: number,
+): { emitterId: number; distance: number } | null {
+  const { world } = sim;
+  const transform = world.transforms.get(entityId);
+  if (!transform) {
+    return null;
+  }
+  const maxRadius = Math.max(1, world.config.northYieldRadius);
+  let best: { emitterId: number; distance: number } | null = null;
+  for (const ping of world.audiblePings) {
+    if (ping.emitterId === entityId) {
+      continue;
+    }
+    if ((world.ranks.get(ping.emitterId)?.rank ?? null) !== Rank.Woman) {
+      continue;
+    }
+    const radius = Math.min(Math.max(1, ping.radius), maxRadius);
+    const distance = Math.hypot(
+      ping.position.x - transform.position.x,
+      ping.position.y - transform.position.y,
+    );
+    if (distance > radius) {
+      continue;
+    }
+    if (
+      best === null ||
+      distance < best.distance ||
+      (distance === best.distance && ping.emitterId < best.emitterId)
+    ) {
+      best = { emitterId: ping.emitterId, distance };
+    }
+  }
+  return best;
+}
+
 function runSeed(seed: number, ticks: number): RunSummary {
   const simulation = createSimulation(seed);
   const { world } = simulation;
@@ -234,6 +281,12 @@ function runSeed(seed: number, ticks: number): RunSummary {
   let dryTicks = 0;
   let houseEnterCount = 0;
   let houseExitCount = 0;
+  let movingWomenWithoutCryTicks = 0;
+  let movingWomenTicks = 0;
+  let yieldOpportunities = 0;
+  let yieldResponses = 0;
+  let handshakeCompleted = 0;
+  let handshakeFailed = 0;
   let priestBirthEvents = 0;
   let priestPromotionEvents = 0;
   const housesUsed = new Set<number>();
@@ -243,6 +296,44 @@ function runSeed(seed: number, ticks: number): RunSummary {
 
   for (let step = 1; step <= ticks; step += 1) {
     simulation.stepOneTick();
+
+    for (const id of world.entities) {
+      if (world.staticObstacles.has(id) || !isEntityOutside(world, id)) {
+        continue;
+      }
+      const rank = world.ranks.get(id);
+      const movement = world.movements.get(id);
+      if (!rank || !movement) {
+        continue;
+      }
+      const speed =
+        movement.type === 'straightDrift'
+          ? Math.hypot(movement.vx, movement.vy)
+          : Math.max(0, movement.speed);
+      if (rank.rank === Rank.Woman && speed > 0.2) {
+        movingWomenTicks += 1;
+        const cryEnabled = world.peaceCry.get(id)?.enabled ?? false;
+        if (!cryEnabled) {
+          movingWomenWithoutCryTicks += 1;
+        }
+      }
+
+      if (rank.rank !== Rank.Woman && movement.type === 'socialNav') {
+        const nearestCry = nearestWomanCryForEntity(simulation, id);
+        if (!nearestCry) {
+          continue;
+        }
+        yieldOpportunities += 1;
+        const stillness = world.stillness.get(id);
+        const yieldedByStillness =
+          stillness?.reason === 'yieldToLady' &&
+          stillness.requestedBy === nearestCry.emitterId;
+        const yieldedByIntention = movement.intention === 'yield';
+        if (yieldedByStillness || yieldedByIntention) {
+          yieldResponses += 1;
+        }
+      }
+    }
 
     if (world.weather.isRaining) {
       rainInsideSum += world.insideCountThisTick;
@@ -285,7 +376,11 @@ function runSeed(seed: number, ticks: number): RunSummary {
 
     const events = world.events.drain();
     for (const event of events) {
-      if (event.type === 'houseEnter') {
+      if (event.type === 'handshake') {
+        handshakeCompleted += 1;
+      } else if (event.type === 'handshakeAttemptFailed') {
+        handshakeFailed += 1;
+      } else if (event.type === 'houseEnter') {
         houseEnterCount += 1;
         housesUsed.add(event.houseId);
       } else if (event.type === 'houseExit') {
@@ -328,6 +423,13 @@ function runSeed(seed: number, ticks: number): RunSummary {
         : 0,
     houseEnterCount,
     houseExitCount,
+    movingWomenWithoutCryRate:
+      movingWomenTicks > 0 ? movingWomenWithoutCryTicks / movingWomenTicks : 0,
+    etiquetteYieldResponseRate: yieldOpportunities > 0 ? yieldResponses / yieldOpportunities : 1,
+    handshakeCompletionRate:
+      handshakeCompleted + handshakeFailed > 0
+        ? handshakeCompleted / (handshakeCompleted + handshakeFailed)
+        : 1,
     newPriests: Math.max(0, maxPriests - initialPriests),
     priestBirthEvents,
     priestPromotionEvents,
@@ -349,6 +451,9 @@ function main(): void {
         `troughs=${run.troughs}`,
         `rainRatio=${run.insideRainVsDryRatio.toFixed(2)}`,
         `rainResponse=${(run.rainResponseMean * 100).toFixed(1)}%`,
+        `movingWomenNoCry=${(run.movingWomenWithoutCryRate * 100).toFixed(1)}%`,
+        `yieldResponse=${(run.etiquetteYieldResponseRate * 100).toFixed(1)}%`,
+        `handshakeCompletion=${(run.handshakeCompletionRate * 100).toFixed(1)}%`,
         `enter=${run.houseEnterCount}`,
         `exit=${run.houseExitCount}`,
         `housesUsed=${run.housesUsed}`,
@@ -368,12 +473,19 @@ function main(): void {
       run.insideRainVsDryRatio >= acceptance.minRainRatio &&
       run.rainResponseMean >= acceptance.minRainResponse,
   ).length;
+  const compliancePassingSeeds = runs.filter(
+    (run) =>
+      run.movingWomenWithoutCryRate <= acceptance.maxMovingWomenWithoutCryRate &&
+      run.etiquetteYieldResponseRate >= acceptance.minYieldResponse &&
+      run.handshakeCompletionRate >= acceptance.minHandshakeCompletion,
+  ).length;
   const priestAppearancePassingSeeds = runs.filter(
     (run) => run.newPriests > 0 || run.priestBirthEvents > 0 || run.priestPromotionEvents > 0,
   ).length;
   const allPassed =
     cyclesPassingSeeds >= acceptance.minCycleSeeds &&
     rainShelterPassingSeeds >= acceptance.minRainShelterSeeds &&
+    compliancePassingSeeds >= acceptance.minRainShelterSeeds &&
     priestAppearancePassingSeeds >= acceptance.minPriestSeeds;
 
   const report: AggregateSummary = {
@@ -385,6 +497,7 @@ function main(): void {
       required: acceptance,
       cyclesPassingSeeds,
       rainShelterPassingSeeds,
+      compliancePassingSeeds,
       priestAppearancePassingSeeds,
       allPassed,
     },

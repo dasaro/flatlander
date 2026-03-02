@@ -323,11 +323,34 @@ function canLearnFromFeeling(world: World, feelerId: EntityId, feltId: EntityId)
     return false;
   }
 
-  return (
+  const stillnessSatisfied =
     feltStillness.mode === 'full' &&
     feltStillness.reason === 'beingFelt' &&
-    (feltStillness.requestedBy ?? null) === feelerId
+    (feltStillness.requestedBy ?? null) === feelerId;
+  if (!stillnessSatisfied) {
+    return false;
+  }
+
+  const preTicks = Math.max(
+    0,
+    Math.min(
+      Math.round(world.config.handshakeStillnessTicks),
+      Math.round(world.config.handshakePreStillnessTicks),
+    ),
   );
+  if (preTicks <= 0) {
+    return true;
+  }
+
+  const feeler = world.feeling.get(feelerId);
+  const felt = world.feeling.get(feltId);
+  if (!feeler || !felt) {
+    return false;
+  }
+  const configuredHandshakeTicks = Math.max(1, Math.round(world.config.handshakeStillnessTicks));
+  const maxTicksLeft = Math.max(0, Math.max(feeler.ticksLeft, felt.ticksLeft));
+  const elapsedTicks = Math.max(0, configuredHandshakeTicks - maxTicksLeft);
+  return elapsedTicks >= preTicks;
 }
 
 function startHandshake(world: World, feelerId: EntityId, feltId: EntityId, eventPos: Vec2 | null): void {

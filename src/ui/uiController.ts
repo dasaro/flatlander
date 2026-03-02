@@ -71,6 +71,10 @@ export interface PeaceCrySettings {
   enabled: boolean;
   cadenceTicks: number;
   radius: number;
+  strictComplianceEnabled: boolean;
+  complianceStillnessTicks: number;
+  northYieldEnabled: boolean;
+  northYieldRadius: number;
 }
 
 export interface ReproductionSettings {
@@ -170,6 +174,10 @@ interface InputRefs {
   peaceCryEnabledGlobal: HTMLInputElement;
   peaceCryCadenceGlobal: HTMLInputElement;
   peaceCryRadiusGlobal: HTMLInputElement;
+  peaceCryStrictComplianceGlobal: HTMLInputElement;
+  peaceCryComplianceStillnessGlobal: HTMLInputElement;
+  peaceCryNorthYieldEnabledGlobal: HTMLInputElement;
+  peaceCryNorthYieldRadiusGlobal: HTMLInputElement;
   peaceCryApplyAllButton: HTMLButtonElement;
   reproductionEnabled: HTMLInputElement;
   reproductionGestationTicks: HTMLInputElement;
@@ -1015,6 +1023,10 @@ export class UIController {
       this.refs.peaceCryEnabledGlobal,
       this.refs.peaceCryCadenceGlobal,
       this.refs.peaceCryRadiusGlobal,
+      this.refs.peaceCryStrictComplianceGlobal,
+      this.refs.peaceCryComplianceStillnessGlobal,
+      this.refs.peaceCryNorthYieldEnabledGlobal,
+      this.refs.peaceCryNorthYieldRadiusGlobal,
     ];
 
     for (const input of peaceCryDefaultInputs) {
@@ -1307,6 +1319,10 @@ export class UIController {
     this.refs.peaceCryEnabledGlobal.checked = true;
     this.refs.peaceCryCadenceGlobal.value = '16';
     this.refs.peaceCryRadiusGlobal.value = '150';
+    this.refs.peaceCryStrictComplianceGlobal.checked = true;
+    this.refs.peaceCryComplianceStillnessGlobal.value = '3';
+    this.refs.peaceCryNorthYieldEnabledGlobal.checked = true;
+    this.refs.peaceCryNorthYieldRadiusGlobal.value = '170';
 
     this.refs.reproductionEnabled.checked = true;
     this.refs.reproductionGestationTicks.value = '130';
@@ -1389,6 +1405,16 @@ export class UIController {
       enabled: this.refs.peaceCryEnabledGlobal.checked,
       cadenceTicks: Math.max(1, parseInteger(this.refs.peaceCryCadenceGlobal.value, 20)),
       radius: Math.max(0, parseNumber(this.refs.peaceCryRadiusGlobal.value, 120)),
+      strictComplianceEnabled: this.refs.peaceCryStrictComplianceGlobal.checked,
+      complianceStillnessTicks: Math.max(
+        1,
+        parseInteger(this.refs.peaceCryComplianceStillnessGlobal.value, 3),
+      ),
+      northYieldEnabled: this.refs.peaceCryNorthYieldEnabledGlobal.checked,
+      northYieldRadius: Math.max(
+        1,
+        parseNumber(this.refs.peaceCryNorthYieldRadiusGlobal.value, 170),
+      ),
     };
   }
 
@@ -1884,6 +1910,10 @@ function collectRefs(): InputRefs {
     peaceCryEnabledGlobal: required<HTMLInputElement>('peace-cry-enabled'),
     peaceCryCadenceGlobal: required<HTMLInputElement>('peace-cry-cadence'),
     peaceCryRadiusGlobal: required<HTMLInputElement>('peace-cry-radius'),
+    peaceCryStrictComplianceGlobal: required<HTMLInputElement>('peace-cry-strict-compliance'),
+    peaceCryComplianceStillnessGlobal: required<HTMLInputElement>('peace-cry-compliance-stillness'),
+    peaceCryNorthYieldEnabledGlobal: required<HTMLInputElement>('peace-cry-north-yield-enabled'),
+    peaceCryNorthYieldRadiusGlobal: required<HTMLInputElement>('peace-cry-north-yield-radius'),
     peaceCryApplyAllButton: required<HTMLButtonElement>('peace-cry-apply-all'),
     reproductionEnabled: required<HTMLInputElement>('reproduction-enabled'),
     reproductionGestationTicks: required<HTMLInputElement>('reproduction-gestation-ticks'),

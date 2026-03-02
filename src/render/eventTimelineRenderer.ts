@@ -22,6 +22,8 @@ const MAX_DIAMOND_RADIUS = 6.8;
 const RAIN_LINE_COLOR = 'rgba(58, 103, 140, 0.95)';
 
 const TYPE_COLORS: Record<EventType, string> = {
+  peaceCryComplianceHalt: '#6a4c2f',
+  yieldToLady: '#2f5f8d',
   handshakeStart: '#5f9aa2',
   handshakeAttemptFailed: '#8e5b2d',
   touch: '#c99d4c',
@@ -36,6 +38,8 @@ const TYPE_COLORS: Record<EventType, string> = {
 };
 
 const TIMELINE_TYPE_ORDER: EventType[] = [
+  'peaceCryComplianceHalt',
+  'yieldToLady',
   'handshakeAttemptFailed',
   'handshake',
   'houseEnter',
@@ -47,6 +51,10 @@ const TIMELINE_TYPE_ORDER: EventType[] = [
 
 function typeLabel(type: EventType): string {
   switch (type) {
+    case 'peaceCryComplianceHalt':
+      return 'Cry Halt';
+    case 'yieldToLady':
+      return 'Yield To Lady';
     case 'handshakeAttemptFailed':
       return 'Handshake Failed';
     case 'handshake':

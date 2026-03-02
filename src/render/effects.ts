@@ -39,7 +39,7 @@ export type Effect =
       pos: Vec2;
       ttl: number;
       age: number;
-      shape: 'x' | 'dot' | 'pair' | 'plus' | 'houseIn' | 'houseOut';
+      shape: 'x' | 'dot' | 'pair' | 'plus' | 'houseIn' | 'houseOut' | 'halt' | 'yield';
       eventType: WorldEvent['type'];
       involvedIds: number[];
     };
@@ -68,6 +68,26 @@ const PEACE_CRY_MAX_RADIUS = 90;
 export function effectFromEvent(event: WorldEvent): Effect | null {
   const involvedIds = eventInvolvedIds(event);
   switch (event.type) {
+    case 'peaceCryComplianceHalt':
+      return {
+        kind: 'marker',
+        pos: event.pos,
+        ttl: 0.42,
+        age: 0,
+        shape: 'halt',
+        eventType: event.type,
+        involvedIds,
+      };
+    case 'yieldToLady':
+      return {
+        kind: 'marker',
+        pos: event.pos,
+        ttl: 0.42,
+        age: 0,
+        shape: 'yield',
+        eventType: event.type,
+        involvedIds,
+      };
     case 'handshakeStart':
       return {
         kind: 'marker',
@@ -338,6 +358,10 @@ export class EffectsManager {
             ? `rgba(79, 127, 88, ${alpha.toFixed(3)})`
             : effect.shape === 'houseOut'
               ? `rgba(75, 101, 130, ${alpha.toFixed(3)})`
+              : effect.shape === 'halt'
+                ? `rgba(106, 76, 47, ${alpha.toFixed(3)})`
+                : effect.shape === 'yield'
+                  ? `rgba(47, 95, 141, ${alpha.toFixed(3)})`
               : `rgba(35, 31, 27, ${alpha.toFixed(3)})`;
         ctx.strokeStyle = markerColor;
         ctx.fillStyle = markerColor;
@@ -379,6 +403,23 @@ export class EffectsManager {
           ctx.lineTo(effect.pos.x + direction * (1.3 / camera.zoom), effect.pos.y - wingY);
           ctx.moveTo(tipX, effect.pos.y);
           ctx.lineTo(effect.pos.x + direction * (1.3 / camera.zoom), effect.pos.y + wingY);
+          ctx.stroke();
+        } else if (effect.shape === 'halt') {
+          const size = 4 / camera.zoom;
+          ctx.beginPath();
+          ctx.moveTo(effect.pos.x - size, effect.pos.y - size);
+          ctx.lineTo(effect.pos.x - size, effect.pos.y + size);
+          ctx.moveTo(effect.pos.x + size, effect.pos.y - size);
+          ctx.lineTo(effect.pos.x + size, effect.pos.y + size);
+          ctx.stroke();
+        } else if (effect.shape === 'yield') {
+          const size = 4.5 / camera.zoom;
+          ctx.beginPath();
+          ctx.moveTo(effect.pos.x, effect.pos.y + size);
+          ctx.lineTo(effect.pos.x, effect.pos.y - size);
+          ctx.lineTo(effect.pos.x - size * 0.65, effect.pos.y - size * 0.2);
+          ctx.moveTo(effect.pos.x, effect.pos.y - size);
+          ctx.lineTo(effect.pos.x + size * 0.65, effect.pos.y - size * 0.2);
           ctx.stroke();
         } else {
           ctx.beginPath();

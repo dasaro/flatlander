@@ -15,6 +15,22 @@ export type HandshakeFailureReason =
 
 export type WorldEvent =
   | {
+      type: 'peaceCryComplianceHalt';
+      tick: number;
+      entityId: number;
+      pos: Vec2;
+      rankKey?: string;
+    }
+  | {
+      type: 'yieldToLady';
+      tick: number;
+      entityId: number;
+      womanId: number;
+      pos: Vec2;
+      entityRankKey?: string;
+      womanRankKey?: string;
+    }
+  | {
       type: 'handshakeStart';
       tick: number;
       aId: number;
@@ -126,6 +142,10 @@ export interface EntityPair {
 
 export function eventInvolvedIds(event: WorldEvent): number[] {
   switch (event.type) {
+    case 'peaceCryComplianceHalt':
+      return [event.entityId];
+    case 'yieldToLady':
+      return [event.entityId, event.womanId];
     case 'handshakeStart':
     case 'handshakeAttemptFailed':
     case 'touch':

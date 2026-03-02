@@ -81,6 +81,8 @@ import { RainTimelineStore } from './ui/rainTimelineStore';
 import { APP_VERSION } from './version';
 
 const TIMELINE_TYPE_CONTROL_IDS: Partial<Record<EventType, string>> = {
+  peaceCryComplianceHalt: 'timeline-type-cry-halt',
+  yieldToLady: 'timeline-type-yield-to-lady',
   handshakeAttemptFailed: 'timeline-type-handshake-failed',
   handshake: 'timeline-type-handshake',
   houseEnter: 'timeline-type-house-enter',
@@ -190,6 +192,10 @@ let peaceCrySettings: PeaceCrySettings = {
   enabled: true,
   cadenceTicks: 20,
   radius: 120,
+  strictComplianceEnabled: true,
+  complianceStillnessTicks: 3,
+  northYieldEnabled: true,
+  northYieldRadius: 170,
 };
 let reproductionSettings: ReproductionSettings = {
   enabled: true,
@@ -1198,6 +1204,8 @@ function renderNarrativeOverview(): void {
   lastNarrativeTick = world.tick;
 
   const allTypes = new Set<EventType>([
+    'peaceCryComplianceHalt',
+    'yieldToLady',
     'handshakeAttemptFailed',
     'handshake',
     'houseEnter',
@@ -1441,6 +1449,10 @@ function settingsToWorldConfig(
     houseMinSpacing: Math.max(0, Math.round(environment.houseSize * 0.35)),
     rainEnabled: environment.rainEnabled && environment.housesEnabled,
     peaceCryEnabled: peaceCry.enabled,
+    strictPeaceCryComplianceEnabled: peaceCry.strictComplianceEnabled,
+    peaceCryComplianceStillnessTicks: peaceCry.complianceStillnessTicks,
+    northYieldEtiquetteEnabled: peaceCry.northYieldEnabled,
+    northYieldRadius: peaceCry.northYieldRadius,
     defaultPeaceCryCadenceTicks: peaceCry.cadenceTicks,
     defaultPeaceCryRadius: peaceCry.radius,
     reproductionEnabled: reproduction.enabled,
@@ -1486,6 +1498,13 @@ function applyEnvironmentSettingsToWorld(
 
 function applyPeaceCrySettingsToWorld(worldState: typeof world, settings: PeaceCrySettings): void {
   worldState.config.peaceCryEnabled = settings.enabled;
+  worldState.config.strictPeaceCryComplianceEnabled = settings.strictComplianceEnabled;
+  worldState.config.peaceCryComplianceStillnessTicks = Math.max(
+    1,
+    Math.round(settings.complianceStillnessTicks),
+  );
+  worldState.config.northYieldEtiquetteEnabled = settings.northYieldEnabled;
+  worldState.config.northYieldRadius = Math.max(1, settings.northYieldRadius);
   worldState.config.defaultPeaceCryCadenceTicks = Math.max(1, Math.round(settings.cadenceTicks));
   worldState.config.defaultPeaceCryRadius = Math.max(0, settings.radius);
 }
@@ -1573,6 +1592,10 @@ function applyNovelSafetyPreset(worldState: typeof world): void {
   worldState.config.defaultVisionAvoidDistance = Math.max(worldState.config.defaultVisionAvoidDistance, 55);
   worldState.config.defaultVisionAvoidTurnRate = Math.max(worldState.config.defaultVisionAvoidTurnRate, 2.8);
   worldState.config.peaceCryEnabled = true;
+  worldState.config.strictPeaceCryComplianceEnabled = true;
+  worldState.config.peaceCryComplianceStillnessTicks = 3;
+  worldState.config.northYieldEtiquetteEnabled = true;
+  worldState.config.northYieldRadius = 170;
   worldState.config.defaultPeaceCryCadenceTicks = 16;
   worldState.config.defaultPeaceCryRadius = 150;
   worldState.config.sightEnabled = true;

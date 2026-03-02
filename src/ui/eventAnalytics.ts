@@ -33,6 +33,8 @@ export interface TimelineFilter {
 }
 
 const EVENT_TYPES: EventType[] = [
+  'peaceCryComplianceHalt',
+  'yieldToLady',
   'handshakeAttemptFailed',
   'handshake',
   'houseEnter',
@@ -44,6 +46,8 @@ const EVENT_TYPES: EventType[] = [
 
 function emptyCountsByType(): Record<EventType, number> {
   return {
+    peaceCryComplianceHalt: 0,
+    yieldToLady: 0,
     handshakeStart: 0,
     handshakeAttemptFailed: 0,
     touch: 0,
@@ -60,6 +64,8 @@ function emptyCountsByType(): Record<EventType, number> {
 
 function emptyByTypeByRank(): Record<EventType, Record<string, number>> {
   return {
+    peaceCryComplianceHalt: {},
+    yieldToLady: {},
     handshakeStart: {},
     handshakeAttemptFailed: {},
     touch: {},
@@ -76,6 +82,8 @@ function emptyByTypeByRank(): Record<EventType, Record<string, number>> {
 
 function emptyReasonsByType(): Record<EventType, Record<string, number>> {
   return {
+    peaceCryComplianceHalt: {},
+    yieldToLady: {},
     handshakeStart: {},
     handshakeAttemptFailed: {},
     touch: {},
@@ -104,6 +112,10 @@ function reasonForEvent(event: WorldEvent): string | null {
 
 function rankKeysForEvent(event: WorldEvent): string[] {
   switch (event.type) {
+    case 'peaceCryComplianceHalt':
+      return [event.rankKey ?? 'Unknown'];
+    case 'yieldToLady':
+      return [event.entityRankKey ?? 'Unknown', event.womanRankKey ?? 'Unknown'];
     case 'handshakeStart':
     case 'handshakeAttemptFailed':
     case 'touch':

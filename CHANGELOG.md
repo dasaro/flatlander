@@ -2,6 +2,34 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.15] - 2026-03-02
+
+### Added
+- New peace-cry etiquette timeline categories and overlays:
+  - `peaceCryComplianceHalt` (strict compliance halt events),
+  - `yieldToLady` (north-yield etiquette responses).
+- New UI controls under peace-cry settings:
+  - strict compliance toggle,
+  - compliance stillness ticks,
+  - north-yield etiquette toggle,
+  - north-yield radius.
+- Midrun KPI extensions for etiquette/handshake compliance:
+  - moving women without active peace-cry rate,
+  - yield-to-lady response rate near woman cries,
+  - handshake completion ratio (completed vs failed attempts).
+- Regression coverage for:
+  - handshake pre-stillness learning gate,
+  - analytics/effects handling for new etiquette event types.
+
+### Changed
+- Feeling/handshake knowledge transfer now enforces a configurable pre-contact stillness window (`handshakePreStillnessTicks`) before learning is allowed.
+- Narrative and legend/event timelines now include the new etiquette categories without adding core/render coupling.
+
+### Validation
+- `npm test` (87 files, 222 tests) passed locally.
+- `npm run lint` passed.
+- `npm run build` passed.
+
 ## [0.9.14] - 2026-03-02
 
 ### Fixed

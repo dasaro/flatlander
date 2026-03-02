@@ -68,6 +68,19 @@ describe('effects mapping', () => {
         reason: 'Wander',
         pos: origin,
       },
+      {
+        type: 'peaceCryComplianceHalt',
+        tick: 1,
+        entityId: 11,
+        pos: origin,
+      },
+      {
+        type: 'yieldToLady',
+        tick: 1,
+        entityId: 12,
+        womanId: 2,
+        pos: origin,
+      },
     ];
 
     const kinds = events
@@ -75,7 +88,18 @@ describe('effects mapping', () => {
       .filter((effect): effect is NonNullable<typeof effect> => effect !== null)
       .map((effect) => effect.kind);
 
-    expect(kinds).toEqual(['pulse', 'marker', 'ring', 'spark', 'marker', 'pulse', 'marker', 'marker']);
+    expect(kinds).toEqual([
+      'pulse',
+      'marker',
+      'ring',
+      'spark',
+      'marker',
+      'pulse',
+      'marker',
+      'marker',
+      'marker',
+      'marker',
+    ]);
   });
 
   it('uses X marker only for death events', () => {
@@ -101,6 +125,19 @@ describe('effects mapping', () => {
         houseId: 40,
         doorSide: 'west',
         reason: 'Wander',
+        pos: origin,
+      },
+      {
+        type: 'peaceCryComplianceHalt',
+        tick: 1,
+        entityId: 11,
+        pos: origin,
+      },
+      {
+        type: 'yieldToLady',
+        tick: 1,
+        entityId: 12,
+        womanId: 2,
         pos: origin,
       },
       { type: 'regularized', tick: 1, entityId: 8, pos: origin },

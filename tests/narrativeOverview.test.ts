@@ -7,6 +7,8 @@ function makeSummary(tick: number): TickSummary {
   return {
     tick,
     countsByType: {
+      peaceCryComplianceHalt: 0,
+      yieldToLady: 0,
       handshakeStart: 0,
       handshakeAttemptFailed: 0,
       touch: 0,
@@ -21,6 +23,8 @@ function makeSummary(tick: number): TickSummary {
     },
     countsByRankKey: {},
     byTypeByRankKey: {
+      peaceCryComplianceHalt: {},
+      yieldToLady: {},
       handshakeStart: {},
       handshakeAttemptFailed: {},
       touch: {},
@@ -34,6 +38,8 @@ function makeSummary(tick: number): TickSummary {
       regularized: {},
     },
     reasonsByType: {
+      peaceCryComplianceHalt: {},
+      yieldToLady: {},
       handshakeStart: {},
       handshakeAttemptFailed: {},
       touch: {},

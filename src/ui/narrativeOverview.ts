@@ -22,6 +22,8 @@ export interface NarrativeOverview {
 }
 
 const NARRATIVE_EVENT_TYPES: EventType[] = [
+  'peaceCryComplianceHalt',
+  'yieldToLady',
   'handshakeAttemptFailed',
   'handshake',
   'houseEnter',
@@ -98,6 +100,8 @@ function aggregateRecent(
   reasonsByType: Record<EventType, Record<string, number>>;
 } {
   const countsByType: Record<EventType, number> = {
+    peaceCryComplianceHalt: 0,
+    yieldToLady: 0,
     handshakeStart: 0,
     handshakeAttemptFailed: 0,
     touch: 0,
@@ -111,6 +115,8 @@ function aggregateRecent(
     regularized: 0,
   };
   const reasonsByType: Record<EventType, Record<string, number>> = {
+    peaceCryComplianceHalt: {},
+    yieldToLady: {},
     handshakeStart: {},
     handshakeAttemptFailed: {},
     touch: {},
@@ -160,6 +166,8 @@ export function buildNarrativeOverview(
   const regularized = recent.countsByType.regularized;
   const houseEnter = recent.countsByType.houseEnter;
   const houseExit = recent.countsByType.houseExit;
+  const yieldEvents = recent.countsByType.yieldToLady;
+  const cryHalts = recent.countsByType.peaceCryComplianceHalt;
   const stabs = Math.max(recent.countsByType.stab, Math.max(0, Math.round(input.recentStabs ?? 0)));
   const peaceCries = Math.max(
     recent.countsByType.peaceCry,
@@ -208,6 +216,12 @@ export function buildNarrativeOverview(
     );
   } else {
     reasons.push(`Social recognition: ${handshakeOk} successful handshakes in the recent window.`);
+  }
+
+  if (yieldEvents > 0 || cryHalts > 0) {
+    reasons.push(
+      `Etiquette protocol: ${yieldEvents} yield-to-lady responses and ${cryHalts} peace-cry compliance halts in the recent window.`,
+    );
   }
 
   reasons.push(

@@ -170,6 +170,56 @@ describe('recognition by feeling', () => {
     expect(bKnows?.rank).toBe(world.ranks.get(a)?.rank);
   });
 
+  it('requires a pre-stillness window before knowledge transfer', () => {
+    const { world, step } = runCollisionAndFeeling(509);
+    world.config.feelSpeedThreshold = 6;
+    world.config.handshakeStillnessTicks = 6;
+    world.config.handshakePreStillnessTicks = 3;
+    const stillness = new StillnessSystem();
+    const movement = new MovementSystem();
+
+    const a = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 4, size: 14, irregular: false },
+      { type: 'straightDrift', vx: 0.4, vy: 0, boundary: 'wrap' },
+      { x: 210, y: 210 },
+    );
+    const b = spawnEntity(
+      world,
+      { kind: 'circle', size: 16 },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 210, y: 210 },
+    );
+    const aFeeling = world.feeling.get(a);
+    const bFeeling = world.feeling.get(b);
+    if (!aFeeling || !bFeeling) {
+      throw new Error('Missing feeling components in pre-stillness handshake test.');
+    }
+    aFeeling.state = 'approaching';
+    aFeeling.partnerId = b;
+    bFeeling.state = 'approaching';
+    bFeeling.partnerId = a;
+
+    const dt = 1 / world.config.tickRate;
+    for (let i = 0; i < 2; i += 1) {
+      world.tick += 1;
+      stillness.update(world);
+      movement.update(world, dt);
+      step();
+    }
+    expect(world.knowledge.get(a)?.known.has(b)).toBe(false);
+    expect(world.knowledge.get(b)?.known.has(a)).toBe(false);
+
+    for (let i = 0; i < 3; i += 1) {
+      world.tick += 1;
+      stillness.update(world);
+      movement.update(world, dt);
+      step();
+    }
+    expect(world.knowledge.get(a)?.known.has(b)).toBe(true);
+    expect(world.knowledge.get(b)?.known.has(a)).toBe(true);
+  });
+
   it('requires explicit targetId intent for socialNav introductions', () => {
     const { world, step } = runCollisionAndFeeling(531);
     world.config.feelSpeedThreshold = 8;

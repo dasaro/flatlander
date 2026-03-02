@@ -29,10 +29,33 @@ describe('event analytics', () => {
       },
       { type: 'death', tick: 12, entityId: 2, pos: { x: 2, y: 2 }, rankKey: 'Gentleman' },
       { type: 'handshake', tick: 12, aId: 1, bId: 3, pos: { x: 1, y: 1 }, aRankKey: 'Woman:Middle', bRankKey: 'Triangle:Equilateral' },
+      {
+        type: 'peaceCryComplianceHalt',
+        tick: 11,
+        entityId: 3,
+        pos: { x: 1.2, y: 1.3 },
+        rankKey: 'Gentleman',
+      },
+      {
+        type: 'yieldToLady',
+        tick: 11,
+        entityId: 4,
+        womanId: 1,
+        pos: { x: 1.4, y: 1.5 },
+        entityRankKey: 'Triangle:Isosceles',
+        womanRankKey: 'Woman:Middle',
+      },
     ]);
 
     const summaries = analytics.getFilteredSummaries({
-      selectedTypes: new Set(['handshake', 'handshakeAttemptFailed', 'houseEnter', 'death']),
+      selectedTypes: new Set([
+        'handshake',
+        'handshakeAttemptFailed',
+        'houseEnter',
+        'death',
+        'peaceCryComplianceHalt',
+        'yieldToLady',
+      ]),
       selectedRankKeys: new Set<string>(),
       splitByRank: false,
       focusEntityId: null,
@@ -42,6 +65,8 @@ describe('event analytics', () => {
     const tickEleven = summaries.find((summary) => summary.tick === 11);
     expect(tickEleven?.countsByType.handshakeAttemptFailed).toBe(1);
     expect(tickEleven?.countsByType.houseEnter).toBe(1);
+    expect(tickEleven?.countsByType.peaceCryComplianceHalt).toBe(1);
+    expect(tickEleven?.countsByType.yieldToLady).toBe(1);
     expect(tickEleven?.reasonsByType.handshakeAttemptFailed.StillnessNotSatisfied).toBe(1);
     expect(tickEleven?.reasonsByType.houseEnter.RainShelter).toBe(1);
     const tickTwelve = summaries.find((summary) => summary.tick === 12);

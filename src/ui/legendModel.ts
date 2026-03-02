@@ -35,6 +35,41 @@ function eventVisible(
 
 const LEGEND_ITEMS: LegendItem[] = [
   {
+    id: 'peaceCryComplianceHalt',
+    label: 'Cry Compliance Halt',
+    isVisible: (state) => eventVisible('peaceCryComplianceHalt', state),
+    drawIcon: (ctx, size) => {
+      const c = size / 2;
+      const r = size * 0.26;
+      ctx.strokeStyle = '#6a4c2f';
+      ctx.lineWidth = Math.max(1, size * 0.09);
+      ctx.beginPath();
+      ctx.moveTo(c - r, c - r);
+      ctx.lineTo(c - r, c + r);
+      ctx.moveTo(c + r, c - r);
+      ctx.lineTo(c + r, c + r);
+      ctx.stroke();
+    },
+  },
+  {
+    id: 'yieldToLady',
+    label: 'Yield To Lady',
+    isVisible: (state) => eventVisible('yieldToLady', state),
+    drawIcon: (ctx, size) => {
+      const c = size / 2;
+      const r = size * 0.24;
+      ctx.strokeStyle = '#2f5f8d';
+      ctx.lineWidth = Math.max(1, size * 0.08);
+      ctx.beginPath();
+      ctx.moveTo(c, c + r);
+      ctx.lineTo(c, c - r);
+      ctx.lineTo(c - r * 0.65, c - r * 0.2);
+      ctx.moveTo(c, c - r);
+      ctx.lineTo(c + r * 0.65, c - r * 0.2);
+      ctx.stroke();
+    },
+  },
+  {
     id: 'touch',
     label: 'Touch (feeling)',
     isVisible: (state) => eventVisible('touch', state, true),
