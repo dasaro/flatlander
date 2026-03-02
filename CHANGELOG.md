@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.17] - 2026-03-02
+
+### Fixed
+- Population composition now excludes static obstacles/houses from histogram counting.
+  - This removes the constant phantom `Other` bucket caused by house entities being counted as inhabitants.
+- Added a regression test to ensure house/static-obstacle entities are never included in population composition totals.
+
+### Validation
+- `npm test` passed (87 files, 223 tests).
+- `npm run lint` passed.
+- `npm run build` passed.
+
 ## [0.9.16] - 2026-03-02
 
 ### Fixed

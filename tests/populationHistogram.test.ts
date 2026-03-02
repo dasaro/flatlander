@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { resamplePopulationSamples } from '../src/render/populationHistogram';
+import { spawnEntity } from '../src/core/factory';
+import { createWorld } from '../src/core/world';
+import { countPopulationByRank, resamplePopulationSamples } from '../src/render/populationHistogram';
 
 describe('resamplePopulationSamples', () => {
   it('returns empty for empty input', () => {
@@ -34,5 +36,31 @@ describe('resamplePopulationSamples', () => {
     expect(sampled[0]?.population).toBe(0);
     expect(Math.round(sampled[1]?.population ?? 0)).toBe(25);
     expect(sampled[2]?.population).toBe(50);
+  });
+
+  it('excludes static obstacles (houses) from population composition counts', () => {
+    const world = createWorld(912);
+    spawnEntity(
+      world,
+      { kind: 'polygon', sides: 4, size: 16, irregular: false },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 100, y: 100 },
+    );
+    spawnEntity(
+      world,
+      { kind: 'segment', size: 20 },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 140, y: 120 },
+    );
+
+    const houseId = world.nextEntityId++;
+    world.entities.add(houseId);
+    world.staticObstacles.set(houseId, { kind: 'house' });
+
+    const counts = countPopulationByRank(world);
+    const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
+
+    expect(total).toBe(2);
+    expect(counts.Unknown ?? 0).toBe(0);
   });
 });

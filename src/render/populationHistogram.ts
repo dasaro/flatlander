@@ -89,6 +89,18 @@ export function resamplePopulationSamples(
   return out;
 }
 
+export function countPopulationByRank(world: World): Record<string, number> {
+  const countsByRank: Record<string, number> = {};
+  for (const entityId of world.entities) {
+    if (world.staticObstacles.has(entityId)) {
+      continue;
+    }
+    const key = rankKeyForEntity(world, entityId);
+    countsByRank[key] = (countsByRank[key] ?? 0) + 1;
+  }
+  return countsByRank;
+}
+
 export class PopulationHistogram {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly history = new PopulationHistoryStore();
@@ -158,11 +170,7 @@ export class PopulationHistogram {
   }
 
   record(world: World): void {
-    const countsByRank: Record<string, number> = {};
-    for (const entityId of world.entities) {
-      const key = rankKeyForEntity(world, entityId);
-      countsByRank[key] = (countsByRank[key] ?? 0) + 1;
-    }
+    const countsByRank = countPopulationByRank(world);
     this.history.ingest(world.tick, countsByRank);
     this.dirty = true;
   }
