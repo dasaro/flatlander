@@ -28,6 +28,7 @@ const NARRATIVE_EVENT_TYPES: EventType[] = [
   'birth',
   'regularized',
 ];
+const BULLETIN_ROTATION_TICKS = 180;
 
 function topReason(reasons: Record<string, number>): { reason: string; count: number } | null {
   const entries = Object.entries(reasons).filter((entry) => entry[1] > 0);
@@ -201,7 +202,13 @@ export function buildNarrativeOverview(
   const notableEvents = input.notableEvents ?? [];
   let bulletinLine = '';
   if (notableEvents.length > 0) {
-    bulletinLine = `Gazette: ${notableEvents[0]}`;
+    const rotationIndex =
+      Math.floor(Math.max(0, input.tick) / BULLETIN_ROTATION_TICKS) % notableEvents.length;
+    const selected = notableEvents[rotationIndex] ?? notableEvents[0] ?? '';
+    const socialTag = input.isRaining
+      ? `${input.insidePeople + input.seekingShelter}/${Math.max(1, input.totalPeople)} sheltering in rain`
+      : `${births} births vs ${deaths} deaths recently`;
+    bulletinLine = `Gazette: ${selected} (${socialTag}).`;
     reasons.push(`Latest notable: ${notableEvents.slice(0, 2).join(' | ')}`);
   } else if (deaths > births && deaths > 0) {
     bulletinLine = `Gazette: crisis pressure dominates (${deaths} recent deaths vs ${births} births).`;

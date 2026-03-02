@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.12] - 2026-03-02
+
+### Changed
+- Narrative Gazette one-liner now rotates deterministically across recent notable events and appends a compact social-context clause (rain shelter coverage or birth/death pressure).
+- Notable-event text now resolves entity ids into readable labels (display names / rank labels / house labels) before rendering in narrative and hover summaries.
+- Priest recovery tuning was strengthened in `NeoTherapySystem` for scarcity regimes:
+  - wider veteran enrollment window under priest scarcity,
+  - stronger scarcity ambition multipliers and lower enrollment thresholds,
+  - higher priest-target survival floors in scarcity/recovery modes,
+  - shorter therapy duration for critical priest-recovery promotions.
+- Default neo-therapy parameters were increased (`neoTherapyAmbitionProbability`, `neoTherapySurvivalProbability`) to reduce long priest absence periods.
+
+### Tests
+- Added label-resolution coverage in `tests/recentEventNarrativeStore.test.ts`.
+- Updated `tests/entityHoverNarrative.test.ts` to reflect structured narrative event payloads.
+
 ## [0.9.11] - 2026-03-02
 
 ### Added

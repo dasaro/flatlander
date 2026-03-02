@@ -877,6 +877,21 @@ function renderNoSelectionInspector(): void {
   ui.renderDwellingState(null);
 }
 
+function narrativeEntityLabel(entityId: number): string | null {
+  if (world.houses.has(entityId)) {
+    return `House #${entityId}`;
+  }
+  const name = world.names.get(entityId)?.displayName;
+  if (name && name.trim().length > 0) {
+    return name;
+  }
+  const rank = world.ranks.get(entityId)?.rank;
+  if (rank) {
+    return `${rank} #${entityId}`;
+  }
+  return `#${entityId}`;
+}
+
 function renderWorldHoverInfo(): void {
   if (!(worldHoverInfo instanceof HTMLElement)) {
     return;
@@ -912,7 +927,13 @@ function renderWorldHoverInfo(): void {
 
   const displayName = world.names.get(entityId)?.displayName;
 
-  const history = recentEventNarrative.getEntityHighlights(entityId, world.tick, 2, 3200);
+  const history = recentEventNarrative.getEntityHighlights(
+    entityId,
+    world.tick,
+    2,
+    3200,
+    narrativeEntityLabel,
+  );
   const narrative = buildEntityHoverNarrative(
     world,
     entityId,
@@ -1191,8 +1212,8 @@ function renderNarrativeOverview(): void {
       seekingHome: world.seekHomeIntentCount,
       stuckNearHouse: world.stuckNearHouseCount,
       notableEvents: recentEventNarrative
-        .getGlobalHighlights(world.tick, 2, 1800)
-        .map((event) => `t${event.tick}: ${event.text}`),
+        .getGlobalHighlights(world.tick, 3, 1800, narrativeEntityLabel)
+        .map((event) => `At tick ${event.tick}, ${event.text}`),
     },
     summaries,
   );

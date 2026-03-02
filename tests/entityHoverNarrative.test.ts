@@ -49,7 +49,7 @@ describe('entity hover narrative', () => {
       'Woman',
       'Woman Segment',
       'Lady Test',
-      [{ tick: 120, text: '#1 entered house #3 (rain sheltering).', type: 'houseEnter' }],
+      [{ tick: 120, text: '#1 entered house #3 (rain sheltering).', type: 'houseEnter', entityIds: [1, 3] }],
     );
 
     expect(narrative.title).toContain('Lady Test');

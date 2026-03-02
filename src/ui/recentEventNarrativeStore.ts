@@ -4,10 +4,10 @@ export interface RecentNarrativeItem {
   tick: number;
   text: string;
   type: WorldEvent['type'];
+  entityIds: number[];
 }
 
 interface StoredNarrativeItem extends RecentNarrativeItem {
-  entityIds: number[];
   score: number;
 }
 
@@ -151,7 +151,13 @@ export class RecentEventNarrativeStore {
     }
   }
 
-  getEntityHighlights(entityId: number, currentTick: number, limit = 2, windowTicks = 3000): RecentNarrativeItem[] {
+  getEntityHighlights(
+    entityId: number,
+    currentTick: number,
+    limit = 2,
+    windowTicks = 3000,
+    resolveEntityLabel?: (id: number) => string | null,
+  ): RecentNarrativeItem[] {
     const minTick = Math.max(0, currentTick - Math.max(1, Math.round(windowTicks)));
     const relevant = this.items.filter(
       (item) => item.tick >= minTick && item.entityIds.includes(entityId),
@@ -165,10 +171,17 @@ export class RecentEventNarrativeStore {
       }
       return left.text.localeCompare(right.text);
     });
-    return relevant.slice(0, Math.max(1, Math.round(limit)));
+    return relevant
+      .slice(0, Math.max(1, Math.round(limit)))
+      .map((item) => this.toPublicItem(item, resolveEntityLabel));
   }
 
-  getGlobalHighlights(currentTick: number, limit = 3, windowTicks = 1800): RecentNarrativeItem[] {
+  getGlobalHighlights(
+    currentTick: number,
+    limit = 3,
+    windowTicks = 1800,
+    resolveEntityLabel?: (id: number) => string | null,
+  ): RecentNarrativeItem[] {
     const minTick = Math.max(0, currentTick - Math.max(1, Math.round(windowTicks)));
     const relevant = this.items.filter((item) => item.tick >= minTick);
     relevant.sort((left, right) => {
@@ -180,6 +193,38 @@ export class RecentEventNarrativeStore {
       }
       return left.text.localeCompare(right.text);
     });
-    return relevant.slice(0, Math.max(1, Math.round(limit)));
+    return relevant
+      .slice(0, Math.max(1, Math.round(limit)))
+      .map((item) => this.toPublicItem(item, resolveEntityLabel));
+  }
+
+  private toPublicItem(
+    item: StoredNarrativeItem,
+    resolveEntityLabel?: (id: number) => string | null,
+  ): RecentNarrativeItem {
+    const text = this.renderText(item.text, resolveEntityLabel);
+    return {
+      tick: item.tick,
+      text,
+      type: item.type,
+      entityIds: [...item.entityIds],
+    };
+  }
+
+  private renderText(
+    text: string,
+    resolveEntityLabel?: (id: number) => string | null,
+  ): string {
+    if (!resolveEntityLabel) {
+      return text;
+    }
+    return text.replace(/#(\d+)/g, (_match, idText: string) => {
+      const id = Number.parseInt(idText, 10);
+      if (!Number.isFinite(id)) {
+        return `#${idText}`;
+      }
+      const label = resolveEntityLabel(id);
+      return label && label.trim().length > 0 ? label : `#${id}`;
+    });
   }
 }

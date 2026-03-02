@@ -30,4 +30,36 @@ describe('recent event narrative store', () => {
     expect(global[0]?.type).toBe('death');
     expect(global.some((item) => item.type === 'birth')).toBe(true);
   });
+
+  it('renders entity labels when a resolver is provided', () => {
+    const store = new RecentEventNarrativeStore(10);
+    store.ingest([
+      { type: 'death', tick: 22, entityId: 9, killerId: 4, pos: { x: 0, y: 0 } },
+      {
+        type: 'houseEnter',
+        tick: 23,
+        entityId: 4,
+        houseId: 100,
+        doorSide: 'west',
+        reason: 'RainShelter',
+        pos: { x: 1, y: 1 },
+      },
+    ]);
+
+    const labeled = store.getGlobalHighlights(
+      30,
+      2,
+      20,
+      (id) =>
+        ({
+          4: 'Mr. Alder',
+          9: 'Sir Rowan',
+          100: 'House #100',
+        })[id] ?? null,
+    );
+
+    expect(labeled.some((item) => item.text.includes('Sir Rowan'))).toBe(true);
+    expect(labeled.some((item) => item.text.includes('Mr. Alder'))).toBe(true);
+    expect(labeled.some((item) => item.text.includes('House #100'))).toBe(true);
+  });
 });
