@@ -50,11 +50,18 @@ describe('entity hover narrative', () => {
       'Woman Segment',
       'Lady Test',
       [{ tick: 120, text: '#1 entered house #3 (rain sheltering).', type: 'houseEnter', entityIds: [1, 3] }],
+      (id) =>
+        ({
+          9: 'Mrs. Elms',
+          42: 'Sir Granite',
+        })[id] ?? null,
     );
 
     expect(narrative.title).toContain('Lady Test');
     expect(narrative.lines[0]).toContain('heading for shelter');
     expect(narrative.lines.some((line) => line.includes('Why:'))).toBe(true);
+    expect(narrative.lines.some((line) => line.includes('Sir Granite'))).toBe(true);
+    expect(narrative.lines.some((line) => line.includes('Mrs. Elms'))).toBe(true);
     expect(narrative.lines.some((line) => line.includes('Recent:'))).toBe(true);
   });
 });

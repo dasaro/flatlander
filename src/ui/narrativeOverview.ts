@@ -9,6 +9,8 @@ export interface NarrativeOverviewInput {
   seekingShelter: number;
   seekingHome: number;
   stuckNearHouse: number;
+  recentStabs?: number;
+  recentPeaceCries?: number;
   notableEvents?: string[];
   recentWindowTicks?: number;
 }
@@ -24,6 +26,8 @@ const NARRATIVE_EVENT_TYPES: EventType[] = [
   'handshake',
   'houseEnter',
   'houseExit',
+  'stab',
+  'peaceCry',
   'death',
   'birth',
   'regularized',
@@ -75,6 +79,14 @@ function describeHandshakeFailureReason(reason: string): string {
     default:
       return reason;
   }
+}
+
+function pickByTick(tick: number, options: string[]): string {
+  if (options.length === 0) {
+    return '';
+  }
+  const index = Math.floor(Math.max(0, tick) / BULLETIN_ROTATION_TICKS) % options.length;
+  return options[index] ?? options[0] ?? '';
 }
 
 function aggregateRecent(
@@ -148,6 +160,11 @@ export function buildNarrativeOverview(
   const regularized = recent.countsByType.regularized;
   const houseEnter = recent.countsByType.houseEnter;
   const houseExit = recent.countsByType.houseExit;
+  const stabs = Math.max(recent.countsByType.stab, Math.max(0, Math.round(input.recentStabs ?? 0)));
+  const peaceCries = Math.max(
+    recent.countsByType.peaceCry,
+    Math.max(0, Math.round(input.recentPeaceCries ?? 0)),
+  );
   const shelterCoverage =
     (input.insidePeople + input.seekingShelter + input.seekingHome) / Math.max(1, input.totalPeople);
 
@@ -156,6 +173,8 @@ export function buildNarrativeOverview(
     headline = 'Rain phase: most inhabitants are sheltering or moving to doors.';
   } else if (input.isRaining) {
     headline = 'Rain phase: shelter demand is active but many inhabitants remain exposed.';
+  } else if (stabs >= Math.max(2, births + 1)) {
+    headline = 'Street tension phase: sharp contacts are dominating civic traffic.';
   } else if (deaths > births * 1.25 && deaths > 0) {
     headline = 'Crisis phase: losses currently exceed births.';
   } else if (births > deaths * 1.25 && births > 0) {
@@ -196,7 +215,7 @@ export function buildNarrativeOverview(
   );
 
   reasons.push(
-    `Notable events (recent): house entries ${houseEnter}, exits ${houseExit}, regularizations ${regularized}.`,
+    `Notable events (recent): house entries ${houseEnter}, exits ${houseExit}, stabs ${stabs}, peace-cries ${peaceCries}, regularizations ${regularized}.`,
   );
 
   const notableEvents = input.notableEvents ?? [];
@@ -207,17 +226,39 @@ export function buildNarrativeOverview(
     const selected = notableEvents[rotationIndex] ?? notableEvents[0] ?? '';
     const socialTag = input.isRaining
       ? `${input.insidePeople + input.seekingShelter}/${Math.max(1, input.totalPeople)} sheltering in rain`
-      : `${births} births vs ${deaths} deaths recently`;
+      : `${births} births vs ${deaths} deaths; ${stabs} sharp clashes`;
     bulletinLine = `Gazette: ${selected} (${socialTag}).`;
     reasons.push(`Latest notable: ${notableEvents.slice(0, 2).join(' | ')}`);
   } else if (deaths > births && deaths > 0) {
-    bulletinLine = `Gazette: crisis pressure dominates (${deaths} recent deaths vs ${births} births).`;
+    bulletinLine = pickByTick(input.tick, [
+      `Gazette: crisis watch reports ${deaths} deaths against ${births} births.`,
+      `Gazette: obituary desk is busier than the birth desk (${deaths} to ${births}).`,
+      `Gazette: hard day for households: ${deaths} losses, ${births} arrivals.`,
+    ]);
   } else if (births > deaths && births > 0) {
-    bulletinLine = `Gazette: recovery signals (${births} births outpace ${deaths} deaths).`;
+    bulletinLine = pickByTick(input.tick, [
+      `Gazette: recovery column says ${births} births now outpace ${deaths} deaths.`,
+      `Gazette: nurseries win this round (${births} arrivals, ${deaths} departures).`,
+      `Gazette: census clerks are smiling: +${Math.max(0, births - deaths)} net lately.`,
+    ]);
   } else if (input.isRaining) {
-    bulletinLine = 'Gazette: rain keeps streets tense as households race for shelter.';
+    bulletinLine = pickByTick(input.tick, [
+      'Gazette: rain keeps streets tense as households race for shelter.',
+      'Gazette: umbrellas unavailable; door queues are the city sport of the hour.',
+      'Gazette: wet weather edition: shelter protocols are running citywide.',
+    ]);
+  } else if (stabs > 0 || peaceCries > 0) {
+    bulletinLine = pickByTick(input.tick, [
+      `Gazette: safety desk logged ${stabs} sharp contacts and ${peaceCries} peace-cry calls.`,
+      `Gazette: traffic was noisy: ${peaceCries} warnings and ${stabs} pointed altercations.`,
+      `Gazette: patrol update: ${stabs} stabs, ${peaceCries} alerts; no calm vote yet.`,
+    ]);
   } else {
-    bulletinLine = 'Gazette: routine civic traffic; no major disruption reported.';
+    bulletinLine = pickByTick(input.tick, [
+      'Gazette: routine civic traffic; no major disruption reported.',
+      'Gazette: a quiet interval, by Flatland standards.',
+      'Gazette: municipal calm holds for now.',
+    ]);
   }
 
   return {

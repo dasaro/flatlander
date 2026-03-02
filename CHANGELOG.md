@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.13] - 2026-03-02
+
+### Changed
+- Narrative notable-events now prioritize readable names over numeric ids across Gazette bulletins and hover history, with label caching so notable dead/removed actors remain identifiable.
+- Added richer deterministic event phrasing with varied newspaper-style templates for:
+  - births,
+  - deaths,
+  - house entries/exits,
+  - handshakes and failed introductions,
+  - regularizations,
+  - stabs and peace-cry alerts.
+- Narrative overview now uses a broader recent-event mix (including safety-alert pressure) and rotates one-line bulletin variants to reduce repetition while staying concise.
+- Hover “why” clauses now resolve seen/heard/feeling partners to names when available.
+- Dense event ingestion for narrative was capped per tick (`peaceCry`, `stab`) to avoid clutter while preserving signal.
+
+### Tests
+- Updated/extended:
+  - `tests/recentEventNarrativeStore.test.ts`
+  - `tests/entityHoverNarrative.test.ts`
+
 ## [0.9.12] - 2026-03-02
 
 ### Changed

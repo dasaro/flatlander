@@ -45,7 +45,19 @@ function describeSocialIntention(world: World, movement: SocialNavMovement): str
   }
 }
 
-function reasonClauses(world: World, entityId: number): string[] {
+function entityLabel(
+  entityId: number,
+  resolveEntityLabel?: (id: number) => string | null,
+): string {
+  const label = resolveEntityLabel?.(entityId);
+  return label && label.trim().length > 0 ? label : `#${entityId}`;
+}
+
+function reasonClauses(
+  world: World,
+  entityId: number,
+  resolveEntityLabel?: (id: number) => string | null,
+): string[] {
   const clauses: string[] = [];
   const durability = world.durability.get(entityId);
   if (durability && durability.maxHp > 0) {
@@ -58,14 +70,19 @@ function reasonClauses(world: World, entityId: number): string[] {
   const vision = world.visionHits.get(entityId);
   if (vision?.kind === 'entity') {
     const distanceText = vision.distance === null ? 'unknown range' : `${round1(vision.distance)} units`;
-    clauses.push(`it sees #${vision.hitId} at ${distanceText}`);
+    clauses.push(`it sees ${entityLabel(vision.hitId, resolveEntityLabel)} at ${distanceText}`);
   } else if (vision?.kind === 'boundary' && vision.boundarySide) {
     clauses.push(`it sees the ${vision.boundarySide} boundary`);
   }
 
   const hearing = world.hearingHits.get(entityId);
   if (hearing) {
-    clauses.push(`it hears ${hearing.signature} nearby`);
+    clauses.push(
+      `it hears ${hearing.signature} from ${entityLabel(
+        hearing.otherId,
+        resolveEntityLabel,
+      )} nearby`,
+    );
   }
 
   const stillness = world.stillness.get(entityId);
@@ -75,7 +92,12 @@ function reasonClauses(world: World, entityId: number): string[] {
 
   const feeling = world.feeling.get(entityId);
   if (feeling && feeling.partnerId !== null && feeling.state !== 'idle') {
-    clauses.push(`feeling protocol is ${feeling.state} with #${feeling.partnerId}`);
+    clauses.push(
+      `feeling protocol is ${feeling.state} with ${entityLabel(
+        feeling.partnerId,
+        resolveEntityLabel,
+      )}`,
+    );
   }
 
   return clauses;
@@ -103,6 +125,7 @@ export function buildEntityHoverNarrative(
   shapeLabel: string,
   displayName: string | null,
   history: RecentNarrativeItem[],
+  resolveEntityLabel?: (id: number) => string | null,
 ): EntityHoverNarrative {
   const house = world.houses.get(entityId);
   if (house) {
@@ -114,7 +137,7 @@ export function buildEntityHoverNarrative(
   const kills = world.combatStats.get(entityId)?.kills ?? 0;
   const job = world.jobs.get(entityId)?.job ?? null;
   const speed = movementSpeed(movement);
-  const title = displayName ? `${displayName} · ${rankLabel} (#${entityId})` : `${rankLabel} (#${entityId})`;
+  const title = displayName ? `${displayName} · ${rankLabel}` : rankLabel;
 
   const lines: string[] = [];
   if (movement?.type === 'socialNav') {
@@ -129,7 +152,7 @@ export function buildEntityHoverNarrative(
     lines.push('is currently stationary.');
   }
 
-  const reasons = reasonClauses(world, entityId);
+  const reasons = reasonClauses(world, entityId, resolveEntityLabel);
   if (reasons.length > 0) {
     lines.push(`Why: ${reasons.slice(0, 2).join('; ')}.`);
   }

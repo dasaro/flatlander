@@ -301,6 +301,7 @@ let hoveredWorldClientPoint: Vec2 | null = null;
 let lastNarrativeTick = -1;
 let lastBulletinTick = -1;
 let lastBulletinText = 'Gazette: waiting for the first notable civic development.';
+const narrativeLabelCache = new Map<number, string>();
 const eventDrainPipeline = new EventDrainPipeline(
   world.tick,
   () => world.events.drain(),
@@ -676,7 +677,9 @@ function frame(now: number): void {
   const dtVisualSeconds = lastRenderTimeMs === 0 ? 0 : Math.max(0, Math.min(0.25, (now - lastRenderTimeMs) / 1000));
   lastRenderTimeMs = now;
 
+  refreshNarrativeLabelCache();
   simulation.frame(now);
+  refreshNarrativeLabelCache();
   processTickEvents();
   effectsManager.update(dtVisualSeconds);
   populationHistogram.record(world);
@@ -878,6 +881,10 @@ function renderNoSelectionInspector(): void {
 }
 
 function narrativeEntityLabel(entityId: number): string | null {
+  const cached = narrativeLabelCache.get(entityId);
+  if (cached && cached.trim().length > 0) {
+    return cached;
+  }
   if (world.houses.has(entityId)) {
     return `House #${entityId}`;
   }
@@ -887,9 +894,28 @@ function narrativeEntityLabel(entityId: number): string | null {
   }
   const rank = world.ranks.get(entityId)?.rank;
   if (rank) {
-    return `${rank} #${entityId}`;
+    return rank;
   }
-  return `#${entityId}`;
+  return 'an unnamed inhabitant';
+}
+
+function refreshNarrativeLabelCache(): void {
+  const ids = [...world.entities].sort((a, b) => a - b);
+  for (const id of ids) {
+    if (world.houses.has(id)) {
+      narrativeLabelCache.set(id, `House #${id}`);
+      continue;
+    }
+    const name = world.names.get(id)?.displayName;
+    if (name && name.trim().length > 0) {
+      narrativeLabelCache.set(id, name.trim());
+      continue;
+    }
+    const rank = world.ranks.get(id)?.rank;
+    if (rank) {
+      narrativeLabelCache.set(id, rank);
+    }
+  }
 }
 
 function renderWorldHoverInfo(): void {
@@ -941,6 +967,7 @@ function renderWorldHoverInfo(): void {
     shapeLabel,
     displayName ?? null,
     history,
+    narrativeEntityLabel,
   );
   const lines = [
     ...narrative.lines,
@@ -1201,6 +1228,8 @@ function renderNarrativeOverview(): void {
     }
   }
 
+  const narrativeTypeCounts = recentEventNarrative.countByType(world.tick, 1800, ['stab', 'peaceCry']);
+
   const overview = buildNarrativeOverview(
     {
       tick: world.tick,
@@ -1211,6 +1240,8 @@ function renderNarrativeOverview(): void {
       seekingShelter: world.seekShelterIntentCount,
       seekingHome: world.seekHomeIntentCount,
       stuckNearHouse: world.stuckNearHouseCount,
+      recentStabs: narrativeTypeCounts.stab ?? 0,
+      recentPeaceCries: narrativeTypeCounts.peaceCry ?? 0,
       notableEvents: recentEventNarrative
         .getGlobalHighlights(world.tick, 3, 1800, narrativeEntityLabel)
         .map((event) => `At tick ${event.tick}, ${event.text}`),
