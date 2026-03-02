@@ -335,6 +335,26 @@ button[aria-disabled='true']:hover {
   margin-top: 6px;
 }
 
+.narrative-panel {
+  padding-bottom: 10px;
+}
+
+.narrative-headline {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #2c2821;
+}
+
+.narrative-reasons {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 0.9rem;
+  color: #3e392f;
+}
+
 #flatlander-canvas {
   display: block;
   width: 100%;

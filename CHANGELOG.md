@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.9] - 2026-03-02
+
+### Added
+- New in-stage **Narrative Overview** panel below the main charts, providing a concise, high-level explanation of ongoing dynamics with explicit internal-state reasons.
+- New pure narrative summarizer (`src/ui/narrativeOverview.ts`) and regression tests (`tests/narrativeOverview.test.ts`).
+
+### Changed
+- Main UI now computes a per-tick narrative from:
+  - rain/shelter state (`inside`, `seekShelter`, `seekHome`),
+  - recent demography (`birth`/`death` events),
+  - social outcomes (`handshake` vs unsuccessful handshake with failure reasons),
+  - housing transition reasons (`houseEnter` reasons).
+- Narrative rendering is tick-cached to avoid unnecessary DOM updates while paused.
+- Stage layout/styling updated for a compact, non-cluttering narrative block.
+
 ## [0.9.8] - 2026-03-02
 
 ### Changed

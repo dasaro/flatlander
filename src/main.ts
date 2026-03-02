@@ -72,6 +72,7 @@ import {
   UIController,
 } from './ui/uiController';
 import { MobileMenuState } from './ui/mobileMenuState';
+import { buildNarrativeOverview } from './ui/narrativeOverview';
 import { EventDrainPipeline } from './ui/eventDrainPipeline';
 import { captureFrameSnapshot, type FrameSnapshot } from './ui/frameSnapshot';
 import { RainTimelineStore } from './ui/rainTimelineStore';
@@ -112,6 +113,8 @@ if (!(flatlanderCanvasNode instanceof HTMLCanvasElement)) {
 }
 const flatlanderCanvas: HTMLCanvasElement = flatlanderCanvasNode;
 const worldHoverInfo = document.getElementById('world-hover-info');
+const narrativeHeadline = document.getElementById('narrative-overview-headline');
+const narrativeReasons = document.getElementById('narrative-overview-reasons');
 
 const initialSeedInput = document.getElementById('seed-input');
 if (!(initialSeedInput instanceof HTMLInputElement)) {
@@ -291,6 +294,7 @@ let flatlanderHoverNormalizedX: number | null = null;
 let hoveredWorldEntityId: number | null = null;
 let hoveredWorldPoint: Vec2 | null = null;
 let hoveredWorldClientPoint: Vec2 | null = null;
+let lastNarrativeTick = -1;
 const eventDrainPipeline = new EventDrainPipeline(
   world.tick,
   () => world.events.drain(),
@@ -357,6 +361,7 @@ const ui = new UIController({
     populationHistogram.reset(world);
     eventDrainPipeline.reset(world.tick);
     rainTimeline.reset();
+    lastNarrativeTick = -1;
     recentLegendEvents.length = 0;
     lastLegendSignature = '';
     selectionState.setSelected(null);
@@ -709,6 +714,7 @@ function frame(now: number): void {
   });
   populationHistogram.render();
   renderEventTimeline();
+  renderNarrativeOverview();
   renderDynamicLegend();
   renderWorldHoverInfo();
   ui.renderStats(world);
@@ -1139,6 +1145,70 @@ function renderEventTimeline(): void {
     rainIntervals: rainTimeline.getIntervals(world.tick),
   });
   eventTimelineLegend.hidden = !timelineShowLegend;
+}
+
+function renderNarrativeOverview(): void {
+  if (!(narrativeHeadline instanceof HTMLElement) || !(narrativeReasons instanceof HTMLElement)) {
+    return;
+  }
+  if (lastNarrativeTick === world.tick) {
+    return;
+  }
+  lastNarrativeTick = world.tick;
+
+  const allTypes = new Set<EventType>([
+    'handshakeAttemptFailed',
+    'handshake',
+    'houseEnter',
+    'houseExit',
+    'death',
+    'birth',
+    'regularized',
+  ]);
+  const summaries = eventAnalytics.getFilteredSummaries({
+    selectedTypes: allTypes,
+    selectedRankKeys: new Set<string>(),
+    splitByRank: false,
+    focusEntityId: null,
+  });
+
+  let totalPeople = 0;
+  let insidePeople = 0;
+  let outsidePeople = 0;
+  for (const id of world.entities) {
+    if (world.staticObstacles.has(id)) {
+      continue;
+    }
+    totalPeople += 1;
+    const dwelling = world.dwellings.get(id);
+    if (dwelling?.state === 'inside') {
+      insidePeople += 1;
+    } else {
+      outsidePeople += 1;
+    }
+  }
+
+  const overview = buildNarrativeOverview(
+    {
+      tick: world.tick,
+      isRaining: world.weather.isRaining,
+      totalPeople,
+      outsidePeople,
+      insidePeople,
+      seekingShelter: world.seekShelterIntentCount,
+      seekingHome: world.seekHomeIntentCount,
+      stuckNearHouse: world.stuckNearHouseCount,
+    },
+    summaries,
+  );
+
+  narrativeHeadline.textContent = overview.headline;
+  narrativeReasons.innerHTML = '';
+  for (const reason of overview.reasons) {
+    const item = document.createElement('li');
+    item.textContent = reason;
+    narrativeReasons.appendChild(item);
+  }
 }
 
 function recordLegendEvents(events: WorldEvent[]): void {
