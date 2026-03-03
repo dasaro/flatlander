@@ -1,4 +1,5 @@
 import { computeObserverRayScan } from '../core/perception/observerScan';
+import { sampleVisibleToSight, type SightVisibilityContext } from '../core/perception/sightVisibility';
 import type { World } from '../core/world';
 
 export type FlatlanderSample = {
@@ -120,6 +121,7 @@ export function computeFlatlanderScan(
   world: World,
   viewerId: number,
   cfg: FlatlanderViewConfig,
+  sightContext?: SightVisibilityContext | null,
 ): FlatlanderScanResult {
   const rays = Math.max(16, Math.round(cfg.rays));
   const panelFovRad = Math.max(Math.PI / 6, Math.min(Math.PI * 2, cfg.fovRad));
@@ -143,11 +145,26 @@ export function computeFlatlanderScan(
 
   const samples: FlatlanderSample[] = [];
   for (const sample of scan.samples) {
+    const intensity = sightContext ? (sightContext.hasDimnessCue ? sample.intensity : 1) : sample.intensity;
+    if (
+      sample.hitId !== null &&
+      sample.distance !== null &&
+      sightContext &&
+      !sampleVisibleToSight(intensity, sightContext)
+    ) {
+      samples.push({
+        angle: sample.angle,
+        hitId: null,
+        distance: null,
+        intensity: 0,
+      });
+      continue;
+    }
     samples.push({
       angle: sample.angle,
       hitId: sample.hitId,
       distance: sample.distance,
-      intensity: sample.intensity,
+      intensity,
     });
   }
 

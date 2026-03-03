@@ -8,6 +8,7 @@ import {
   type FlatlanderSample,
   type FlatlanderViewConfig,
 } from '../src/render/flatlanderScan';
+import type { SightVisibilityContext } from '../src/core/perception/sightVisibility';
 
 const BASE_SCAN_CONFIG: FlatlanderViewConfig = {
   enabled: true,
@@ -139,6 +140,34 @@ describe('flatlander scan', () => {
     expect(nearHit).toBeDefined();
     expect(farHit).toBeDefined();
     expect(farHit?.intensity ?? 1).toBeLessThan(nearHit?.intensity ?? 0);
+  });
+
+  it('can filter samples with the same sight threshold semantics used by behavior', () => {
+    const { world, viewerId, targetId } = setupViewerAndTarget(150);
+    const sightContext: SightVisibilityContext = {
+      hasDimnessCue: true,
+      sightSkill: 0.2,
+      fogMinIntensity: 0.3,
+    };
+
+    const filtered = computeFlatlanderScan(
+      world,
+      viewerId,
+      {
+        ...BASE_SCAN_CONFIG,
+        fogDensity: 0.012,
+        minVisibleIntensity: 0,
+      },
+      sightContext,
+    );
+    expect(filtered.samples.some((sample) => sample.hitId === targetId)).toBe(false);
+
+    const unfiltered = computeFlatlanderScan(world, viewerId, {
+      ...BASE_SCAN_CONFIG,
+      fogDensity: 0.012,
+      minVisibleIntensity: 0,
+    });
+    expect(unfiltered.samples.some((sample) => sample.hitId === targetId)).toBe(true);
   });
 
   it('shows bounded-world walls as visible lines when enabled', () => {

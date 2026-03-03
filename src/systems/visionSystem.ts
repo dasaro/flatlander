@@ -3,6 +3,7 @@ import { fogDensityAt, fogFieldConfigFromWorld } from '../core/fogField';
 import { houseDoorTargetForHouse } from '../core/housing/shelterPolicy';
 import { isEntityOutside } from '../core/housing/dwelling';
 import { computeObserverRayScan, type ObserverScanSample } from '../core/perception/observerScan';
+import { sampleVisibleToSight, type SightVisibilityContext } from '../core/perception/sightVisibility';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
 import type { System } from './system';
@@ -117,6 +118,11 @@ export class VisionSystem implements System {
       }
 
       const localFogDensity = hasDimnessCue ? fogDensityAt(fogField, pose.eyeWorld) : 0;
+      const sightContext: SightVisibilityContext = {
+        hasDimnessCue,
+        sightSkill: perception.sightSkill,
+        fogMinIntensity,
+      };
       const scan = computeObserverRayScan(world, id, {
         rays: DEFAULT_SCAN_RAY_COUNT,
         fovRad: Math.PI * 2,
@@ -147,8 +153,7 @@ export class VisionSystem implements System {
         }
 
         const intensity = hasDimnessCue ? sample.intensity : 1;
-        const effective = hasDimnessCue ? intensity * perception.sightSkill : perception.sightSkill;
-        if (effective < fogMinIntensity) {
+        if (!sampleVisibleToSight(intensity, sightContext)) {
           continue;
         }
 

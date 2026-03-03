@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.20] - 2026-03-03
+
+### Fixed
+- Completed social/political controls wiring that previously caused startup/runtime mismatch:
+  - added missing UI controls for rain curfew and priest mediation so controller refs resolve correctly.
+- Rain-curfew civic logic now targets `segment` shapes directly in core logic, while UI naming remains unchanged.
+- Cleanup now removes rain-curfew tracking entries for deleted entities to avoid stale bookkeeping.
+
+### Changed
+- Reproduction partner selection now applies priest-mediation bias deterministically during arranged bond matching.
+- “Apply Cry To Women” now updates peace-cry defaults only for segment entities (matching intended scope).
+
+### Validation
+- `npm test` passed (88 files, 226 tests).
+- `npm run lint` passed.
+- `npm run build` passed.
+
 ## [0.9.19] - 2026-03-03
 
 ### Changed

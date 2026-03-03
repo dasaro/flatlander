@@ -75,6 +75,8 @@ export interface PeaceCrySettings {
   complianceStillnessTicks: number;
   northYieldEnabled: boolean;
   northYieldRadius: number;
+  rainCurfewEnabled: boolean;
+  rainCurfewOutsideGraceTicks: number;
 }
 
 export interface ReproductionSettings {
@@ -86,6 +88,9 @@ export interface ReproductionSettings {
   maxPopulation: number;
   irregularBirthsEnabled: boolean;
   irregularBirthBaseChance: number;
+  priestMediationEnabled: boolean;
+  priestMediationRadius: number;
+  priestMediationBias: number;
 }
 
 export interface EventHighlightsSettings {
@@ -178,6 +183,8 @@ interface InputRefs {
   peaceCryComplianceStillnessGlobal: HTMLInputElement;
   peaceCryNorthYieldEnabledGlobal: HTMLInputElement;
   peaceCryNorthYieldRadiusGlobal: HTMLInputElement;
+  peaceCryRainCurfewEnabledGlobal: HTMLInputElement;
+  peaceCryRainCurfewGraceTicksGlobal: HTMLInputElement;
   peaceCryApplyAllButton: HTMLButtonElement;
   reproductionEnabled: HTMLInputElement;
   reproductionGestationTicks: HTMLInputElement;
@@ -187,6 +194,9 @@ interface InputRefs {
   reproductionMaxPopulation: HTMLInputElement;
   reproductionIrregularEnabled: HTMLInputElement;
   reproductionIrregularBaseChance: HTMLInputElement;
+  reproductionPriestMediationEnabled: HTMLInputElement;
+  reproductionPriestMediationRadius: HTMLInputElement;
+  reproductionPriestMediationBias: HTMLInputElement;
   eventHighlightsEnabled: HTMLInputElement;
   eventHighlightsShowLegend: HTMLInputElement;
   eventHighlightsIntensity: HTMLInputElement;
@@ -1027,6 +1037,8 @@ export class UIController {
       this.refs.peaceCryComplianceStillnessGlobal,
       this.refs.peaceCryNorthYieldEnabledGlobal,
       this.refs.peaceCryNorthYieldRadiusGlobal,
+      this.refs.peaceCryRainCurfewEnabledGlobal,
+      this.refs.peaceCryRainCurfewGraceTicksGlobal,
     ];
 
     for (const input of peaceCryDefaultInputs) {
@@ -1051,6 +1063,9 @@ export class UIController {
       this.refs.reproductionMaxPopulation,
       this.refs.reproductionIrregularEnabled,
       this.refs.reproductionIrregularBaseChance,
+      this.refs.reproductionPriestMediationEnabled,
+      this.refs.reproductionPriestMediationRadius,
+      this.refs.reproductionPriestMediationBias,
     ];
 
     for (const input of reproductionInputs) {
@@ -1323,6 +1338,8 @@ export class UIController {
     this.refs.peaceCryComplianceStillnessGlobal.value = '3';
     this.refs.peaceCryNorthYieldEnabledGlobal.checked = true;
     this.refs.peaceCryNorthYieldRadiusGlobal.value = '170';
+    this.refs.peaceCryRainCurfewEnabledGlobal.checked = true;
+    this.refs.peaceCryRainCurfewGraceTicksGlobal.value = '150';
 
     this.refs.reproductionEnabled.checked = true;
     this.refs.reproductionGestationTicks.value = '130';
@@ -1332,6 +1349,9 @@ export class UIController {
     this.refs.reproductionMaxPopulation.value = '650';
     this.refs.reproductionIrregularEnabled.checked = true;
     this.refs.reproductionIrregularBaseChance.value = '0.14';
+    this.refs.reproductionPriestMediationEnabled.checked = true;
+    this.refs.reproductionPriestMediationRadius.value = '180';
+    this.refs.reproductionPriestMediationBias.value = '0.45';
 
     this.refs.southEnabled.checked = true;
     this.refs.southStrength.value = '2';
@@ -1415,6 +1435,11 @@ export class UIController {
         1,
         parseNumber(this.refs.peaceCryNorthYieldRadiusGlobal.value, 170),
       ),
+      rainCurfewEnabled: this.refs.peaceCryRainCurfewEnabledGlobal.checked,
+      rainCurfewOutsideGraceTicks: Math.max(
+        1,
+        parseInteger(this.refs.peaceCryRainCurfewGraceTicksGlobal.value, 150),
+      ),
     };
   }
 
@@ -1439,6 +1464,16 @@ export class UIController {
         parseNumber(this.refs.reproductionIrregularBaseChance.value, 0.14),
         0,
         1,
+      ),
+      priestMediationEnabled: this.refs.reproductionPriestMediationEnabled.checked,
+      priestMediationRadius: Math.max(
+        0,
+        parseNumber(this.refs.reproductionPriestMediationRadius.value, 180),
+      ),
+      priestMediationBias: clampRange(
+        parseNumber(this.refs.reproductionPriestMediationBias.value, 0.45),
+        0,
+        2,
       ),
     };
   }
@@ -1914,6 +1949,8 @@ function collectRefs(): InputRefs {
     peaceCryComplianceStillnessGlobal: required<HTMLInputElement>('peace-cry-compliance-stillness'),
     peaceCryNorthYieldEnabledGlobal: required<HTMLInputElement>('peace-cry-north-yield-enabled'),
     peaceCryNorthYieldRadiusGlobal: required<HTMLInputElement>('peace-cry-north-yield-radius'),
+    peaceCryRainCurfewEnabledGlobal: required<HTMLInputElement>('peace-cry-rain-curfew-enabled'),
+    peaceCryRainCurfewGraceTicksGlobal: required<HTMLInputElement>('peace-cry-rain-curfew-grace'),
     peaceCryApplyAllButton: required<HTMLButtonElement>('peace-cry-apply-all'),
     reproductionEnabled: required<HTMLInputElement>('reproduction-enabled'),
     reproductionGestationTicks: required<HTMLInputElement>('reproduction-gestation-ticks'),
@@ -1923,6 +1960,9 @@ function collectRefs(): InputRefs {
     reproductionMaxPopulation: required<HTMLInputElement>('reproduction-max-population'),
     reproductionIrregularEnabled: required<HTMLInputElement>('reproduction-irregular-enabled'),
     reproductionIrregularBaseChance: required<HTMLInputElement>('reproduction-irregular-base-chance'),
+    reproductionPriestMediationEnabled: required<HTMLInputElement>('reproduction-priest-mediation-enabled'),
+    reproductionPriestMediationRadius: required<HTMLInputElement>('reproduction-priest-mediation-radius'),
+    reproductionPriestMediationBias: required<HTMLInputElement>('reproduction-priest-mediation-bias'),
     eventHighlightsEnabled: required<HTMLInputElement>('event-highlights-enabled'),
     eventHighlightsShowLegend: required<HTMLInputElement>('event-highlights-show-legend'),
     eventHighlightsIntensity: required<HTMLInputElement>('event-highlights-intensity'),

@@ -334,6 +334,14 @@
             <label for="peace-cry-north-yield-radius">North-Yield Radius</label>
             <input id="peace-cry-north-yield-radius" type="number" min="1" step="1" value="170" />
           </div>
+          <div class="row">
+            <label for="peace-cry-rain-curfew-enabled">Rain Curfew (Women)</label>
+            <input id="peace-cry-rain-curfew-enabled" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="peace-cry-rain-curfew-grace">Rain Curfew Grace</label>
+            <input id="peace-cry-rain-curfew-grace" type="number" min="1" step="1" value="150" />
+          </div>
           <div class="button-row">
             <button id="peace-cry-apply-all" type="button">Apply Cry To Women</button>
           </div>
@@ -379,6 +387,25 @@
               max="1"
               step="0.0001"
               value="0.14"
+            />
+          </div>
+          <div class="row">
+            <label for="reproduction-priest-mediation-enabled">Priest Mediation</label>
+            <input id="reproduction-priest-mediation-enabled" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label for="reproduction-priest-mediation-radius">Mediation Radius</label>
+            <input id="reproduction-priest-mediation-radius" type="number" min="0" step="1" value="180" />
+          </div>
+          <div class="row">
+            <label for="reproduction-priest-mediation-bias">Mediation Bias</label>
+            <input
+              id="reproduction-priest-mediation-bias"
+              type="number"
+              min="0"
+              max="2"
+              step="0.01"
+              value="0.45"
             />
           </div>
           <p class="hint">Reset preserves current reproduction settings.</p>

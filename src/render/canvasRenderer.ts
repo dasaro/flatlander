@@ -426,10 +426,10 @@ export class CanvasRenderer {
   }
 
   private drawRainOverlay(tick: number): void {
-    const phase = tick % 300;
-    const spacing = 48;
-    const columns = Math.ceil((this.canvas.width + 140) / spacing);
-    const rows = Math.ceil((this.canvas.height + 120) / spacing);
+    const phase = tick % 420;
+    const spacing = 58;
+    const columns = Math.ceil((this.canvas.width + 180) / spacing);
+    const rows = Math.ceil((this.canvas.height + 180) / spacing);
     const dropCount = columns * rows;
 
     this.ctx.save();
@@ -439,31 +439,61 @@ export class CanvasRenderer {
     for (let i = 0; i < dropCount; i += 1) {
       const column = i % columns;
       const row = Math.floor(i / columns);
-      const driftX = ((row * 19 + phase * 0.35) % spacing) - spacing * 0.5;
-      const travelY = (row * spacing + phase * 2.2 + column * 7) % (this.canvas.height + 120);
-      const x = column * spacing + driftX - 40;
-      const y = travelY - 60;
+      const laneShift = (((row * 23 + column * 11) % 17) - 8) * 0.9;
+      const driftX = ((row * 29 + phase * 0.42) % spacing) - spacing * 0.5;
+      const travelY = (row * spacing + phase * 2.55 + column * 9) % (this.canvas.height + 180);
+      const x = column * spacing + driftX + laneShift - 70;
+      const y = travelY - 90;
 
-      const size = 3 + ((column + row) % 3) * 0.7;
-      const tail = size * 2.4;
-      const tailDx = -size * 0.55;
+      const sizeClass = (column * 3 + row * 5) % 4;
+      const size = 2.6 + sizeClass * 1.1;
+      const topY = y - size * 1.18;
+      const bottomY = y + size * 1.5;
 
-      // Raindrop body: compact teardrop, softer than long streaks and less cluttered.
-      this.ctx.fillStyle = 'rgba(86, 114, 148, 0.32)';
+      const bodyGradient = this.ctx.createLinearGradient(x, topY, x, bottomY);
+      bodyGradient.addColorStop(0, 'rgba(222, 248, 255, 0.62)');
+      bodyGradient.addColorStop(0.4, 'rgba(112, 212, 234, 0.5)');
+      bodyGradient.addColorStop(1, 'rgba(26, 109, 145, 0.56)');
+      this.ctx.fillStyle = bodyGradient;
       this.ctx.beginPath();
-      this.ctx.moveTo(x, y - size * 0.95);
-      this.ctx.quadraticCurveTo(x + size * 0.85, y - size * 0.2, x + size * 0.55, y + size * 0.75);
-      this.ctx.quadraticCurveTo(x, y + size * 1.45, x - size * 0.55, y + size * 0.75);
-      this.ctx.quadraticCurveTo(x - size * 0.85, y - size * 0.2, x, y - size * 0.95);
+      this.ctx.moveTo(x, topY);
+      this.ctx.bezierCurveTo(
+        x + size * 1.1,
+        y - size * 0.5,
+        x + size * 0.9,
+        y + size * 0.9,
+        x,
+        bottomY,
+      );
+      this.ctx.bezierCurveTo(
+        x - size * 0.9,
+        y + size * 0.9,
+        x - size * 1.1,
+        y - size * 0.5,
+        x,
+        topY,
+      );
       this.ctx.closePath();
       this.ctx.fill();
 
-      // Tail: subtle directional cue for falling rain.
-      this.ctx.strokeStyle = 'rgba(76, 98, 128, 0.26)';
-      this.ctx.lineWidth = Math.max(0.8, size * 0.22);
+      const edgeGradient = this.ctx.createLinearGradient(x, topY, x, bottomY);
+      edgeGradient.addColorStop(0, 'rgba(204, 241, 252, 0.52)');
+      edgeGradient.addColorStop(1, 'rgba(15, 79, 108, 0.44)');
+      this.ctx.strokeStyle = edgeGradient;
+      this.ctx.lineWidth = Math.max(0.7, size * 0.16);
+      this.ctx.stroke();
+
+      this.ctx.fillStyle = 'rgba(243, 252, 255, 0.3)';
       this.ctx.beginPath();
-      this.ctx.moveTo(x, y + size * 0.55);
-      this.ctx.lineTo(x + tailDx, y + size * 0.55 + tail);
+      this.ctx.ellipse(x - size * 0.24, y - size * 0.08, size * 0.22, size * 0.5, -0.42, 0, Math.PI * 2);
+      this.ctx.fill();
+
+      // Tail: preserve a clear falling direction without turning drops into spikes.
+      this.ctx.strokeStyle = 'rgba(48, 107, 139, 0.24)';
+      this.ctx.lineWidth = Math.max(0.6, size * 0.14);
+      this.ctx.beginPath();
+      this.ctx.moveTo(x, y + size * 0.72);
+      this.ctx.lineTo(x - size * 0.5, y + size * 2.05);
       this.ctx.stroke();
     }
 

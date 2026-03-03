@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { spawnEntity } from '../src/core/factory';
+import { fogDensityAt, fogFieldConfigFromWorld } from '../src/core/fogField';
+import type { SightVisibilityContext } from '../src/core/perception/sightVisibility';
 import { createWorld } from '../src/core/world';
 import { computeFlatlanderScan } from '../src/render/flatlanderScan';
 import { VisionSystem } from '../src/systems/visionSystem';
@@ -34,8 +36,9 @@ describe('vision / flatlander scan parity', () => {
 
     const transform = world.transforms.get(viewerId);
     const eye = world.eyes.get(viewerId);
+    const perception = world.perceptions.get(viewerId);
     const vision = world.vision.get(viewerId);
-    if (!transform || !eye || !vision) {
+    if (!transform || !eye || !vision || !perception) {
       throw new Error('Missing viewer components in parity test.');
     }
     transform.rotation = 0;
@@ -46,19 +49,32 @@ describe('vision / flatlander scan parity', () => {
     const visionHit = world.visionHits.get(viewerId);
     expect(visionHit?.hitId).toBe(frontId);
 
-    const scan = computeFlatlanderScan(world, viewerId, {
-      enabled: true,
-      rays: 11,
-      fovRad: Math.PI * 2,
-      lookOffsetRad: 0,
-      maxDistance: 300,
-      fogDensity: 0.012,
-      minVisibleIntensity: 0,
-      grayscaleMode: true,
-      includeObstacles: true,
-      includeBoundaries: true,
-      inanimateDimMultiplier: 0.65,
-    });
+    const fogField = fogFieldConfigFromWorld(world);
+    const localFog = fogDensityAt(fogField, transform.position);
+    const sightContext: SightVisibilityContext = {
+      hasDimnessCue: world.config.fogDensity > 0,
+      sightSkill: perception.sightSkill,
+      fogMinIntensity: world.config.fogMinIntensity,
+    };
+
+    const scan = computeFlatlanderScan(
+      world,
+      viewerId,
+      {
+        enabled: true,
+        rays: 11,
+        fovRad: Math.PI,
+        lookOffsetRad: 0,
+        maxDistance: Math.min(vision.range, world.config.fogMaxDistance),
+        fogDensity: world.config.fogDensity > 0 ? localFog : 0,
+        minVisibleIntensity: 0,
+        grayscaleMode: true,
+        includeObstacles: true,
+        includeBoundaries: true,
+        inanimateDimMultiplier: 1,
+      },
+      sightContext,
+    );
     const centerSample = scan.samples[Math.floor(scan.samples.length / 2)];
     expect(centerSample?.hitId).toBe(frontId);
   });

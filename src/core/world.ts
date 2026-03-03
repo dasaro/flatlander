@@ -68,6 +68,9 @@ export interface WorldConfig {
   peaceCryComplianceStillnessTicks: number;
   northYieldEtiquetteEnabled: boolean;
   northYieldRadius: number;
+  rainCurfewEnabled: boolean;
+  rainCurfewOutsideGraceTicks: number;
+  rainCurfewStillnessTicks: number;
   defaultPeaceCryCadenceTicks: number;
   defaultPeaceCryRadius: number;
   reproductionEnabled: boolean;
@@ -83,6 +86,9 @@ export interface WorldConfig {
   highOrderDevelopmentJumpMax: number;
   rarityMarriageBiasEnabled: boolean;
   rarityMarriageBiasStrength: number;
+  priestMediationEnabled: boolean;
+  priestMediationRadius: number;
+  priestMediationBias: number;
   neoTherapyEnabled: boolean;
   neoTherapyEnrollmentThresholdSides: number;
   neoTherapyAmbitionProbability: number;
@@ -249,6 +255,8 @@ export interface World {
   handshakeCounts: Map<EntityId, number>;
   yieldEventLastTick: Map<EntityId, number>;
   cryComplianceHaltLastTick: Map<EntityId, number>;
+  rainCurfewLastTick: Map<EntityId, number>;
+  rainCurfewOutsideTicks: Map<EntityId, number>;
   audiblePings: AudiblePing[];
   stabPressure: Map<string, { ticks: number }>;
   pendingDeaths: Set<EntityId>;
@@ -301,6 +309,9 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   peaceCryComplianceStillnessTicks: 3,
   northYieldEtiquetteEnabled: true,
   northYieldRadius: 170,
+  rainCurfewEnabled: true,
+  rainCurfewOutsideGraceTicks: 150,
+  rainCurfewStillnessTicks: 4,
   defaultPeaceCryCadenceTicks: 20,
   defaultPeaceCryRadius: 120,
   reproductionEnabled: true,
@@ -316,6 +327,9 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   highOrderDevelopmentJumpMax: 4,
   rarityMarriageBiasEnabled: true,
   rarityMarriageBiasStrength: 0.35,
+  priestMediationEnabled: true,
+  priestMediationRadius: 180,
+  priestMediationBias: 0.45,
   neoTherapyEnabled: true,
   neoTherapyEnrollmentThresholdSides: 9,
   neoTherapyAmbitionProbability: 0.5,
@@ -481,6 +495,8 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     handshakeCounts: new Map(),
     yieldEventLastTick: new Map(),
     cryComplianceHaltLastTick: new Map(),
+    rainCurfewLastTick: new Map(),
+    rainCurfewOutsideTicks: new Map(),
     audiblePings: [],
     stabPressure: new Map(),
     pendingDeaths: new Set(),

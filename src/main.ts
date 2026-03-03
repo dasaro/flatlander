@@ -27,6 +27,7 @@ import {
 import { computeFlatlanderScan, type FlatlanderScanResult } from './render/flatlanderScan';
 import { FlatlanderViewRenderer } from './render/flatlanderViewRenderer';
 import { PopulationHistogram } from './render/populationHistogram';
+import type { SightVisibilityContext } from './core/perception/sightVisibility';
 import { HearingSystem } from './systems/hearingSystem';
 import { PeaceCrySystem } from './systems/peaceCrySystem';
 import { RainSystem } from './systems/rainSystem';
@@ -58,6 +59,7 @@ import { VisionSystem } from './systems/visionSystem';
 import { CompensationSystem } from './systems/compensationSystem';
 import { RegularizationSystem } from './systems/regularizationSystem';
 import { CrowdStressSystem } from './systems/crowdStressSystem';
+import { CivicOrderSystem } from './systems/civicOrderSystem';
 import { PickingController } from './ui/pickingController';
 import { SelectionState } from './ui/selectionState';
 import { getVisibleLegendItems, type LegendVisibilityState } from './ui/legendModel';
@@ -143,6 +145,8 @@ const systems = [
   new HearingSystem(),
   new VisionSystem(),
   new SocialNavMindSystem(),
+  // Social/political civic constraints can override intent choices during rain.
+  new CivicOrderSystem(),
   new FeelingApproachSystem(),
   new IntroductionIntentSystem(),
   // Consume stillness requests after intent systems and before force/steering/movement.
@@ -196,6 +200,8 @@ let peaceCrySettings: PeaceCrySettings = {
   complianceStillnessTicks: 3,
   northYieldEnabled: true,
   northYieldRadius: 170,
+  rainCurfewEnabled: true,
+  rainCurfewOutsideGraceTicks: 150,
 };
 let reproductionSettings: ReproductionSettings = {
   enabled: true,
@@ -206,6 +212,9 @@ let reproductionSettings: ReproductionSettings = {
   maxPopulation: 650,
   irregularBirthsEnabled: true,
   irregularBirthBaseChance: 0.14,
+  priestMediationEnabled: true,
+  priestMediationRadius: 180,
+  priestMediationBias: 0.45,
 };
 let eventHighlightsSettings: EventHighlightsSettings = {
   enabled: true,
@@ -1074,13 +1083,41 @@ function renderFlatlanderView(frameSnapshot: Readonly<FrameSnapshot>): void {
     flatlanderViewRenderer.clearWithMessage('No eye pose for selection');
     return;
   }
+  const selectedVision = world.vision.get(selectedId);
+  const selectedPerception = world.perceptions.get(selectedId);
+  if (!selectedVision || !selectedPerception || !selectedVision.enabled || selectedPerception.sightSkill <= 0) {
+    clearFlatlanderHover();
+    flatlanderViewRenderer.clearWithMessage('Selected entity has no active sight');
+    return;
+  }
 
-  const configKey = flatlanderConfigKey(flatlanderViewSettings);
-  const baseFog = Math.max(1e-6, world.config.fogDensity);
+  const hasDimnessCue = world.config.fogDensity > 0;
   const localFog = fogDensityAt(frameSnapshot.fogField, selectedEyePose.eyeWorld);
+  const perceptionDistanceCap = Math.min(Math.max(1, selectedVision.range), world.config.fogMaxDistance);
+  const configKey = [
+    flatlanderConfigKey(flatlanderViewSettings),
+    selectedEyePose.fovRad.toFixed(6),
+    selectedVision.range.toFixed(3),
+    selectedPerception.sightSkill.toFixed(3),
+    hasDimnessCue ? localFog.toFixed(6) : '0',
+    world.config.fogMinIntensity.toFixed(6),
+  ].join('|');
   const effectiveFlatlanderSettings: FlatlanderViewSettings = {
     ...flatlanderViewSettings,
-    fogDensity: flatlanderViewSettings.fogDensity * (localFog / baseFog),
+    // Keep 1D panel aligned with the same eye/FOV/fog semantics driving behavior.
+    fovRad: selectedEyePose.fovRad,
+    lookOffsetRad: 0,
+    maxDistance: perceptionDistanceCap,
+    fogDensity: hasDimnessCue ? localFog : 0,
+    minVisibleIntensity: 0,
+    includeObstacles: true,
+    includeBoundaries: true,
+    inanimateDimMultiplier: 1,
+  };
+  const sightContext: SightVisibilityContext = {
+    hasDimnessCue,
+    sightSkill: selectedPerception.sightSkill,
+    fogMinIntensity: world.config.fogMinIntensity,
   };
   if (
     flatlanderScanDirty ||
@@ -1088,7 +1125,7 @@ function renderFlatlanderView(frameSnapshot: Readonly<FrameSnapshot>): void {
     selectedId !== lastFlatlanderScanViewerId ||
     configKey !== lastFlatlanderScanConfigKey
   ) {
-    cachedFlatlanderScan = computeFlatlanderScan(world, selectedId, effectiveFlatlanderSettings);
+    cachedFlatlanderScan = computeFlatlanderScan(world, selectedId, effectiveFlatlanderSettings, sightContext);
     lastFlatlanderScanTick = world.tick;
     lastFlatlanderScanViewerId = selectedId;
     lastFlatlanderScanConfigKey = configKey;
@@ -1509,6 +1546,11 @@ function applyPeaceCrySettingsToWorld(worldState: typeof world, settings: PeaceC
   );
   worldState.config.northYieldEtiquetteEnabled = settings.northYieldEnabled;
   worldState.config.northYieldRadius = Math.max(1, settings.northYieldRadius);
+  worldState.config.rainCurfewEnabled = settings.rainCurfewEnabled;
+  worldState.config.rainCurfewOutsideGraceTicks = Math.max(
+    1,
+    Math.round(settings.rainCurfewOutsideGraceTicks),
+  );
   worldState.config.defaultPeaceCryCadenceTicks = Math.max(1, Math.round(settings.cadenceTicks));
   worldState.config.defaultPeaceCryRadius = Math.max(0, settings.radius);
 }
@@ -1526,6 +1568,9 @@ function applyReproductionSettingsToWorld(
   worldState.config.irregularBirthsEnabled = settings.irregularBirthsEnabled;
   worldState.config.irregularBirthBaseChance = Math.max(0, Math.min(1, settings.irregularBirthBaseChance));
   worldState.config.irregularBirthChance = worldState.config.irregularBirthBaseChance;
+  worldState.config.priestMediationEnabled = settings.priestMediationEnabled;
+  worldState.config.priestMediationRadius = Math.max(0, settings.priestMediationRadius);
+  worldState.config.priestMediationBias = Math.max(0, settings.priestMediationBias);
 }
 
 function applyPeaceCryDefaultsToWomen(worldState: typeof world): void {
@@ -1534,6 +1579,10 @@ function applyPeaceCryDefaultsToWomen(worldState: typeof world): void {
 
   for (const [entityId, peaceCry] of worldState.peaceCry) {
     if (!worldState.entities.has(entityId)) {
+      continue;
+    }
+    const shape = worldState.shapes.get(entityId);
+    if (!shape || shape.kind !== 'segment') {
       continue;
     }
 

@@ -2,7 +2,7 @@ import { spawnEntity, type SpawnMovementConfig, type SpawnShapeConfig } from '..
 import { getLineagePathToRoot } from '../core/genealogy';
 import { houseCentroidWorld } from '../core/housing/houseFactory';
 import { hasHouseCapacity } from '../core/housing/shelterPolicy';
-import type { Rank } from '../core/rank';
+import { Rank } from '../core/rank';
 import { rankKeyForEntity } from '../core/rankKey';
 import {
   conceptionChanceForFather,
@@ -167,12 +167,72 @@ function buildMaleRankShares(world: World, ids: number[]): Map<Rank, number> {
   return shares;
 }
 
+interface PriestMediator {
+  id: number;
+  position: Vec2;
+}
+
+function collectPriestMediators(world: World, ids: number[]): PriestMediator[] {
+  const mediators: PriestMediator[] = [];
+  for (const id of ids) {
+    if (world.staticObstacles.has(id)) {
+      continue;
+    }
+    if (world.ranks.get(id)?.rank !== Rank.Priest) {
+      continue;
+    }
+    const transform = world.transforms.get(id);
+    if (!transform) {
+      continue;
+    }
+    mediators.push({ id, position: transform.position });
+  }
+  return mediators;
+}
+
+function priestMediationBoost(
+  world: World,
+  motherPosition: Vec2,
+  fatherPosition: Vec2,
+  mediators: PriestMediator[],
+): number {
+  if (!world.config.priestMediationEnabled || mediators.length === 0) {
+    return 1;
+  }
+  const radius = Math.max(1, world.config.priestMediationRadius);
+  const bias = clamp(world.config.priestMediationBias, 0, 2);
+  if (bias <= 0) {
+    return 1;
+  }
+
+  const midpoint = {
+    x: (motherPosition.x + fatherPosition.x) * 0.5,
+    y: (motherPosition.y + fatherPosition.y) * 0.5,
+  };
+  let nearestDistance = Number.POSITIVE_INFINITY;
+  let nearestMediatorId = Number.POSITIVE_INFINITY;
+  for (const mediator of mediators) {
+    const d = distance(midpoint, mediator.position);
+    if (d < nearestDistance || (d === nearestDistance && mediator.id < nearestMediatorId)) {
+      nearestDistance = d;
+      nearestMediatorId = mediator.id;
+    }
+  }
+
+  if (!Number.isFinite(nearestDistance) || nearestDistance >= radius) {
+    return 1;
+  }
+  const influence = 1 - nearestDistance / radius;
+  return 1 + influence * bias;
+}
+
 function nearestUnbondedFatherId(
   world: World,
   motherId: number,
   motherPosition: Vec2,
   ids: number[],
   maleRankShares: Map<Rank, number>,
+  priestMediators: PriestMediator[],
 ): number | null {
   const lowPopulationPairingBoost =
     world.entities.size <= ECO_LOW_POPULATION_PIVOT
@@ -213,7 +273,13 @@ function nearestUnbondedFatherId(
     const share = rank ? (maleRankShares.get(rank) ?? 0) : 0;
     const rarityBoost =
       rarityBiasEnabled && rank ? rarityBoostForShare(share, rarityStrength) : 1;
-    const score = candidateDistance / rarityBoost;
+    const priestBoost = priestMediationBoost(
+      world,
+      motherPosition,
+      candidateTransform.position,
+      priestMediators,
+    );
+    const score = candidateDistance / (rarityBoost * priestBoost);
 
     if (
       score < bestScore ||
@@ -283,6 +349,7 @@ function arrangeBondIfNeeded(
   motherPosition: Vec2,
   ids: number[],
   maleRankShares: Map<Rank, number>,
+  priestMediators: PriestMediator[],
 ): number | null {
   const motherBond = world.bonds.get(motherId);
   if (!motherBond) {
@@ -298,7 +365,14 @@ function arrangeBondIfNeeded(
   // Flatland Part I §3 / §12: priest-arranged pairings are modeled as a
   // deterministic rarity-aware household matching pass.
 
-  const fatherId = nearestUnbondedFatherId(world, motherId, motherPosition, ids, maleRankShares);
+  const fatherId = nearestUnbondedFatherId(
+    world,
+    motherId,
+    motherPosition,
+    ids,
+    maleRankShares,
+    priestMediators,
+  );
   if (fatherId === null) {
     return null;
   }
@@ -611,6 +685,7 @@ export class ReproductionSystem implements System {
         : 1;
 
     const maleRankShares = buildMaleRankShares(world, ids);
+    const priestMediators = collectPriestMediators(world, ids);
 
     for (const motherId of ids) {
       if (world.entities.size >= maxPopulation) {
@@ -653,7 +728,14 @@ export class ReproductionSystem implements System {
         continue;
       }
 
-      arrangeBondIfNeeded(world, motherId, motherTransform.position, ids, maleRankShares);
+      arrangeBondIfNeeded(
+        world,
+        motherId,
+        motherTransform.position,
+        ids,
+        maleRankShares,
+        priestMediators,
+      );
       const fatherId = mutuallyBondedSpouse(world, motherId);
       if (fatherId === null) {
         continue;
