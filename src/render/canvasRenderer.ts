@@ -426,23 +426,44 @@ export class CanvasRenderer {
   }
 
   private drawRainOverlay(tick: number): void {
-    const phase = tick % 240;
-    const spacing = 36;
-    const columns = Math.ceil((this.canvas.width + 120) / spacing);
-    const diagonalX = -7;
-    const diagonalY = 18;
+    const phase = tick % 300;
+    const spacing = 48;
+    const columns = Math.ceil((this.canvas.width + 140) / spacing);
+    const rows = Math.ceil((this.canvas.height + 120) / spacing);
+    const dropCount = columns * rows;
 
     this.ctx.save();
-    this.ctx.strokeStyle = 'rgba(86, 103, 124, 0.34)';
-    this.ctx.lineWidth = 1;
     this.ctx.lineCap = 'round';
+    this.ctx.lineJoin = 'round';
 
-    for (let i = 0; i < columns; i += 1) {
-      const x = ((i * spacing + phase * 2.4) % (this.canvas.width + 120)) - 60;
-      const y = (((i * 97 + phase * 6.5) % (this.canvas.height + 80)) - 40);
+    for (let i = 0; i < dropCount; i += 1) {
+      const column = i % columns;
+      const row = Math.floor(i / columns);
+      const driftX = ((row * 19 + phase * 0.35) % spacing) - spacing * 0.5;
+      const travelY = (row * spacing + phase * 2.2 + column * 7) % (this.canvas.height + 120);
+      const x = column * spacing + driftX - 40;
+      const y = travelY - 60;
+
+      const size = 3 + ((column + row) % 3) * 0.7;
+      const tail = size * 2.4;
+      const tailDx = -size * 0.55;
+
+      // Raindrop body: compact teardrop, softer than long streaks and less cluttered.
+      this.ctx.fillStyle = 'rgba(86, 114, 148, 0.32)';
       this.ctx.beginPath();
-      this.ctx.moveTo(x, y);
-      this.ctx.lineTo(x + diagonalX, y + diagonalY);
+      this.ctx.moveTo(x, y - size * 0.95);
+      this.ctx.quadraticCurveTo(x + size * 0.85, y - size * 0.2, x + size * 0.55, y + size * 0.75);
+      this.ctx.quadraticCurveTo(x, y + size * 1.45, x - size * 0.55, y + size * 0.75);
+      this.ctx.quadraticCurveTo(x - size * 0.85, y - size * 0.2, x, y - size * 0.95);
+      this.ctx.closePath();
+      this.ctx.fill();
+
+      // Tail: subtle directional cue for falling rain.
+      this.ctx.strokeStyle = 'rgba(76, 98, 128, 0.26)';
+      this.ctx.lineWidth = Math.max(0.8, size * 0.22);
+      this.ctx.beginPath();
+      this.ctx.moveTo(x, y + size * 0.55);
+      this.ctx.lineTo(x + tailDx, y + size * 0.55 + tail);
       this.ctx.stroke();
     }
 

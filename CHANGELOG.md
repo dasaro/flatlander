@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.19] - 2026-03-03
+
+### Changed
+- Improved rain visual style in God-view:
+  - replaced plain diagonal streaks with deterministic teardrop-shaped raindrops,
+  - added subtle trailing tails for motion direction,
+  - reduced visual density to keep the overlay readable and uncluttered.
+
+### Validation
+- `npm test` passed (87 files, 224 tests).
+- `npm run lint` passed.
+- `npm run build` passed.
+
 ## [0.9.18] - 2026-03-03
 
 ### Fixed
