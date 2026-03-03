@@ -868,6 +868,12 @@
           <div class="row"><span>Seek Shelter Intent</span><strong id="stat-seek-shelter">0</strong></div>
           <div class="row"><span>Seek Home Intent</span><strong id="stat-seek-home">0</strong></div>
           <div class="row"><span>Stuck Near House</span><strong id="stat-stuck-near-house">0</strong></div>
+          <div class="row"><span>Policy Transitions (tick)</span><strong id="stat-policy-transitions">0</strong></div>
+          <div class="row"><span>Inspected (tick)</span><strong id="stat-inspection-inspected">0</strong></div>
+          <div class="row">
+            <span>Hospitalized by Inspection (tick)</span><strong id="stat-inspection-hospitalized">0</strong>
+          </div>
+          <div class="row"><span>Inspection Executions (tick)</span><strong id="stat-inspection-executed">0</strong></div>
           <div class="row"><span>Rain Active</span><strong id="stat-rain-active">0</strong></div>
           <ul id="rank-list" class="rank-list"></ul>
         </section>
@@ -908,6 +914,13 @@
             <label><input id="timeline-type-handshake" type="checkbox" checked /> handshake</label>
             <label><input id="timeline-type-house-enter" type="checkbox" checked /> enter house</label>
             <label><input id="timeline-type-house-exit" type="checkbox" checked /> exit house</label>
+            <label>
+              <input id="timeline-type-inspection-hospitalized" type="checkbox" checked /> hospitalized (inspection)
+            </label>
+            <label>
+              <input id="timeline-type-inspection-executed" type="checkbox" checked /> inspection death
+            </label>
+            <label><input id="timeline-type-policy-shift" type="checkbox" checked /> policy shift</label>
             <label><input id="timeline-type-death" type="checkbox" checked /> death</label>
             <label><input id="timeline-type-birth" type="checkbox" checked /> birth</label>
             <label><input id="timeline-type-regularized" type="checkbox" checked /> regularized</label>

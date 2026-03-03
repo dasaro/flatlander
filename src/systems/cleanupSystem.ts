@@ -65,6 +65,7 @@ export class CleanupSystem implements System {
       world.cryComplianceHaltLastTick.delete(id);
       world.rainCurfewLastTick.delete(id);
       world.rainCurfewOutsideTicks.delete(id);
+      world.inspectionConfinement.delete(id);
       world.geometries.delete(id);
       world.lastCorrections.delete(id);
       world.houseContactStreaks.delete(id);

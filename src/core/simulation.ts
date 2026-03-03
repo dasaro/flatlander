@@ -86,6 +86,10 @@ export class FixedTimestepSimulation {
     this.world.regularizedThisTick = 0;
     this.world.handshakeStartedThisTick = 0;
     this.world.handshakeCompletedThisTick = 0;
+    this.world.policyTransitionsThisTick = 0;
+    this.world.inspectionInspectedThisTick = 0;
+    this.world.inspectionHospitalizedThisTick = 0;
+    this.world.inspectionExecutedThisTick = 0;
 
     for (const system of this.systems) {
       system.update(this.world, tickDuration);

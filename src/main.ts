@@ -60,6 +60,8 @@ import { CompensationSystem } from './systems/compensationSystem';
 import { RegularizationSystem } from './systems/regularizationSystem';
 import { CrowdStressSystem } from './systems/crowdStressSystem';
 import { CivicOrderSystem } from './systems/civicOrderSystem';
+import { PolicyRegimeSystem } from './systems/policyRegimeSystem';
+import { InspectionSystem } from './systems/inspectionSystem';
 import { PickingController } from './ui/pickingController';
 import { SelectionState } from './ui/selectionState';
 import { getVisibleLegendItems, type LegendVisibilityState } from './ui/legendModel';
@@ -89,6 +91,9 @@ const TIMELINE_TYPE_CONTROL_IDS: Partial<Record<EventType, string>> = {
   handshake: 'timeline-type-handshake',
   houseEnter: 'timeline-type-house-enter',
   houseExit: 'timeline-type-house-exit',
+  inspectionHospitalized: 'timeline-type-inspection-hospitalized',
+  inspectionExecuted: 'timeline-type-inspection-executed',
+  policyShift: 'timeline-type-policy-shift',
   death: 'timeline-type-death',
   birth: 'timeline-type-birth',
   regularized: 'timeline-type-regularized',
@@ -142,6 +147,8 @@ const systems = [
   // Peace-cry must run before hearing and SocialNav mind so etiquette reacts to same-tick signals.
   new PeaceCrySystem(),
   new RainSystem(),
+  // Policy regime is computed before deliberative behavior and enforcement.
+  new PolicyRegimeSystem(),
   new HearingSystem(),
   new VisionSystem(),
   new SocialNavMindSystem(),
@@ -149,6 +156,8 @@ const systems = [
   new CivicOrderSystem(),
   new FeelingApproachSystem(),
   new IntroductionIntentSystem(),
+  // Inspection can impose stillness requests before they are resolved.
+  new InspectionSystem(),
   // Consume stillness requests after intent systems and before force/steering/movement.
   new StillnessControllerSystem(),
   new SouthAttractionSystem(),
@@ -1251,6 +1260,9 @@ function renderNarrativeOverview(): void {
     'handshake',
     'houseEnter',
     'houseExit',
+    'inspectionHospitalized',
+    'inspectionExecuted',
+    'policyShift',
     'death',
     'birth',
     'regularized',

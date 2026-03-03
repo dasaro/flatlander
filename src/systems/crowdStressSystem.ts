@@ -1,6 +1,7 @@
 import { isEntityOutside } from '../core/housing/dwelling';
 import { ensureCoherentJobForEntity } from '../core/jobs';
 import { retitleName } from '../core/names';
+import { crowdStressMultiplierForPolicy } from '../core/policy';
 import { rankFromShape } from '../core/rank';
 import { rankKeyForEntity } from '../core/rankKey';
 import { getSortedEntityIds } from '../core/world';
@@ -205,6 +206,7 @@ export class CrowdStressSystem implements System {
       overloadRatio *
       GLOBAL_OVERLOAD_STRESS_WEIGHT *
       (world.weather.isRaining && world.config.rainEnabled ? RAIN_GLOBAL_OVERLOAD_MULTIPLIER : 1);
+    const policyStressMultiplier = crowdStressMultiplierForPolicy(world.policy.phase);
     const rainExposureActive = world.config.rainEnabled && world.weather.isRaining;
     const southStartY = world.config.height * world.config.southAttractionZoneStartFrac;
     const southSpan = Math.max(1, world.config.height - southStartY);
@@ -253,7 +255,7 @@ export class CrowdStressSystem implements System {
             );
           })()
         : 0;
-      const stress = localStress + globalOverloadStress + rainExposureStress;
+      const stress = (localStress + globalOverloadStress + rainExposureStress) * policyStressMultiplier;
       if (stress <= 0) {
         continue;
       }

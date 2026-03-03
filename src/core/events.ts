@@ -1,4 +1,5 @@
 import type { Vec2 } from '../geometry/vector';
+import type { PolicyRegimePhase } from './policy';
 
 export type HouseTransitionReason =
   | 'RainShelter'
@@ -12,6 +13,13 @@ export type HandshakeFailureReason =
   | 'PartnerMissing'
   | 'StillnessNotSatisfied'
   | 'KnowledgeNotEstablished';
+
+export type PolicyShiftReason =
+  | 'IrregularitySpike'
+  | 'Overcrowding'
+  | 'SuppressionOrder'
+  | 'Deescalation'
+  | 'StabilityRestored';
 
 export type WorldEvent =
   | {
@@ -115,6 +123,29 @@ export type WorldEvent =
       pos: Vec2;
       entityRankKey?: string;
     }
+  | {
+      type: 'inspectionHospitalized';
+      tick: number;
+      entityId: number;
+      pos: Vec2;
+      deviationDeg: number;
+      durationTicks: number;
+      rankKey?: string;
+    }
+  | {
+      type: 'inspectionExecuted';
+      tick: number;
+      entityId: number;
+      pos: Vec2;
+      deviationDeg: number;
+      rankKey?: string;
+    }
+  | {
+      type: 'policyShift';
+      tick: number;
+      phase: PolicyRegimePhase;
+      reason: PolicyShiftReason;
+    }
   | { type: 'regularized'; tick: number; entityId: number; pos: Vec2; rankKey?: string };
 
 export class EventQueue {
@@ -162,6 +193,11 @@ export function eventInvolvedIds(event: WorldEvent): number[] {
     case 'houseEnter':
     case 'houseExit':
       return [event.entityId, event.houseId];
+    case 'inspectionHospitalized':
+    case 'inspectionExecuted':
+      return [event.entityId];
+    case 'policyShift':
+      return [];
     case 'regularized':
       return [event.entityId];
     default:

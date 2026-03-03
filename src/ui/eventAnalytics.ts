@@ -39,6 +39,9 @@ const EVENT_TYPES: EventType[] = [
   'handshake',
   'houseEnter',
   'houseExit',
+  'inspectionHospitalized',
+  'inspectionExecuted',
+  'policyShift',
   'death',
   'birth',
   'regularized',
@@ -58,6 +61,9 @@ function emptyCountsByType(): Record<EventType, number> {
     birth: 0,
     houseEnter: 0,
     houseExit: 0,
+    inspectionHospitalized: 0,
+    inspectionExecuted: 0,
+    policyShift: 0,
     regularized: 0,
   };
 }
@@ -76,6 +82,9 @@ function emptyByTypeByRank(): Record<EventType, Record<string, number>> {
     birth: {},
     houseEnter: {},
     houseExit: {},
+    inspectionHospitalized: {},
+    inspectionExecuted: {},
+    policyShift: {},
     regularized: {},
   };
 }
@@ -94,6 +103,9 @@ function emptyReasonsByType(): Record<EventType, Record<string, number>> {
     birth: {},
     houseEnter: {},
     houseExit: {},
+    inspectionHospitalized: {},
+    inspectionExecuted: {},
+    policyShift: {},
     regularized: {},
   };
 }
@@ -104,6 +116,8 @@ function reasonForEvent(event: WorldEvent): string | null {
       return event.reason;
     case 'houseEnter':
     case 'houseExit':
+      return event.reason;
+    case 'policyShift':
       return event.reason;
     default:
       return null;
@@ -132,6 +146,11 @@ function rankKeysForEvent(event: WorldEvent): string[] {
     case 'houseEnter':
     case 'houseExit':
       return [event.entityRankKey ?? 'Unknown'];
+    case 'inspectionHospitalized':
+    case 'inspectionExecuted':
+      return [event.rankKey ?? 'Unknown'];
+    case 'policyShift':
+      return [`Policy:${event.phase}`];
     case 'regularized':
       return [event.rankKey ?? 'Unknown'];
     default:

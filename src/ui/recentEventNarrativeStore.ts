@@ -60,11 +60,34 @@ function handshakeFailureLabel(reason: string): string {
   }
 }
 
+function policyShiftReasonLabel(reason: string): string {
+  switch (reason) {
+    case 'IrregularitySpike':
+      return 'an irregularity spike';
+    case 'Overcrowding':
+      return 'overcrowding pressure';
+    case 'SuppressionOrder':
+      return 'a suppression order';
+    case 'Deescalation':
+      return 'de-escalation';
+    case 'StabilityRestored':
+      return 'stability restoration';
+    default:
+      return reason;
+  }
+}
+
 function scoreForType(type: WorldEvent['type']): number {
   switch (type) {
     case 'peaceCryComplianceHalt':
     case 'yieldToLady':
       return 2;
+    case 'inspectionExecuted':
+      return 7;
+    case 'policyShift':
+      return 6;
+    case 'inspectionHospitalized':
+      return 5;
     case 'death':
       return 6;
     case 'regularized':
@@ -215,6 +238,57 @@ function eventToNarrativeItem(event: WorldEvent): StoredNarrativeItem | null {
         score: scoreForType(event.type),
       };
     }
+    case 'inspectionHospitalized': {
+      const text = pickTemplate(
+        [event.tick, event.entityId],
+        [
+          `Inspection desk: #${event.entityId} was sent to hospital ward for deviation ${event.deviationDeg.toFixed(2)}°.`,
+          `Civic order: inspectors confined #${event.entityId} for ${event.durationTicks} ticks after measuring ${event.deviationDeg.toFixed(2)}° deviation.`,
+          `Public bulletin: #${event.entityId} entered treatment under inspection review (${event.deviationDeg.toFixed(2)}°).`,
+        ],
+      );
+      return {
+        tick: event.tick,
+        text,
+        type: event.type,
+        entityIds: [event.entityId],
+        score: scoreForType(event.type),
+      };
+    }
+    case 'inspectionExecuted': {
+      const text = pickTemplate(
+        [event.tick, event.entityId],
+        [
+          `Inspection docket: #${event.entityId} was condemned after a ${event.deviationDeg.toFixed(2)}° reading.`,
+          `Late edition: inspectors executed #${event.entityId} over severe irregularity (${event.deviationDeg.toFixed(2)}°).`,
+          `Policy watch: #${event.entityId} fell to inspection enforcement (${event.deviationDeg.toFixed(2)}°).`,
+        ],
+      );
+      return {
+        tick: event.tick,
+        text,
+        type: event.type,
+        entityIds: [event.entityId],
+        score: scoreForType(event.type),
+      };
+    }
+    case 'policyShift': {
+      const text = pickTemplate(
+        [event.tick],
+        [
+          `Council note: the city shifted into ${event.phase} phase due to ${policyShiftReasonLabel(event.reason)}.`,
+          `Government circular: regime moved to ${event.phase} following ${policyShiftReasonLabel(event.reason)}.`,
+          `Front page: policy entered ${event.phase} mode as officials cited ${policyShiftReasonLabel(event.reason)}.`,
+        ],
+      );
+      return {
+        tick: event.tick,
+        text,
+        type: event.type,
+        entityIds: [],
+        score: scoreForType(event.type),
+      };
+    }
     case 'handshake': {
       const text = pickTemplate(
         [event.tick, event.aId, event.bId],
@@ -306,6 +380,7 @@ export class RecentEventNarrativeStore {
     const denseCaps: Partial<Record<WorldEvent['type'], number>> = {
       peaceCry: 2,
       stab: 4,
+      policyShift: 1,
     };
     const denseCounts: Partial<Record<WorldEvent['type'], number>> = {};
     for (const event of events) {

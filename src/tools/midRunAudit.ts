@@ -24,7 +24,9 @@ import { LethalitySystem } from '../systems/lethalitySystem';
 import { MovementSystem } from '../systems/movementSystem';
 import { NeoTherapySystem } from '../systems/neoTherapySystem';
 import { PeaceCrySystem } from '../systems/peaceCrySystem';
+import { PolicyRegimeSystem } from '../systems/policyRegimeSystem';
 import { RainSystem } from '../systems/rainSystem';
+import { InspectionSystem } from '../systems/inspectionSystem';
 import { RegularizationSystem } from '../systems/regularizationSystem';
 import { ReproductionSystem } from '../systems/reproductionSystem';
 import { SleepSystem } from '../systems/sleepSystem';
@@ -127,11 +129,13 @@ function createSimulation(seed: number): FixedTimestepSimulation {
   return new FixedTimestepSimulation(world, [
     new PeaceCrySystem(),
     new RainSystem(),
+    new PolicyRegimeSystem(),
     new HearingSystem(),
     new VisionSystem(),
     new SocialNavMindSystem(),
     new FeelingApproachSystem(),
     new IntroductionIntentSystem(),
+    new InspectionSystem(),
     new StillnessControllerSystem(),
     new SouthAttractionSystem(),
     new IntelligenceGrowthSystem(),

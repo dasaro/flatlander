@@ -34,6 +34,9 @@ const TYPE_COLORS: Record<EventType, string> = {
   birth: '#60845c',
   houseEnter: '#4f7f58',
   houseExit: '#4b6582',
+  inspectionHospitalized: '#496b9b',
+  inspectionExecuted: '#6d2f2f',
+  policyShift: '#7a5d2e',
   regularized: '#6c57a8',
 };
 
@@ -44,6 +47,9 @@ const TIMELINE_TYPE_ORDER: EventType[] = [
   'handshake',
   'houseEnter',
   'houseExit',
+  'inspectionHospitalized',
+  'inspectionExecuted',
+  'policyShift',
   'death',
   'birth',
   'regularized',
@@ -63,6 +69,12 @@ function typeLabel(type: EventType): string {
       return 'Enter House';
     case 'houseExit':
       return 'Exit House';
+    case 'inspectionHospitalized':
+      return 'Hospitalized';
+    case 'inspectionExecuted':
+      return 'Inspection Death';
+    case 'policyShift':
+      return 'Policy Shift';
     case 'death':
       return 'Death';
     case 'birth':

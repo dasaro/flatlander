@@ -8,7 +8,9 @@ import { AvoidanceSteeringSystem } from '../systems/avoidanceSteeringSystem';
 import { CollisionSystem } from '../systems/collisionSystem';
 import { HouseSystem } from '../systems/houseSystem';
 import { MovementSystem } from '../systems/movementSystem';
+import { PolicyRegimeSystem } from '../systems/policyRegimeSystem';
 import { RainSystem } from '../systems/rainSystem';
+import { InspectionSystem } from '../systems/inspectionSystem';
 import { SocialNavMindSystem } from '../systems/socialNavMindSystem';
 import { SocialNavSteeringSystem } from '../systems/socialNavSteeringSystem';
 import { SouthAttractionSystem } from '../systems/southAttractionSystem';
@@ -60,7 +62,9 @@ function createSimulation(seed: number): FixedTimestepSimulation {
   // movement, collision manifolds, and house transitions.
   return new FixedTimestepSimulation(world, [
     new RainSystem(),
+    new PolicyRegimeSystem(),
     new SocialNavMindSystem(),
+    new InspectionSystem(),
     new StillnessControllerSystem(),
     new SouthAttractionSystem(),
     new SocialNavSteeringSystem(),

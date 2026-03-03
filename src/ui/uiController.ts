@@ -399,6 +399,10 @@ interface InputRefs {
   seekShelterIntentValue: HTMLElement;
   seekHomeIntentValue: HTMLElement;
   stuckNearHouseValue: HTMLElement;
+  policyTransitionsValue: HTMLElement;
+  inspectionInspectedValue: HTMLElement;
+  inspectionHospitalizedValue: HTMLElement;
+  inspectionExecutedValue: HTMLElement;
   rainActiveValue: HTMLElement;
   rankList: HTMLElement;
 }
@@ -508,6 +512,10 @@ export class UIController {
     this.refs.seekShelterIntentValue.textContent = String(world.seekShelterIntentCount);
     this.refs.seekHomeIntentValue.textContent = String(world.seekHomeIntentCount);
     this.refs.stuckNearHouseValue.textContent = String(world.stuckNearHouseCount);
+    this.refs.policyTransitionsValue.textContent = String(world.policyTransitionsThisTick);
+    this.refs.inspectionInspectedValue.textContent = String(world.inspectionInspectedThisTick);
+    this.refs.inspectionHospitalizedValue.textContent = String(world.inspectionHospitalizedThisTick);
+    this.refs.inspectionExecutedValue.textContent = String(world.inspectionExecutedThisTick);
     let totalInside = 0;
     for (const dwelling of world.dwellings.values()) {
       if (dwelling.state === 'inside') {
@@ -2165,6 +2173,10 @@ function collectRefs(): InputRefs {
     seekShelterIntentValue: required<HTMLElement>('stat-seek-shelter'),
     seekHomeIntentValue: required<HTMLElement>('stat-seek-home'),
     stuckNearHouseValue: required<HTMLElement>('stat-stuck-near-house'),
+    policyTransitionsValue: required<HTMLElement>('stat-policy-transitions'),
+    inspectionInspectedValue: required<HTMLElement>('stat-inspection-inspected'),
+    inspectionHospitalizedValue: required<HTMLElement>('stat-inspection-hospitalized'),
+    inspectionExecutedValue: required<HTMLElement>('stat-inspection-executed'),
     rainActiveValue: required<HTMLElement>('stat-rain-active'),
     rankList: required<HTMLElement>('rank-list'),
   };

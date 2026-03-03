@@ -44,6 +44,7 @@ import type {
 import { SeededRng } from './rng';
 import type { RankComponent } from './rank';
 import type { ShapeComponent } from './shapes';
+import type { PolicyRegimeState } from './policy';
 
 export interface WorldConfig {
   width: number;
@@ -89,6 +90,19 @@ export interface WorldConfig {
   priestMediationEnabled: boolean;
   priestMediationRadius: number;
   priestMediationBias: number;
+  policyRegimeEnabled: boolean;
+  policyTriggerIrregularShare: number;
+  policyTriggerOvercrowding: number;
+  policyAgitationTicks: number;
+  policySuppressionTicks: number;
+  policyCooldownTicks: number;
+  inspectionEnabled: boolean;
+  inspectionCadenceTicks: number;
+  inspectionSampleSize: number;
+  inspectionHospitalizeDeviationDeg: number;
+  inspectionExecuteDeviationDeg: number;
+  inspectionHospitalizeTicks: number;
+  inspectionMaxExecutionsPerPass: number;
   neoTherapyEnabled: boolean;
   neoTherapyEnrollmentThresholdSides: number;
   neoTherapyAmbitionProbability: number;
@@ -257,6 +271,8 @@ export interface World {
   cryComplianceHaltLastTick: Map<EntityId, number>;
   rainCurfewLastTick: Map<EntityId, number>;
   rainCurfewOutsideTicks: Map<EntityId, number>;
+  inspectionConfinement: Map<EntityId, { ticksRemaining: number }>;
+  policy: PolicyRegimeState;
   audiblePings: AudiblePing[];
   stabPressure: Map<string, { ticks: number }>;
   pendingDeaths: Set<EntityId>;
@@ -276,6 +292,10 @@ export interface World {
   handshakeStartedThisTick: number;
   handshakeCompletedThisTick: number;
   handshakeCompletedTotal: number;
+  policyTransitionsThisTick: number;
+  inspectionInspectedThisTick: number;
+  inspectionHospitalizedThisTick: number;
+  inspectionExecutedThisTick: number;
   geometries: Map<EntityId, GeometryShape>;
   lastCorrections: Map<EntityId, number>;
   houseContactStreaks: Map<EntityId, { houseId: EntityId; ticks: number }>;
@@ -330,6 +350,19 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   priestMediationEnabled: true,
   priestMediationRadius: 180,
   priestMediationBias: 0.45,
+  policyRegimeEnabled: true,
+  policyTriggerIrregularShare: 0.09,
+  policyTriggerOvercrowding: 1.25,
+  policyAgitationTicks: 900,
+  policySuppressionTicks: 1200,
+  policyCooldownTicks: 1600,
+  inspectionEnabled: true,
+  inspectionCadenceTicks: 120,
+  inspectionSampleSize: 8,
+  inspectionHospitalizeDeviationDeg: 0.45,
+  inspectionExecuteDeviationDeg: 1.4,
+  inspectionHospitalizeTicks: 300,
+  inspectionMaxExecutionsPerPass: 1,
   neoTherapyEnabled: true,
   neoTherapyEnrollmentThresholdSides: 9,
   neoTherapyAmbitionProbability: 0.5,
@@ -497,6 +530,12 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     cryComplianceHaltLastTick: new Map(),
     rainCurfewLastTick: new Map(),
     rainCurfewOutsideTicks: new Map(),
+    inspectionConfinement: new Map(),
+    policy: {
+      phase: 'normal',
+      ticksRemaining: 0,
+      cycle: 0,
+    },
     audiblePings: [],
     stabPressure: new Map(),
     pendingDeaths: new Set(),
@@ -522,6 +561,10 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     handshakeStartedThisTick: 0,
     handshakeCompletedThisTick: 0,
     handshakeCompletedTotal: 0,
+    policyTransitionsThisTick: 0,
+    inspectionInspectedThisTick: 0,
+    inspectionHospitalizedThisTick: 0,
+    inspectionExecutedThisTick: 0,
     geometries: new Map(),
     lastCorrections: new Map(),
     houseContactStreaks: new Map(),

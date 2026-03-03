@@ -28,6 +28,9 @@ const NARRATIVE_EVENT_TYPES: EventType[] = [
   'handshake',
   'houseEnter',
   'houseExit',
+  'inspectionHospitalized',
+  'inspectionExecuted',
+  'policyShift',
   'stab',
   'peaceCry',
   'death',
@@ -83,6 +86,23 @@ function describeHandshakeFailureReason(reason: string): string {
   }
 }
 
+function describePolicyShiftReason(reason: string): string {
+  switch (reason) {
+    case 'IrregularitySpike':
+      return 'an irregularity spike';
+    case 'Overcrowding':
+      return 'overcrowding pressure';
+    case 'SuppressionOrder':
+      return 'a suppression order';
+    case 'Deescalation':
+      return 'de-escalation';
+    case 'StabilityRestored':
+      return 'restored stability';
+    default:
+      return reason;
+  }
+}
+
 function pickByTick(tick: number, options: string[]): string {
   if (options.length === 0) {
     return '';
@@ -112,6 +132,9 @@ function aggregateRecent(
     birth: 0,
     houseEnter: 0,
     houseExit: 0,
+    inspectionHospitalized: 0,
+    inspectionExecuted: 0,
+    policyShift: 0,
     regularized: 0,
   };
   const reasonsByType: Record<EventType, Record<string, number>> = {
@@ -127,6 +150,9 @@ function aggregateRecent(
     birth: {},
     houseEnter: {},
     houseExit: {},
+    inspectionHospitalized: {},
+    inspectionExecuted: {},
+    policyShift: {},
     regularized: {},
   };
 
@@ -166,6 +192,9 @@ export function buildNarrativeOverview(
   const regularized = recent.countsByType.regularized;
   const houseEnter = recent.countsByType.houseEnter;
   const houseExit = recent.countsByType.houseExit;
+  const inspectedHospitalized = recent.countsByType.inspectionHospitalized;
+  const inspectionExecuted = recent.countsByType.inspectionExecuted;
+  const policyShifts = recent.countsByType.policyShift;
   const yieldEvents = recent.countsByType.yieldToLady;
   const cryHalts = recent.countsByType.peaceCryComplianceHalt;
   const stabs = Math.max(recent.countsByType.stab, Math.max(0, Math.round(input.recentStabs ?? 0)));
@@ -181,6 +210,10 @@ export function buildNarrativeOverview(
     headline = 'Rain phase: most inhabitants are sheltering or moving to doors.';
   } else if (input.isRaining) {
     headline = 'Rain phase: shelter demand is active but many inhabitants remain exposed.';
+  } else if (inspectionExecuted >= Math.max(1, births)) {
+    headline = 'Inspection crackdown: coercive policy is driving visible losses.';
+  } else if (policyShifts > 0) {
+    headline = 'Policy transition: civic rules are actively shifting this interval.';
   } else if (stabs >= Math.max(2, births + 1)) {
     headline = 'Street tension phase: sharp contacts are dominating civic traffic.';
   } else if (deaths > births * 1.25 && deaths > 0) {
@@ -207,6 +240,21 @@ export function buildNarrativeOverview(
     reasonCandidates.push({
       score: input.isRaining ? 0.9 : 0.72,
       text: `House entries are mainly driven by ${describeHouseReason(topEntryReason.reason)} (${topEntryReason.count} recent events).`,
+    });
+  }
+
+  const topPolicyShiftReason = topReason(recent.reasonsByType.policyShift);
+  if (policyShifts > 0 && topPolicyShiftReason) {
+    reasonCandidates.push({
+      score: 0.91,
+      text: `Policy desk: ${policyShifts} regime shift events, led by ${describePolicyShiftReason(topPolicyShiftReason.reason)} (${topPolicyShiftReason.count}x).`,
+    });
+  }
+
+  if (inspectedHospitalized > 0 || inspectionExecuted > 0) {
+    reasonCandidates.push({
+      score: inspectionExecuted > 0 ? 0.93 : 0.74,
+      text: `Inspection office: ${inspectedHospitalized} hospitalizations and ${inspectionExecuted} executions in the recent window.`,
     });
   }
 
@@ -239,7 +287,7 @@ export function buildNarrativeOverview(
 
   reasonCandidates.push({
     score: stabs > Math.max(2, births + 1) ? 0.87 : 0.52,
-    text: `Notable events (recent): house entries ${houseEnter}, exits ${houseExit}, stabs ${stabs}, peace-cries ${peaceCries}, regularizations ${regularized}.`,
+    text: `Notable events (recent): house entries ${houseEnter}, exits ${houseExit}, stabs ${stabs}, peace-cries ${peaceCries}, regularizations ${regularized}, policy shifts ${policyShifts}.`,
   });
 
   const notableEvents = input.notableEvents ?? [];
@@ -267,6 +315,12 @@ export function buildNarrativeOverview(
       `Gazette: recovery column says ${births} births now outpace ${deaths} deaths.`,
       `Gazette: nurseries win this round (${births} arrivals, ${deaths} departures).`,
       `Gazette: census clerks are smiling: +${Math.max(0, births - deaths)} net lately.`,
+    ]);
+  } else if (policyShifts > 0 || inspectedHospitalized > 0 || inspectionExecuted > 0) {
+    bulletinLine = pickByTick(input.tick, [
+      `Gazette: inspection teams logged ${inspectedHospitalized} hospitalizations and ${inspectionExecuted} executions under ${policyShifts} policy shifts.`,
+      `Gazette: civic regime churn continues (${policyShifts} shifts); inspectors moved ${inspectedHospitalized} cases and closed ${inspectionExecuted}.`,
+      `Gazette: policy desk reports ${policyShifts} shifts with inspection outcomes ${inspectedHospitalized}/${inspectionExecuted} (hospitalized/executed).`,
     ]);
   } else if (input.isRaining) {
     bulletinLine = pickByTick(input.tick, [

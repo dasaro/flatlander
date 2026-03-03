@@ -9,6 +9,7 @@ import {
   determineChildSex,
   determineMaleChildShapeFromParents,
 } from '../core/reproduction/offspringPolicy';
+import { conceptionMultiplierForPolicy } from '../core/policy';
 import { boundaryFromTopology } from '../core/topology';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
@@ -750,8 +751,12 @@ export class ReproductionSystem implements System {
       }
 
       const baseChance = conceptionChanceForFather(world, fatherId);
+      const policyMultiplier = conceptionMultiplierForPolicy(world.policy.phase);
       const effectiveChance = clamp(
-        baseChance * densityConceptionMultiplier(world) * maleScarcityConceptionBoost,
+        baseChance *
+          densityConceptionMultiplier(world) *
+          maleScarcityConceptionBoost *
+          policyMultiplier,
         0,
         1,
       );

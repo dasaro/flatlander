@@ -8,6 +8,7 @@ import {
   LOW_HP_HOME_RETURN_THRESHOLD,
   shouldSeekShelter,
 } from '../core/housing/shelterPolicy';
+import { shelterUrgencyBoostForPolicy } from '../core/policy';
 import { rankKeyForEntity } from '../core/rankKey';
 import { Rank } from '../core/rank';
 import { requestStillness } from '../core/stillness';
@@ -405,6 +406,7 @@ export class SocialNavMindSystem implements System {
       const durability = world.durability.get(id);
       const hpRatio = durability && durability.maxHp > 0 ? durability.hp / durability.maxHp : 1;
       const isWoman = world.ranks.get(id)?.rank === Rank.Woman;
+      const shelterPolicyBoost = shelterUrgencyBoostForPolicy(world.policy.phase);
       const womanCryPressure = !isWoman && womanCry ? womanCry.pressure : 0;
       const routineHomeWindow = world.tick % 1_600 < 45;
       const spouseBonded = bond?.spouseId !== null && bond?.spouseId !== undefined;
@@ -484,17 +486,19 @@ export class SocialNavMindSystem implements System {
         !homeWanted || homeDoorTarget === null
           ? 0
           : world.weather.isRaining
-            ? Math.max(0.65, Math.max(0, (240 - homeDoorTarget.distance) / 240))
+            ? Math.max(0.65, Math.max(0, (240 - homeDoorTarget.distance) / 240)) * shelterPolicyBoost
             : Math.max(0.28, Math.max(0, (240 - homeDoorTarget.distance) / 240)) +
-              socialCrowdPressure * 0.16 +
+              socialCrowdPressure * 0.16 * shelterPolicyBoost +
               southRisk * 0.12;
       const desireShelter =
         !shelterWanted || shelterTarget === null
           ? 0
           : world.weather.isRaining
-            ? Math.max(1.1, Math.max(0, (220 - shelterTarget.distance) / 220)) * (isWoman ? 1.25 : 1)
+            ? Math.max(1.1, Math.max(0, (220 - shelterTarget.distance) / 220)) *
+              (isWoman ? 1.25 : 1) *
+              shelterPolicyBoost
             : Math.max(0.24, Math.max(0, (220 - shelterTarget.distance) / 220)) +
-              socialCrowdPressure * 0.34 +
+              socialCrowdPressure * 0.34 * shelterPolicyBoost +
               southRisk * 0.1;
       let desireMate =
         mate === null
