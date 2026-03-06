@@ -812,6 +812,7 @@ function renderSelection(): void {
   const fertility = world.fertility.get(selectedId) ?? null;
   const pregnancy = world.pregnancies.get(selectedId) ?? null;
   const age = world.ages.get(selectedId) ?? null;
+  const brainAngleDeg = world.brainAngles.get(selectedId)?.brainAngleDeg ?? null;
   const irregularity = world.irregularity.get(selectedId) ?? null;
   const femaleStatus = world.femaleStatus.get(selectedId) ?? null;
   const sway = world.sway.get(selectedId) ?? null;
@@ -859,6 +860,7 @@ function renderSelection(): void {
     fertility,
     pregnancy,
     age,
+    brainAngleDeg,
     irregularity,
     femaleStatus,
     sway,
@@ -874,6 +876,7 @@ function renderSelection(): void {
 
 function renderNoSelectionInspector(): void {
   ui.renderSelected(
+    null,
     null,
     null,
     null,

@@ -10,6 +10,12 @@ export interface EntityVisualAlphaInput {
   ageHalfLifeTicks: number;
 }
 
+export interface FinalEntityAlphaInput extends EntityVisualAlphaInput {
+  fogIntensity: number | null;
+  fogPreviewStrength: number;
+  isSelected: boolean;
+}
+
 export function ageAlphaFactor(ticksAlive: number, strength: number, ageHalfLifeTicks: number): number {
   const safeHalfLife = Math.max(1, ageHalfLifeTicks);
   const ageNorm = clamp(ticksAlive / safeHalfLife, 0, 1);
@@ -22,8 +28,9 @@ export function durabilityAlphaFactor(hp: number, maxHp: number, strength: numbe
   }
 
   const hpNorm = clamp(hp / maxHp, 0, 1);
-  const floor = 1 - 0.7 * clamp(strength, 0, 1);
-  return floor + (1 - floor) * hpNorm;
+  const safeStrength = clamp(strength, 0, 1);
+  const floor = 1 - 0.82 * safeStrength;
+  return floor + (1 - floor) * hpNorm ** 0.72;
 }
 
 export function visualAlpha(input: EntityVisualAlphaInput): number {
@@ -38,6 +45,25 @@ export function visualAlpha(input: EntityVisualAlphaInput): number {
     alpha *= durabilityAlphaFactor(input.hp, input.maxHp, strength);
   }
 
+  return clamp(alpha, 0.05, 1);
+}
+
+export function fogPreviewAlphaFactor(fogIntensity: number, fogPreviewStrength: number): number {
+  const previewStrength = clamp(fogPreviewStrength, 0, 1);
+  const intensity = clamp(fogIntensity, 0, 1);
+  const fogFactor = intensity ** (1 + previewStrength * 2.5);
+  return clamp(1 + (fogFactor - 1) * previewStrength, 0.05, 1);
+}
+
+export function finalEntityAlpha(input: FinalEntityAlphaInput): number {
+  let alpha = visualAlpha(input);
+  if (input.fogIntensity !== null) {
+    alpha *= fogPreviewAlphaFactor(input.fogIntensity, input.fogPreviewStrength);
+  }
+  alpha = clamp(alpha, 0.05, 1);
+  if (input.isSelected) {
+    alpha = Math.max(alpha, 0.85);
+  }
   return clamp(alpha, 0.05, 1);
 }
 

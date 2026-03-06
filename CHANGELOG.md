@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.23] - 2026-03-06
+
+### Fixed
+- Centralized entity alpha composition so HP dimming, age dimming, fog-preview fading, and selected-entity readability no longer fight each other in the renderer.
+- Pregnant segments now keep a visible accent stroke even when selection, hover, or kill-count styling is active.
+
+### Changed
+- Inspector triangle metadata now shows the canonical inherited brain angle directly, making isosceles generational ascent observable without enabling the non-canon compensation path.
+
+### Validation
+- `npm test` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `node --import tsx src/tools/midRunAudit.ts 5000` executed; the existing ecology acceptance thresholds remain red on this short audit horizon.
+
 ## [0.9.22] - 2026-03-06
 
 ### Fixed

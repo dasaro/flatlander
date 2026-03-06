@@ -13,7 +13,7 @@ import type { Vec2 } from '../geometry/vector';
 import type { Camera } from './camera';
 import { contactCurveControlPoint, selectTopKnownIds } from './contactNetwork';
 import type { EffectsManager } from './effects';
-import { fogIntensityAtDistance, fogRingRadiusForLevel, visualAlpha } from './viewModifiers';
+import { finalEntityAlpha, fogIntensityAtDistance, fogRingRadiusForLevel } from './viewModifiers';
 import type { FrameSnapshot } from '../ui/frameSnapshot';
 
 export interface RenderOptions {
@@ -160,7 +160,24 @@ export class CanvasRenderer {
       const defaultStroke =
         shape.kind === 'polygon' && shape.sides === 3 && !isSelected ? fillColor : '#232323';
       const pregnancyStrokeColor = isPregnantWoman ? '#d9578a' : defaultStroke;
-      let entityAlpha = visualAlpha({
+      let fogPreviewIntensity: number | null = null;
+      if (selectedObserverEye && options.fogPreviewEnabled && id !== selectedEntityId) {
+        const center = geometryCenter(geometry);
+        const distance = Math.hypot(
+          center.x - selectedObserverEye.x,
+          center.y - selectedObserverEye.y,
+        );
+        fogPreviewIntensity = fogIntensityAtDistance(
+          distance,
+          frameSnapshot.fogDensity,
+          frameSnapshot.fogMaxDistance,
+        );
+        if ((options.fogPreviewHideBelowMin ?? false) && fogPreviewIntensity < frameSnapshot.fogMinIntensity) {
+          continue;
+        }
+      }
+
+      const entityAlpha = finalEntityAlpha({
         ticksAlive: world.ages.get(id)?.ticksAlive ?? 0,
         hp: world.durability.get(id)?.hp ?? null,
         maxHp: world.durability.get(id)?.maxHp ?? null,
@@ -168,29 +185,10 @@ export class CanvasRenderer {
         dimByDeterioration: options.dimByDeterioration ?? false,
         strength: options.dimStrength ?? 0.25,
         ageHalfLifeTicks,
+        fogIntensity: fogPreviewIntensity,
+        fogPreviewStrength,
+        isSelected,
       });
-
-      if (selectedObserverEye && options.fogPreviewEnabled && id !== selectedEntityId) {
-        const center = geometryCenter(geometry);
-        const distance = Math.hypot(
-          center.x - selectedObserverEye.x,
-          center.y - selectedObserverEye.y,
-        );
-        const intensity = fogIntensityAtDistance(
-          distance,
-          frameSnapshot.fogDensity,
-          frameSnapshot.fogMaxDistance,
-        );
-        if ((options.fogPreviewHideBelowMin ?? false) && intensity < frameSnapshot.fogMinIntensity) {
-          continue;
-        }
-        const fogFactor = intensity ** (1 + fogPreviewStrength * 2.5);
-        entityAlpha *= 1 + (fogFactor - 1) * fogPreviewStrength;
-      }
-      entityAlpha = Math.max(0.05, Math.min(1, entityAlpha));
-      if (isSelected) {
-        entityAlpha = Math.max(entityAlpha, 0.85);
-      }
 
       this.ctx.save();
       this.ctx.globalAlpha = entityAlpha;
@@ -210,6 +208,18 @@ export class CanvasRenderer {
         this.ctx.fill();
         this.ctx.stroke();
       } else if (geometry.kind === 'segment') {
+        if (isPregnantWoman) {
+          this.ctx.save();
+          this.ctx.globalAlpha = Math.max(0.45, entityAlpha * 0.92);
+          this.ctx.strokeStyle = '#f3a8c2';
+          this.ctx.lineWidth = (isSelected ? 5 : isFlatlanderHovered ? 4.4 : 3.2) / camera.zoom;
+          this.ctx.beginPath();
+          this.ctx.moveTo(geometry.a.x, geometry.a.y);
+          this.ctx.lineTo(geometry.b.x, geometry.b.y);
+          this.ctx.stroke();
+          this.ctx.restore();
+          this.ctx.globalAlpha = entityAlpha;
+        }
         if (isPregnantWoman) {
           this.ctx.lineWidth = (isSelected ? 3.6 : 2.2) / camera.zoom;
         }

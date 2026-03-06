@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   ageAlphaFactor,
   durabilityAlphaFactor,
+  finalEntityAlpha,
   fogIntensityAtDistance,
+  fogPreviewAlphaFactor,
   fogRingRadiusForLevel,
   visualAlpha,
 } from '../src/render/viewModifiers';
@@ -64,5 +66,48 @@ describe('view modifiers', () => {
       const reconstructed = fogIntensityAtDistance(radius, density, maxDistance);
       expect(Math.abs(reconstructed - level)).toBeLessThan(0.02);
     }
+  });
+
+  it('keeps selected entities readable while still dimming with hp and fog', () => {
+    const healthyFogged = finalEntityAlpha({
+      ticksAlive: 2_000,
+      hp: 48,
+      maxHp: 48,
+      dimByAge: true,
+      dimByDeterioration: true,
+      strength: 0.6,
+      ageHalfLifeTicks: 4_000,
+      fogIntensity: 0.25,
+      fogPreviewStrength: 0.8,
+      isSelected: false,
+    });
+    const wornFogged = finalEntityAlpha({
+      ticksAlive: 2_000,
+      hp: 8,
+      maxHp: 48,
+      dimByAge: true,
+      dimByDeterioration: true,
+      strength: 0.6,
+      ageHalfLifeTicks: 4_000,
+      fogIntensity: 0.25,
+      fogPreviewStrength: 0.8,
+      isSelected: false,
+    });
+    const selectedWornFogged = finalEntityAlpha({
+      ticksAlive: 2_000,
+      hp: 8,
+      maxHp: 48,
+      dimByAge: true,
+      dimByDeterioration: true,
+      strength: 0.6,
+      ageHalfLifeTicks: 4_000,
+      fogIntensity: 0.25,
+      fogPreviewStrength: 0.8,
+      isSelected: true,
+    });
+
+    expect(healthyFogged).toBeGreaterThan(wornFogged);
+    expect(selectedWornFogged).toBeGreaterThanOrEqual(0.85);
+    expect(fogPreviewAlphaFactor(0.75, 0.7)).toBeGreaterThan(fogPreviewAlphaFactor(0.2, 0.7));
   });
 });

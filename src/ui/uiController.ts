@@ -359,6 +359,7 @@ interface InputRefs {
   inspectorTriangleInfoRow: HTMLElement;
   inspectorTriangleKind: HTMLElement;
   inspectorBaseRatio: HTMLElement;
+  inspectorBrainAngle: HTMLElement;
   inspectorIrregularRow: HTMLElement;
   inspectorIrregularState: HTMLElement;
   inspectorIrregularDeviation: HTMLElement;
@@ -433,6 +434,7 @@ export class UIController {
     this.callbacks.onSouthAttractionUpdate(this.readSouthAttractionSettings());
     this.callbacks.onSimulationSpeedUpdate(this.readSimulationSpeed());
     this.renderSelected(
+      null,
       null,
       null,
       null,
@@ -588,6 +590,7 @@ export class UIController {
     fertility: FertilityComponent | null,
     pregnancy: PregnancyComponent | null,
     age: AgeComponent | null,
+    brainAngleDeg: number | null,
     irregularity: IrregularityComponent | null,
     femaleStatus: FemaleStatusComponent | null,
     sway: SwayComponent | null,
@@ -671,6 +674,7 @@ export class UIController {
       this.refs.inspectorVoiceRow.hidden = true;
       this.refs.inspectorFemaleRankRow.hidden = true;
       this.refs.inspectorSwayRow.hidden = true;
+      this.refs.inspectorBrainAngle.textContent = 'N/A';
       this.refs.inspectorPeaceCryRow.hidden = true;
       this.syncInspectorActionButtons();
       return;
@@ -828,10 +832,13 @@ export class UIController {
 
       this.refs.inspectorTriangleKind.textContent = triangleKindLabel;
       this.refs.inspectorBaseRatio.textContent = ratioText;
+      this.refs.inspectorBrainAngle.textContent =
+        brainAngleDeg !== null && Number.isFinite(brainAngleDeg) ? `${brainAngleDeg.toFixed(1)}°` : 'N/A';
     } else {
       this.refs.inspectorTriangleInfoRow.hidden = true;
       this.refs.inspectorTriangleKind.textContent = 'N/A';
       this.refs.inspectorBaseRatio.textContent = 'N/A';
+      this.refs.inspectorBrainAngle.textContent = 'N/A';
     }
 
     const isIsoscelesTriangle =
@@ -2133,6 +2140,7 @@ function collectRefs(): InputRefs {
     inspectorTriangleInfoRow: required<HTMLElement>('inspector-triangle-row'),
     inspectorTriangleKind: required<HTMLElement>('inspector-triangle-kind'),
     inspectorBaseRatio: required<HTMLElement>('inspector-triangle-base-ratio'),
+    inspectorBrainAngle: required<HTMLElement>('inspector-triangle-brain-angle'),
     inspectorIrregularRow: required<HTMLElement>('inspector-irregular-row'),
     inspectorIrregularState: required<HTMLElement>('inspector-irregular-state'),
     inspectorIrregularDeviation: required<HTMLElement>('inspector-irregular-deviation'),
