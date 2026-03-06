@@ -40,3 +40,15 @@ This repository enforces the following rules for all implementation work.
   - commit to `main`,
   - push and GitHub Pages deployment check.
 - If a task is explicitly marked local-only or no-deploy, follow that instruction instead.
+
+## 8) Version 1.0.0 release gate
+- `1.0.0` is reserved for a release where the chosen simulation slice is stable, canon-audited, and verification-complete.
+- Before any bump to `1.0.0`, `VERSION_1_PLAN.md` must be current and the default release preset must be the same one used by the app, long-run tests, and audit tools.
+- A `1.0.0` candidate must pass:
+  - `npm test`
+  - `npm run lint`
+  - `npm run build`
+  - `npm run stability -- --full`
+  - `npm run sim:midrun`
+  - `npm run sim:v1`
+- Do not bump to `1.0.0` while the ecology audit still shows routine extinction, runaway growth, or harness/app stack mismatch.

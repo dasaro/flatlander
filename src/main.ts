@@ -14,6 +14,7 @@ import { boundaryFromTopology, type WorldTopology } from './core/topology';
 import { createWorld, type WorldConfig } from './core/world';
 import { spawnHouses } from './core/worldgen/houses';
 import { applySpawnPlan as applyScenarioSpawnPlan, defaultSpawnPlan } from './presets/defaultScenario';
+import { createDefaultSystems } from './presets/defaultSimulation';
 import { fogDensityAt } from './core/fogField';
 import type { Vec2 } from './geometry/vector';
 import { Camera } from './render/camera';
@@ -28,40 +29,9 @@ import { computeFlatlanderScan, type FlatlanderScanResult } from './render/flatl
 import { FlatlanderViewRenderer } from './render/flatlanderViewRenderer';
 import { PopulationHistogram } from './render/populationHistogram';
 import type { SightVisibilityContext } from './core/perception/sightVisibility';
-import { HearingSystem } from './systems/hearingSystem';
-import { PeaceCrySystem } from './systems/peaceCrySystem';
-import { RainSystem } from './systems/rainSystem';
-import { CleanupSystem } from './systems/cleanupSystem';
-import { CollisionSystem } from './systems/collisionSystem';
-import { ErosionSystem } from './systems/erosionSystem';
-import { AgeDeteriorationSystem } from './systems/ageDeteriorationSystem';
-import { FeelingApproachSystem } from './systems/feelingApproachSystem';
-import { FeelingSystem } from './systems/feelingSystem';
-import { HouseSystem } from './systems/houseSystem';
-import { IntelligenceGrowthSystem } from './systems/intelligenceGrowthSystem';
 import {
-  IntroductionIntentSystem,
   requestIntroductionWithNearestUnknown,
 } from './systems/introductionIntentSystem';
-import { LethalitySystem } from './systems/lethalitySystem';
-import { CollisionResolutionSystem } from './systems/collisionResolutionSystem';
-import { AvoidanceSteeringSystem } from './systems/avoidanceSteeringSystem';
-import { MovementSystem } from './systems/movementSystem';
-import { ReproductionSystem } from './systems/reproductionSystem';
-import { NeoTherapySystem } from './systems/neoTherapySystem';
-import { SocialNavMindSystem } from './systems/socialNavMindSystem';
-import { SocialNavSteeringSystem } from './systems/socialNavSteeringSystem';
-import { SouthAttractionSystem } from './systems/southAttractionSystem';
-import { StillnessControllerSystem } from './systems/stillnessControllerSystem';
-import { SleepSystem } from './systems/sleepSystem';
-import { SwaySystem } from './systems/swaySystem';
-import { VisionSystem } from './systems/visionSystem';
-import { CompensationSystem } from './systems/compensationSystem';
-import { RegularizationSystem } from './systems/regularizationSystem';
-import { CrowdStressSystem } from './systems/crowdStressSystem';
-import { CivicOrderSystem } from './systems/civicOrderSystem';
-import { PolicyRegimeSystem } from './systems/policyRegimeSystem';
-import { InspectionSystem } from './systems/inspectionSystem';
 import { PickingController } from './ui/pickingController';
 import { SelectionState } from './ui/selectionState';
 import { getVisibleLegendItems, type LegendVisibilityState } from './ui/legendModel';
@@ -143,46 +113,7 @@ const sidebar = document.getElementById('sidebar');
 const mobileMenuBackdrop = document.getElementById('mobile-menu-backdrop');
 const primaryRunBtn = document.getElementById('run-btn');
 
-const systems = [
-  // Peace-cry must run before hearing and SocialNav mind so etiquette reacts to same-tick signals.
-  new PeaceCrySystem(),
-  new RainSystem(),
-  // Policy regime is computed before deliberative behavior and enforcement.
-  new PolicyRegimeSystem(),
-  new HearingSystem(),
-  new VisionSystem(),
-  new SocialNavMindSystem(),
-  // Social/political civic constraints can override intent choices during rain.
-  new CivicOrderSystem(),
-  new FeelingApproachSystem(),
-  new IntroductionIntentSystem(),
-  // Inspection can impose stillness requests before they are resolved.
-  new InspectionSystem(),
-  // Consume stillness requests after intent systems and before force/steering/movement.
-  new StillnessControllerSystem(),
-  new SouthAttractionSystem(),
-  new IntelligenceGrowthSystem(),
-  new SleepSystem(),
-  new SocialNavSteeringSystem(),
-  new AvoidanceSteeringSystem(),
-  new MovementSystem(),
-  new SwaySystem(),
-  new CrowdStressSystem(),
-  new CompensationSystem(),
-  new RegularizationSystem(),
-  new CollisionSystem(),
-  // House entry consumes fresh collision contact points before separation correction.
-  new HouseSystem(),
-  // Feeling consumes fresh collision contacts and can request stillness before separation correction.
-  new FeelingSystem(),
-  new CollisionResolutionSystem(),
-  new ErosionSystem(),
-  new AgeDeteriorationSystem(),
-  new LethalitySystem(),
-  new CleanupSystem(),
-  new ReproductionSystem(),
-  new NeoTherapySystem(),
-];
+const systems = createDefaultSystems();
 
 let worldTopology: WorldTopology = topologyInput.value === 'bounded' ? 'bounded' : 'torus';
 const initialBoundary = boundaryFromTopology(worldTopology);

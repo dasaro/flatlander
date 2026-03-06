@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.24] - 2026-03-06
+
+### Added
+- Added `VERSION_1_PLAN.md`, defining the explicit `1.0.0` gate: ecology stability, canon closure, UX truthfulness, and verification requirements.
+- Added `npm run sim:v1`, a dedicated version-one readiness audit writing `.artifacts/version_one_audit.json`.
+
+### Changed
+- Unified the shipped browser stack and release-audit stack behind a shared default system factory in `/Users/fdasaro/Desktop/Flatlander/src/presets/defaultSimulation.ts`.
+- Long-running ecology tooling/tests now use the same default headless system order as the app, including `CivicOrderSystem`.
+- Updated `AGENTS.md` so a future `1.0.0` bump requires the full release-grade audit path instead of an ad hoc decision.
+
+### Validation
+- `npm test` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm run sim:v1` passed.
+
 ## [0.9.23] - 2026-03-06
 
 ### Fixed

@@ -2,13 +2,13 @@
 
 Flatlandia-inspired browser simulator built with TypeScript + Vite.
 
-## Current scope (0.7)
+## Current scope
 - Headless ECS-lite deterministic simulation core (seeded + fixed timestep).
 - Shapes/ranks: women segments, polygonal men (including irregular + regularization), priests as circles.
 - Movement/perception: south attraction, vision, hearing, feeling, peace-cry, and rank-aware `socialNav` movement.
 - Interaction/combat: touch/handshake events, vertex-based lethality, solid collision resolution, and erosion/wear.
 - Population dynamics: pregnancy/gestation/birth with lineage, dynasty, and legacy tracking.
-- Built environment: houses are currently hard-disabled (no obstacle spawning in default runs).
+- Built environment: pentagonal houses, rain sheltering, door-based entry/exit, and indoor dwelling state.
 - Rendering/UI: Canvas world view, Flatlander strip view, pan/zoom, picking/inspector, event highlights, and population histogram.
 - Tests: deterministic behavior, geometry/collision, topology, reproduction, fog/sight, hearing/mimicry, sway, social-nav, erosion, and genealogy.
 
@@ -28,6 +28,8 @@ Flatlandia-inspired browser simulator built with TypeScript + Vite.
 - `npm run preview` - preview production build
 - `npm test` - run unit tests
 - `npm run stability` - run headless multi-seed balance harness
+- `npm run sim:midrun` - run multi-seed ecology/rain-housing audit
+- `npm run sim:v1` - run version-one readiness audit
 - `npm run lint` - lint TypeScript sources
 - `npm run format` - format files
 

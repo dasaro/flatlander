@@ -1,41 +1,11 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { FixedTimestepSimulation } from '../core/simulation';
+import type { FixedTimestepSimulation } from '../core/simulation';
 import { Rank } from '../core/rank';
 import { isEntityOutside } from '../core/housing/dwelling';
-import { createDefaultWorld } from '../presets/defaultScenario';
+import { createDefaultSimulation } from '../presets/defaultSimulation';
 import { countPeaksAndTroughs, movingAverage, oscillationAmplitude } from './demographyMetrics';
-import { AvoidanceSteeringSystem } from '../systems/avoidanceSteeringSystem';
-import { CleanupSystem } from '../systems/cleanupSystem';
-import { CollisionResolutionSystem } from '../systems/collisionResolutionSystem';
-import { CollisionSystem } from '../systems/collisionSystem';
-import { CompensationSystem } from '../systems/compensationSystem';
-import { CrowdStressSystem } from '../systems/crowdStressSystem';
-import { ErosionSystem } from '../systems/erosionSystem';
-import { AgeDeteriorationSystem } from '../systems/ageDeteriorationSystem';
-import { FeelingApproachSystem } from '../systems/feelingApproachSystem';
-import { FeelingSystem } from '../systems/feelingSystem';
-import { HearingSystem } from '../systems/hearingSystem';
-import { HouseSystem } from '../systems/houseSystem';
-import { IntelligenceGrowthSystem } from '../systems/intelligenceGrowthSystem';
-import { IntroductionIntentSystem } from '../systems/introductionIntentSystem';
-import { LethalitySystem } from '../systems/lethalitySystem';
-import { MovementSystem } from '../systems/movementSystem';
-import { NeoTherapySystem } from '../systems/neoTherapySystem';
-import { PeaceCrySystem } from '../systems/peaceCrySystem';
-import { PolicyRegimeSystem } from '../systems/policyRegimeSystem';
-import { RainSystem } from '../systems/rainSystem';
-import { InspectionSystem } from '../systems/inspectionSystem';
-import { RegularizationSystem } from '../systems/regularizationSystem';
-import { ReproductionSystem } from '../systems/reproductionSystem';
-import { SleepSystem } from '../systems/sleepSystem';
-import { SocialNavMindSystem } from '../systems/socialNavMindSystem';
-import { SocialNavSteeringSystem } from '../systems/socialNavSteeringSystem';
-import { SouthAttractionSystem } from '../systems/southAttractionSystem';
-import { StillnessControllerSystem } from '../systems/stillnessControllerSystem';
-import { SwaySystem } from '../systems/swaySystem';
-import { VisionSystem } from '../systems/visionSystem';
 
 const DEFAULT_SEEDS = [42, 7, 13, 101];
 const DEFAULT_TICKS = 20_000;
@@ -125,39 +95,7 @@ function acceptanceForTicks(ticks: number): MidRunAcceptance {
 }
 
 function createSimulation(seed: number): FixedTimestepSimulation {
-  const world = createDefaultWorld(seed);
-  return new FixedTimestepSimulation(world, [
-    new PeaceCrySystem(),
-    new RainSystem(),
-    new PolicyRegimeSystem(),
-    new HearingSystem(),
-    new VisionSystem(),
-    new SocialNavMindSystem(),
-    new FeelingApproachSystem(),
-    new IntroductionIntentSystem(),
-    new InspectionSystem(),
-    new StillnessControllerSystem(),
-    new SouthAttractionSystem(),
-    new IntelligenceGrowthSystem(),
-    new SleepSystem(),
-    new SocialNavSteeringSystem(),
-    new AvoidanceSteeringSystem(),
-    new MovementSystem(),
-    new SwaySystem(),
-    new CrowdStressSystem(),
-    new CompensationSystem(),
-    new RegularizationSystem(),
-    new CollisionSystem(),
-    new HouseSystem(),
-    new FeelingSystem(),
-    new CollisionResolutionSystem(),
-    new ErosionSystem(),
-    new AgeDeteriorationSystem(),
-    new LethalitySystem(),
-    new CleanupSystem(),
-    new ReproductionSystem(),
-    new NeoTherapySystem(),
-  ]);
+  return createDefaultSimulation(seed);
 }
 
 function summarizePopulation(sim: FixedTimestepSimulation): PopulationSnapshot {
