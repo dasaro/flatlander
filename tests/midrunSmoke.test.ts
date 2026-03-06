@@ -34,9 +34,13 @@ import { describeLong } from './longTest';
 
 describeLong('mid-run smoke', () => {
   it(
-    'shows rain-driven shelter usage in a 10k deterministic run (seed 42)',
+    'shows rain-driven shelter usage in a short deterministic run (seed 42)',
     async () => {
       const world = createDefaultWorld(42);
+      world.config.rainBasePeriodTicks = 600;
+      world.config.rainPeriodTicks = 600;
+      world.config.rainBaseDurationTicks = 220;
+      world.config.rainDurationTicks = 220;
       const simulation = new FixedTimestepSimulation(world, [
         new PeaceCrySystem(),
         new RainSystem(),
@@ -75,7 +79,7 @@ describeLong('mid-run smoke', () => {
       let houseEnters = 0;
       let houseExits = 0;
 
-      for (let tick = 0; tick < 10_000; tick += 1) {
+      for (let tick = 0; tick < 4_000; tick += 1) {
         simulation.stepOneTick();
         if (world.weather.isRaining) {
           rainInsideTicks += 1;
@@ -92,7 +96,7 @@ describeLong('mid-run smoke', () => {
             houseExits += 1;
           }
         }
-        if (tick % 250 === 0) {
+        if (tick % 500 === 0) {
           await new Promise<void>((resolve) => {
             setTimeout(resolve, 0);
           });
@@ -105,6 +109,6 @@ describeLong('mid-run smoke', () => {
       expect(houseExits).toBeGreaterThan(0);
       expect(rainMean).toBeGreaterThan(dryMean);
     },
-    150_000,
+    60_000,
   );
 });

@@ -76,7 +76,7 @@ describe('rain shelter intention', () => {
     expect(typeof next.goal?.y).toBe('number');
   });
 
-  it('does not assign seekShelter without a visible house target', () => {
+  it('uses town bearings to choose seekShelter even when the house is outside current view', () => {
     const world = createWorld(4404, {
       housesEnabled: true,
       rainEnabled: true,
@@ -119,7 +119,9 @@ describe('rain shelter intention', () => {
       throw new Error('Expected socialNav movement after visibility-gated shelter update.');
     }
 
-    expect(next.intention).not.toBe('seekShelter');
+    expect(next.intention).toBe('seekShelter');
+    expect(next.goal?.type).toBe('point');
+    expect(next.goal?.doorSide).toBe('east');
   });
 
   it('does not switch to avoid when the current hazard hit is the same target house door', () => {

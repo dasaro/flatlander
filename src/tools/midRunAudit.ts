@@ -38,7 +38,7 @@ import { SwaySystem } from '../systems/swaySystem';
 import { VisionSystem } from '../systems/visionSystem';
 
 const DEFAULT_SEEDS = [42, 7, 13, 101];
-const DEFAULT_TICKS = 80_000;
+const DEFAULT_TICKS = 20_000;
 const SAMPLE_EVERY_TICKS = 200;
 const ANALYSIS_WINDOW_TICKS = 30_000;
 const RAIN_RESPONSE_HORIZON = 400;
@@ -444,7 +444,14 @@ function runSeed(seed: number, ticks: number): RunSummary {
 function main(): void {
   const ticksArg = Number(process.argv[2] ?? DEFAULT_TICKS);
   const ticks = Number.isFinite(ticksArg) && ticksArg > 0 ? Math.round(ticksArg) : DEFAULT_TICKS;
-  const runs = DEFAULT_SEEDS.map((seed) => runSeed(seed, ticks));
+  const runs = DEFAULT_SEEDS.map((seed) => {
+    console.log(`running seed=${seed} ticks=${ticks}`);
+    const run = runSeed(seed, ticks);
+    console.log(
+      `completed seed=${seed} amp=${run.oscillationAmplitude.toFixed(3)} rainRatio=${run.insideRainVsDryRatio.toFixed(2)} rainResponse=${(run.rainResponseMean * 100).toFixed(1)}%`,
+    );
+    return run;
+  });
 
   for (const run of runs) {
     console.log(

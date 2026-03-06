@@ -6,6 +6,7 @@ import { visionHitClearance } from '../core/perception/bodyAwareness';
 import {
   houseDoorTargetForHouse,
   LOW_HP_HOME_RETURN_THRESHOLD,
+  nearestHouseDoorTarget,
   shouldSeekShelter,
 } from '../core/housing/shelterPolicy';
 import { shelterUrgencyBoostForPolicy } from '../core/policy';
@@ -356,6 +357,22 @@ function trackHousingIntentionCounts(world: World, movement: SocialNavMovement):
   }
 }
 
+function shelterTargetForConditions(world: World, entityId: EntityId, origin: Vec2) {
+  const visible = world.visibleShelterTargets.get(entityId);
+  if (visible) {
+    return visible;
+  }
+
+  if (!world.config.housesEnabled || world.houses.size === 0) {
+    return null;
+  }
+
+  // Flatland Part I §2: in towns, houses provide bearings during rain.
+  // Use the nearest eligible door as a town-landmark fallback when shelter is
+  // socially/physically warranted, without broadening ordinary vision hits.
+  return nearestHouseDoorTarget(world, entityId, origin);
+}
+
 export class SocialNavMindSystem implements System {
   update(world: World): void {
     const ids = getSortedEntityIds(world);
@@ -408,8 +425,9 @@ export class SocialNavMindSystem implements System {
         world.houses.has(bond.homeHouseId)
           ? houseDoorTargetForHouse(world, id, bond.homeHouseId, transform.position)
           : null;
-      const shelterTarget = world.visibleShelterTargets.get(id) ?? null;
-      const shelterWanted = shelterTarget !== null && shouldSeekShelter(world, id);
+      const shelterNeeded = shouldSeekShelter(world, id);
+      const shelterTarget = shelterNeeded ? shelterTargetForConditions(world, id, transform.position) : null;
+      const shelterWanted = shelterTarget !== null && shelterNeeded;
       const durability = world.durability.get(id);
       const hpRatio = durability && durability.maxHp > 0 ? durability.hp / durability.maxHp : 1;
       const isWoman = world.ranks.get(id)?.rank === Rank.Woman;

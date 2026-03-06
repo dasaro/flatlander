@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.22] - 2026-03-06
+
+### Fixed
+- Rain sheltering now uses town-bearings logic from houses during storms, so shapes can keep seeking eligible doors even when the shelter is outside the current sight hit.
+- Rain curfew halts are now a fallback for genuinely unguided cases instead of a broad synchronized stop signal, which restores more autonomous stop/resume behavior.
+- Added deterministic regressions covering rain shelter choice without direct visibility and civic-order fallback only in no-guidance cases.
+
+### Changed
+- Shortened the default mid-run audit horizon and added per-seed progress output so the ecology audit remains usable as a release gate.
+
+### Validation
+- `npm test` passed (91 files, 234 tests).
+- `npm run lint` passed.
+- `npm run build` passed.
+
 ## [0.9.21] - 2026-03-06
 
 ### Fixed

@@ -1,5 +1,5 @@
 import { isEntityOutside } from '../core/housing/dwelling';
-import { houseDoorTargetForHouse } from '../core/housing/shelterPolicy';
+import { houseDoorTargetForHouse, nearestHouseDoorTarget } from '../core/housing/shelterPolicy';
 import { rankKeyForEntity } from '../core/rankKey';
 import { requestStillness } from '../core/stillness';
 import { getSortedEntityIds } from '../core/world';
@@ -45,13 +45,13 @@ function maybeApplyCurfewStillness(world: World, entityId: number): void {
   world.rainCurfewLastTick.set(entityId, world.tick);
 }
 
-function steerTowardShelter(world: World, entityId: number): void {
+function steerTowardShelter(world: World, entityId: number): boolean {
   const movement = world.movements.get(entityId);
   if (!movement || movement.type !== 'socialNav') {
-    return;
+    return false;
   }
   if (movement.intention === 'holdStill') {
-    return;
+    return false;
   }
 
   const visibleShelter = world.visibleShelterTargets.get(entityId);
@@ -65,33 +65,44 @@ function steerTowardShelter(world: World, entityId: number): void {
       y: visibleShelter.midpoint.y,
       doorSide: visibleShelter.side,
     };
-    return;
+    return true;
   }
 
   const bond = world.bonds.get(entityId);
-  if (bond?.homeHouseId === null || bond?.homeHouseId === undefined) {
-    return;
-  }
-  if (!world.houses.has(bond.homeHouseId)) {
-    return;
-  }
   const transform = world.transforms.get(entityId);
   if (!transform) {
-    return;
+    return false;
   }
-  const target = houseDoorTargetForHouse(world, entityId, bond.homeHouseId, transform.position);
-  if (!target) {
-    return;
+  if (bond?.homeHouseId !== null && bond?.homeHouseId !== undefined && world.houses.has(bond.homeHouseId)) {
+    const target = houseDoorTargetForHouse(world, entityId, bond.homeHouseId, transform.position);
+    if (target) {
+      movement.intention = 'seekHome';
+      movement.intentionTicksLeft = Math.max(1, Math.round(movement.intentionMinTicks));
+      movement.goal = {
+        type: 'point',
+        targetId: target.houseId,
+        x: target.midpoint.x,
+        y: target.midpoint.y,
+        doorSide: target.side,
+      };
+      return true;
+    }
   }
-  movement.intention = 'seekHome';
+
+  const landmarkTarget = nearestHouseDoorTarget(world, entityId, transform.position);
+  if (!landmarkTarget) {
+    return world.houses.size > 0;
+  }
+  movement.intention = 'seekShelter';
   movement.intentionTicksLeft = Math.max(1, Math.round(movement.intentionMinTicks));
   movement.goal = {
     type: 'point',
-    targetId: target.houseId,
-    x: target.midpoint.x,
-    y: target.midpoint.y,
-    doorSide: target.side,
+    targetId: landmarkTarget.houseId,
+    x: landmarkTarget.midpoint.x,
+    y: landmarkTarget.midpoint.y,
+    doorSide: landmarkTarget.side,
   };
+  return true;
 }
 
 export class CivicOrderSystem implements System {
@@ -119,7 +130,12 @@ export class CivicOrderSystem implements System {
         continue;
       }
 
-      steerTowardShelter(world, id);
+      const guidedByTown = steerTowardShelter(world, id);
+      if (guidedByTown) {
+        world.rainCurfewOutsideTicks.delete(id);
+        continue;
+      }
+
       const ticksOutside = (world.rainCurfewOutsideTicks.get(id) ?? 0) + 1;
       world.rainCurfewOutsideTicks.set(id, ticksOutside);
 
