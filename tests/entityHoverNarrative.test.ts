@@ -63,5 +63,8 @@ describe('entity hover narrative', () => {
     expect(narrative.lines.some((line) => line.includes('Sir Granite'))).toBe(true);
     expect(narrative.lines.some((line) => line.includes('Mrs. Elms'))).toBe(true);
     expect(narrative.lines.some((line) => line.includes('Recent:'))).toBe(true);
+    expect(narrative.hpBar).not.toBeNull();
+    expect(narrative.hpBar?.label).toContain('HP');
+    expect(narrative.hpBar?.ratio).toBeGreaterThan(0);
   });
 });

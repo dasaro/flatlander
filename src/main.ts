@@ -935,9 +935,20 @@ function renderWorldHoverInfo(): void {
       ? `Position: x ${hoveredWorldPoint.x.toFixed(1)} · y ${hoveredWorldPoint.y.toFixed(1)}`
       : '',
   ];
+  const hpBarMarkup = narrative.hpBar
+    ? [
+        `<div class="world-hover-hp">`,
+        `<div class="world-hover-hp-label">${escapeHtml(narrative.hpBar.label)}</div>`,
+        `<div class="world-hover-hp-track"><div class="world-hover-hp-fill" style="width:${(
+          narrative.hpBar.ratio * 100
+        ).toFixed(1)}%"></div></div>`,
+        `</div>`,
+      ].join('')
+    : '';
 
   worldHoverInfo.innerHTML = [
     `<div class="world-hover-title">${escapeHtml(narrative.title)}</div>`,
+    hpBarMarkup,
     ...lines
       .filter((line) => line.length > 0)
       .map((line) => `<div>${escapeHtml(line)}</div>`),

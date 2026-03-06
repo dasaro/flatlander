@@ -5,6 +5,12 @@ import type { RecentNarrativeItem } from './recentEventNarrativeStore';
 export interface EntityHoverNarrative {
   title: string;
   lines: string[];
+  hpBar: {
+    current: number;
+    max: number;
+    ratio: number;
+    label: string;
+  } | null;
 }
 
 function round1(value: number): string {
@@ -115,6 +121,7 @@ function describeHouse(world: World, houseId: number): EntityHoverNarrative {
         : `Dry phase; occupancy is ${occupancy}.`,
       `Door policy: east entry for women, west entry for men.`,
     ],
+    hpBar: null,
   };
 }
 
@@ -136,6 +143,7 @@ export function buildEntityHoverNarrative(
   const age = world.ages.get(entityId)?.ticksAlive ?? 0;
   const kills = world.combatStats.get(entityId)?.kills ?? 0;
   const job = world.jobs.get(entityId)?.job ?? null;
+  const durability = world.durability.get(entityId) ?? null;
   const speed = movementSpeed(movement);
   const title = displayName ? `${displayName} · ${rankLabel}` : rankLabel;
 
@@ -169,5 +177,15 @@ export function buildEntityHoverNarrative(
     lines.push(`Recent: ${recent}`);
   }
 
-  return { title, lines: lines.slice(0, 4) };
+  const hpBar =
+    durability && durability.maxHp > 0
+      ? {
+          current: Math.max(0, durability.hp),
+          max: durability.maxHp,
+          ratio: Math.max(0, Math.min(1, durability.hp / durability.maxHp)),
+          label: `HP ${round1(Math.max(0, durability.hp))} / ${round1(durability.maxHp)}`,
+        }
+      : null;
+
+  return { title, lines: lines.slice(0, 4), hpBar };
 }

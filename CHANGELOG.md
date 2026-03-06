@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.27] - 2026-03-06
+
+### Added
+- Added an HP bar to the 2D hover card so hovered entities now expose their current durability visually without opening the inspector.
+
+### Changed
+- The hover narrative helper in `/Users/fdasaro/Desktop/Flatlander/src/ui/entityHoverNarrative.ts` now emits structured HP data alongside its natural-language summary, and the UI renders it in `/Users/fdasaro/Desktop/Flatlander/src/main.ts`.
+
+### Validation
+- `npm test` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm run sim:midrun` passed.
+
 ## [0.9.26] - 2026-03-06
 
 ### Added
