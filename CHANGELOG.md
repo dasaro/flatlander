@@ -2,6 +2,27 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.26] - 2026-03-06
+
+### Added
+- Added `/Users/fdasaro/Desktop/Flatlander/UX_RELEASE_AUDIT.md`, documenting the current GUI truthfulness sweep ahead of the `1.0.0` preset freeze.
+- Added pure UI applicability tests in `/Users/fdasaro/Desktop/Flatlander/tests/controlTruth.test.ts`.
+
+### Fixed
+- Disabled or explained GUI controls that were structurally impossible or selection-only in the current context, including Flatlander boundary silhouettes on torus topology and selected-entity overlay controls with no active selection.
+- Gated peace-cry and reproduction sub-controls so they now reflect the actual master toggles instead of staying generically editable when their parent feature is off.
+- Clarified reset-scoped housing generation controls in the environment panel so they no longer look like immediate live-world parameters.
+
+### Changed
+- Updated `/Users/fdasaro/Desktop/Flatlander/VERSION_1_PLAN.md` to make UX control truthfulness an explicit step before freezing the canonical `1.0.0` preset.
+
+### Validation
+- `npm test` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm run sim:midrun` passed.
+- `npm run sim:v1` passed.
+
 ## [0.9.25] - 2026-03-06
 
 ### Fixed

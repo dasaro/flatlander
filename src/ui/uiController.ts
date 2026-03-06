@@ -37,7 +37,15 @@ import { boundaryFromTopology, type WorldTopology } from '../core/topology';
 import type { World } from '../core/world';
 import type { Vec2 } from '../geometry/vector';
 import type { FlatlanderViewConfig } from '../render/flatlanderScan';
-import { setButtonEnabled } from './buttonState';
+import { setButtonEnabled, setControlEnabled } from './buttonState';
+import {
+  describeBoundarySelectorTruth,
+  describeEnvironmentControlTruth,
+  describeFlatlanderControlTruth,
+  describeOverlayControlTruth,
+  describePeaceCryControlTruth,
+  describeReproductionControlTruth,
+} from './controlTruth';
 
 export interface SouthAttractionSettings {
   enabled: boolean;
@@ -422,6 +430,8 @@ export class UIController {
     this.syncFlatlanderFieldState(this.readFlatlanderViewSettings());
     const peaceCry = this.readPeaceCrySettings();
     const reproduction = this.readReproductionSettings();
+    this.syncPeaceCryFieldState(peaceCry);
+    this.syncReproductionFieldState(reproduction);
     this.wireControls();
     this.updateSpawnFieldVisibility();
     this.updateInspectorFieldVisibility();
@@ -676,6 +686,7 @@ export class UIController {
       this.refs.inspectorSwayRow.hidden = true;
       this.refs.inspectorBrainAngle.textContent = 'N/A';
       this.refs.inspectorPeaceCryRow.hidden = true;
+      this.syncEventHighlightsFieldState(this.readEventHighlightsSettings());
       this.syncInspectorActionButtons();
       return;
     }
@@ -894,6 +905,7 @@ export class UIController {
     }
 
     this.updateInspectorFieldVisibility();
+    this.syncEventHighlightsFieldState(this.readEventHighlightsSettings());
     this.syncInspectorActionButtons();
   }
 
@@ -927,6 +939,7 @@ export class UIController {
         this.refs.inspectorHouseOccupants.appendChild(item);
       }
     }
+    this.syncEventHighlightsFieldState(this.readEventHighlightsSettings());
     this.syncInspectorActionButtons();
   }
 
@@ -1058,10 +1071,14 @@ export class UIController {
 
     for (const input of peaceCryDefaultInputs) {
       input.addEventListener('input', () => {
-        this.callbacks.onPeaceCryDefaultsUpdate(this.readPeaceCrySettings());
+        const settings = this.readPeaceCrySettings();
+        this.syncPeaceCryFieldState(settings);
+        this.callbacks.onPeaceCryDefaultsUpdate(settings);
       });
       input.addEventListener('change', () => {
-        this.callbacks.onPeaceCryDefaultsUpdate(this.readPeaceCrySettings());
+        const settings = this.readPeaceCrySettings();
+        this.syncPeaceCryFieldState(settings);
+        this.callbacks.onPeaceCryDefaultsUpdate(settings);
       });
     }
 
@@ -1085,10 +1102,14 @@ export class UIController {
 
     for (const input of reproductionInputs) {
       input.addEventListener('input', () => {
-        this.callbacks.onReproductionUpdate(this.readReproductionSettings());
+        const settings = this.readReproductionSettings();
+        this.syncReproductionFieldState(settings);
+        this.callbacks.onReproductionUpdate(settings);
       });
       input.addEventListener('change', () => {
-        this.callbacks.onReproductionUpdate(this.readReproductionSettings());
+        const settings = this.readReproductionSettings();
+        this.syncReproductionFieldState(settings);
+        this.callbacks.onReproductionUpdate(settings);
       });
     }
 
@@ -1418,21 +1439,74 @@ export class UIController {
   }
 
   private syncEnvironmentFieldState(settings: EnvironmentSettings): void {
-    const housesEnabled = settings.housesEnabled;
-    this.refs.envHouseCount.disabled = !housesEnabled;
-    this.refs.envHouseSize.disabled = !housesEnabled;
-    this.refs.envAllowTriangularForts.disabled = !housesEnabled;
-    this.refs.envTownPopulation.disabled = !housesEnabled;
-    this.refs.envRainEnabled.disabled = !housesEnabled;
-    this.refs.envShowHousingDebug.disabled = !housesEnabled;
-    this.refs.envShowHouseDoors.disabled = !housesEnabled;
-    this.refs.envShowHouseOccupancy.disabled = !housesEnabled;
-    this.refs.envShowRainOverlay.disabled = !housesEnabled || !settings.rainEnabled;
-    const squareAllowedByPopulation = settings.townPopulation < 10_000;
-    if (!squareAllowedByPopulation) {
+    const truth = describeEnvironmentControlTruth({
+      housesEnabled: settings.housesEnabled,
+      rainEnabled: settings.rainEnabled,
+      townPopulation: settings.townPopulation,
+    });
+    setControlEnabled(
+      this.refs.envHouseCount,
+      truth.houseGeneration.enabled,
+      truth.houseGeneration.disabledReason,
+      truth.houseGeneration.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.envHouseSize,
+      truth.houseGeneration.enabled,
+      truth.houseGeneration.disabledReason,
+      truth.houseGeneration.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.envAllowTriangularForts,
+      truth.houseGeneration.enabled,
+      truth.houseGeneration.disabledReason,
+      truth.houseGeneration.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.envTownPopulation,
+      truth.houseGeneration.enabled,
+      truth.houseGeneration.disabledReason,
+      truth.houseGeneration.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.envRainEnabled,
+      truth.rainEnabled.enabled,
+      truth.rainEnabled.disabledReason,
+      truth.rainEnabled.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.envShowHousingDebug,
+      truth.housingDebug.enabled,
+      truth.housingDebug.disabledReason,
+      truth.housingDebug.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.envShowHouseDoors,
+      truth.houseDoors.enabled,
+      truth.houseDoors.disabledReason,
+      truth.houseDoors.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.envShowHouseOccupancy,
+      truth.houseOccupancy.enabled,
+      truth.houseOccupancy.disabledReason,
+      truth.houseOccupancy.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.envShowRainOverlay,
+      truth.rainOverlay.enabled,
+      truth.rainOverlay.disabledReason,
+      truth.rainOverlay.enabledHint,
+    );
+    if (!truth.squareHouses.enabled) {
       this.refs.envAllowSquareHouses.checked = false;
     }
-    this.refs.envAllowSquareHouses.disabled = !housesEnabled || !squareAllowedByPopulation;
+    setControlEnabled(
+      this.refs.envAllowSquareHouses,
+      truth.squareHouses.enabled,
+      truth.squareHouses.disabledReason,
+      truth.squareHouses.enabledHint,
+    );
   }
 
   private readPeaceCrySettings(): PeaceCrySettings {
@@ -1523,34 +1597,108 @@ export class UIController {
 
   private syncEventHighlightsFieldState(settings: EventHighlightsSettings): void {
     const overlaysEnabled = settings.enabled;
-    this.refs.eventHighlightsIntensity.disabled = !overlaysEnabled;
-    this.refs.eventHighlightsCap.disabled = !overlaysEnabled;
-    this.refs.eventShowFeeling.disabled = !overlaysEnabled;
-    this.refs.eventFocusSelected.disabled = !overlaysEnabled;
-    this.refs.eventShowHearing.disabled = !overlaysEnabled;
-    this.refs.eventShowTalking.disabled = !overlaysEnabled || !settings.showHearingOverlay;
-    this.refs.eventStrokeKills.disabled = !overlaysEnabled;
-    this.refs.overlayContactNetwork.disabled = !overlaysEnabled;
-    this.refs.overlayDimAge.disabled = !overlaysEnabled;
-    this.refs.overlayDimDeterioration.disabled = !overlaysEnabled;
-    this.refs.overlayShowEyes.disabled = !overlaysEnabled;
-    this.refs.overlayShowPovCone.disabled = !overlaysEnabled;
+    const hasSelection = this.selectedEntityId !== null;
+    const overlayTruth = describeOverlayControlTruth(
+      {
+        enabled: settings.enabled,
+        showHearingOverlay: settings.showHearingOverlay,
+        showContactNetwork: settings.showContactNetwork,
+        fogPreviewEnabled: settings.fogPreviewEnabled,
+      },
+      hasSelection,
+    );
 
-    const networkEnabled = overlaysEnabled && settings.showContactNetwork;
-    this.refs.overlayNetworkParents.disabled = !networkEnabled;
-    this.refs.overlayNetworkKnown.disabled = !networkEnabled;
-    this.refs.overlayNetworkMaxKnown.disabled = !networkEnabled;
-    this.refs.overlayNetworkOnScreen.disabled = !networkEnabled;
-    this.refs.overlayNetworkFocusRadius.disabled = !networkEnabled;
+    setControlEnabled(this.refs.eventHighlightsIntensity, overlaysEnabled, 'Enable Event Highlights first.');
+    setControlEnabled(this.refs.eventHighlightsCap, overlaysEnabled, 'Enable Event Highlights first.');
+    setControlEnabled(this.refs.eventShowFeeling, overlaysEnabled, 'Enable Event Highlights first.');
+    setControlEnabled(
+      this.refs.eventFocusSelected,
+      overlayTruth.focusSelected.enabled,
+      overlayTruth.focusSelected.disabledReason,
+      overlayTruth.focusSelected.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.eventShowHearing,
+      overlayTruth.hearing.enabled,
+      overlayTruth.hearing.disabledReason,
+      overlayTruth.hearing.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.eventShowTalking,
+      overlayTruth.talking.enabled,
+      overlayTruth.talking.disabledReason,
+      overlayTruth.talking.enabledHint,
+    );
+    setControlEnabled(this.refs.eventStrokeKills, overlaysEnabled, 'Enable Event Highlights first.');
+    setControlEnabled(
+      this.refs.overlayContactNetwork,
+      overlayTruth.contactNetwork.enabled,
+      overlayTruth.contactNetwork.disabledReason,
+      overlayTruth.contactNetwork.enabledHint,
+    );
+    setControlEnabled(this.refs.overlayDimAge, overlaysEnabled, 'Enable Event Highlights first.');
+    setControlEnabled(this.refs.overlayDimDeterioration, overlaysEnabled, 'Enable Event Highlights first.');
+    setControlEnabled(this.refs.overlayShowEyes, overlaysEnabled, 'Enable Event Highlights first.');
+    setControlEnabled(this.refs.overlayShowPovCone, overlaysEnabled, 'Enable Event Highlights first.');
+
+    const networkEnabled = overlayTruth.contactNetwork.enabled && settings.showContactNetwork;
+    setControlEnabled(
+      this.refs.overlayNetworkParents,
+      networkEnabled,
+      networkEnabled ? undefined : 'Enable Contact Network for a selected entity first.',
+    );
+    setControlEnabled(
+      this.refs.overlayNetworkKnown,
+      networkEnabled,
+      networkEnabled ? undefined : 'Enable Contact Network for a selected entity first.',
+    );
+    setControlEnabled(
+      this.refs.overlayNetworkMaxKnown,
+      networkEnabled,
+      networkEnabled ? undefined : 'Enable Contact Network for a selected entity first.',
+    );
+    setControlEnabled(
+      this.refs.overlayNetworkOnScreen,
+      networkEnabled,
+      networkEnabled ? undefined : 'Enable Contact Network for a selected entity first.',
+    );
+    setControlEnabled(
+      this.refs.overlayNetworkFocusRadius,
+      networkEnabled,
+      networkEnabled ? undefined : 'Enable Contact Network for a selected entity first.',
+    );
 
     const dimEnabled = overlaysEnabled && (settings.dimByAge || settings.dimByDeterioration);
-    this.refs.overlayDimStrength.disabled = !dimEnabled;
+    setControlEnabled(
+      this.refs.overlayDimStrength,
+      dimEnabled,
+      dimEnabled ? undefined : 'Enable age or deterioration dimming first.',
+    );
 
-    this.refs.overlayFogPreview.disabled = !overlaysEnabled;
-    const fogPreviewEnabled = overlaysEnabled && settings.fogPreviewEnabled;
-    this.refs.overlayFogPreviewStrength.disabled = !fogPreviewEnabled;
-    this.refs.overlayFogPreviewHideMin.disabled = !fogPreviewEnabled;
-    this.refs.overlayFogRings.disabled = !fogPreviewEnabled;
+    setControlEnabled(
+      this.refs.overlayFogPreview,
+      overlayTruth.fogPreview.enabled,
+      overlayTruth.fogPreview.disabledReason,
+      overlayTruth.fogPreview.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.overlayFogPreviewStrength,
+      overlayTruth.fogPreviewDetail.enabled,
+      overlayTruth.fogPreviewDetail.disabledReason,
+      overlayTruth.fogPreviewDetail.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.overlayFogPreviewHideMin,
+      overlayTruth.fogPreviewDetail.enabled,
+      overlayTruth.fogPreviewDetail.disabledReason,
+      overlayTruth.fogPreviewDetail.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.overlayFogRings,
+      overlayTruth.fogPreviewDetail.enabled,
+      overlayTruth.fogPreviewDetail.disabledReason,
+      overlayTruth.fogPreviewDetail.enabledHint,
+    );
 
     setButtonEnabled(
       this.refs.eventHighlightsClearButton,
@@ -1581,14 +1729,20 @@ export class UIController {
 
   private syncFlatlanderFieldState(settings: FlatlanderViewSettings): void {
     const enabled = settings.enabled;
-    this.refs.flatlanderRays.disabled = !enabled;
-    this.refs.flatlanderFov.disabled = !enabled;
-    this.refs.flatlanderLookOffset.disabled = !enabled;
-    this.refs.flatlanderMaxDistance.disabled = !enabled;
-    this.refs.flatlanderFogDensity.disabled = !enabled;
-    this.refs.flatlanderGrayscale.disabled = !enabled;
-    this.refs.flatlanderIncludeObstacles.disabled = !enabled;
-    this.refs.flatlanderIncludeBoundaries.disabled = !enabled;
+    setControlEnabled(this.refs.flatlanderRays, enabled, 'Enable Flatlander View first.');
+    setControlEnabled(this.refs.flatlanderFov, enabled, 'Enable Flatlander View first.');
+    setControlEnabled(this.refs.flatlanderLookOffset, enabled, 'Enable Flatlander View first.');
+    setControlEnabled(this.refs.flatlanderMaxDistance, enabled, 'Enable Flatlander View first.');
+    setControlEnabled(this.refs.flatlanderFogDensity, enabled, 'Enable Flatlander View first.');
+    setControlEnabled(this.refs.flatlanderGrayscale, enabled, 'Enable Flatlander View first.');
+    setControlEnabled(this.refs.flatlanderIncludeObstacles, enabled, 'Enable Flatlander View first.');
+    const flatlanderTruth = describeFlatlanderControlTruth({ enabled }, this.readTopology());
+    setControlEnabled(
+      this.refs.flatlanderIncludeBoundaries,
+      flatlanderTruth.includeBoundaries.enabled,
+      flatlanderTruth.includeBoundaries.disabledReason,
+      flatlanderTruth.includeBoundaries.enabledHint,
+    );
   }
 
   private readFogSightSettings(): FogSightSettings {
@@ -1869,6 +2023,112 @@ export class UIController {
     const boundary = boundaryFromTopology(topology);
     this.refs.spawnBoundary.value = boundary;
     this.refs.inspectorBoundary.value = boundary;
+    const boundaryTruth = describeBoundarySelectorTruth();
+    setControlEnabled(
+      this.refs.spawnBoundary,
+      boundaryTruth.enabled,
+      boundaryTruth.disabledReason,
+      boundaryTruth.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.inspectorBoundary,
+      boundaryTruth.enabled,
+      boundaryTruth.disabledReason,
+      boundaryTruth.enabledHint,
+    );
+    this.syncFlatlanderFieldState(this.readFlatlanderViewSettings());
+  }
+
+  private syncPeaceCryFieldState(settings: PeaceCrySettings): void {
+    const truth = describePeaceCryControlTruth(settings);
+    setControlEnabled(
+      this.refs.peaceCryCadenceGlobal,
+      truth.cadence.enabled,
+      truth.cadence.disabledReason,
+      truth.cadence.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.peaceCryRadiusGlobal,
+      truth.radius.enabled,
+      truth.radius.disabledReason,
+      truth.radius.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.peaceCryComplianceStillnessGlobal,
+      truth.complianceStillness.enabled,
+      truth.complianceStillness.disabledReason,
+      truth.complianceStillness.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.peaceCryNorthYieldRadiusGlobal,
+      truth.northYieldRadius.enabled,
+      truth.northYieldRadius.disabledReason,
+      truth.northYieldRadius.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.peaceCryRainCurfewGraceTicksGlobal,
+      truth.rainCurfewGrace.enabled,
+      truth.rainCurfewGrace.disabledReason,
+      truth.rainCurfewGrace.enabledHint,
+    );
+    setButtonEnabled(
+      this.refs.peaceCryApplyAllButton,
+      truth.applyAll.enabled,
+      truth.applyAll.disabledReason,
+      truth.applyAll.enabledHint,
+    );
+  }
+
+  private syncReproductionFieldState(settings: ReproductionSettings): void {
+    const truth = describeReproductionControlTruth(settings);
+    setControlEnabled(
+      this.refs.reproductionGestationTicks,
+      truth.gestation.enabled,
+      truth.gestation.disabledReason,
+      truth.gestation.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.reproductionMatingRadius,
+      truth.matingRadius.enabled,
+      truth.matingRadius.disabledReason,
+      truth.matingRadius.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.reproductionConceptionChance,
+      truth.conceptionChance.enabled,
+      truth.conceptionChance.disabledReason,
+      truth.conceptionChance.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.reproductionFemaleBirthProbability,
+      truth.femaleBirthProbability.enabled,
+      truth.femaleBirthProbability.disabledReason,
+      truth.femaleBirthProbability.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.reproductionMaxPopulation,
+      truth.maxPopulation.enabled,
+      truth.maxPopulation.disabledReason,
+      truth.maxPopulation.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.reproductionIrregularBaseChance,
+      truth.irregularBaseChance.enabled,
+      truth.irregularBaseChance.disabledReason,
+      truth.irregularBaseChance.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.reproductionPriestMediationRadius,
+      truth.priestMediationRadius.enabled,
+      truth.priestMediationRadius.disabledReason,
+      truth.priestMediationRadius.enabledHint,
+    );
+    setControlEnabled(
+      this.refs.reproductionPriestMediationBias,
+      truth.priestMediationBias.enabled,
+      truth.priestMediationBias.disabledReason,
+      truth.priestMediationBias.enabledHint,
+    );
   }
 }
 

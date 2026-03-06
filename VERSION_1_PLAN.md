@@ -39,7 +39,11 @@ The bar for `1.0.0` is not “every Flatland idea is implemented.” It is:
    - We have a default scenario and multiple tuning knobs.
    - We do not yet have a sharply defined “this is the `1.0` canonical release preset” contract.
 
-4. Some canon-correct mechanics are difficult to observe in normal runs.
+4. UX control truthfulness is not yet fully audited.
+   - Several GUI controls are structurally impossible in some contexts, selection-only, or reset-scoped.
+   - Those controls must be disabled or explicitly labeled so the shipped UI reflects what the model can actually do.
+
+5. Some canon-correct mechanics are difficult to observe in normal runs.
    - Example: isosceles ascent is generational and therefore extremely slow.
    - This is not wrong, but it needs good observability so users can verify it.
 
@@ -100,7 +104,19 @@ Reason:
 - this is the highest-ROI enabling step,
 - it removes “tooling drift” before further balancing work.
 
-### Phase 2: Freeze a release preset
+### Phase 2: UX audit and control truthfulness
+
+Audit the GUI and wire control availability to real model applicability:
+
+- disable structurally impossible controls,
+- label reset-scoped controls clearly,
+- ensure selection-only overlays/actions are visibly unavailable without a selection,
+- remove or explain any dead control before `1.0.0`.
+
+Reason:
+- a `1.0.0` build cannot ship a misleading control surface.
+
+### Phase 3: Freeze a release preset
 
 Define one explicit default/canonical release scenario:
 
@@ -112,7 +128,7 @@ Define one explicit default/canonical release scenario:
 Reason:
 - tuning without a frozen target produces moving baselines.
 
-### Phase 3: Strengthen ecology acceptance
+### Phase 4: Strengthen ecology acceptance
 
 Tune only with canon-compatible mechanisms already in scope:
 
@@ -126,7 +142,7 @@ Tune only with canon-compatible mechanisms already in scope:
 Reason:
 - this is the main remaining blocker to `1.0.0`.
 
-### Phase 4: Observability and truthfulness sweep
+### Phase 5: Observability and truthfulness sweep
 
 Make it easy to verify the model without reading source:
 
@@ -136,4 +152,4 @@ Make it easy to verify the model without reading source:
 
 ## Immediate next step
 
-Standardize the default headless system stack and make the `1.0` audit depend on that single source of truth.
+Freeze the canonical release preset and then tune the full-horizon ecology gates against that single shipped target.
