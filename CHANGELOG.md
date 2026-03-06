@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.21] - 2026-03-06
+
+### Fixed
+- Restored the God-view rain overlay to a lighter, less invasive deterministic thin-line treatment.
+- Fixed a SocialNav regression where intentional stillness could leak into the sleep state and leave inhabitants stuck in `holdStill` after the halt had ended.
+- Added a regression test ensuring halted SocialNav entities resume walking once temporary stillness expires.
+
+### Validation
+- `npm test` passed (90 files, 232 tests).
+- `npm run lint` passed.
+- `npm run build` passed.
+
 ## [0.9.20] - 2026-03-03
 
 ### Fixed

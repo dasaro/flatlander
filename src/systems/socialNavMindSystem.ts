@@ -379,6 +379,13 @@ export class SocialNavMindSystem implements System {
         delete movement.goal;
         continue;
       }
+
+      if (movement.intention === 'holdStill') {
+        // Stillness has ended. Force an immediate re-decision instead of
+        // idling on a stale holdStill countdown.
+        movement.intentionTicksLeft = 0;
+      }
+
       if (world.sleep.get(id)?.asleep) {
         movement.intentionTicksLeft = Math.max(0, movement.intentionTicksLeft - 1);
         continue;

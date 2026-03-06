@@ -49,6 +49,19 @@ export class SleepSystem implements System {
       const speed = movementSpeed(world, id, movement);
       const sleeping = world.sleep.get(id) ?? { asleep: false, stillTicks: 0 };
 
+      // Intentional halts are social/protocol states, not passive settling.
+      // If we let them accumulate sleep ticks, agents can remain asleep after
+      // the protocol ends and never re-deliberate until bumped.
+      if (
+        world.stillness.has(id) ||
+        (movement.type === 'socialNav' && movement.intention === 'holdStill')
+      ) {
+        sleeping.asleep = false;
+        sleeping.stillTicks = 0;
+        world.sleep.set(id, sleeping);
+        continue;
+      }
+
       if (wakeIds.has(id)) {
         sleeping.asleep = false;
         sleeping.stillTicks = 0;

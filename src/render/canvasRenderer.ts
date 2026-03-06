@@ -426,74 +426,36 @@ export class CanvasRenderer {
   }
 
   private drawRainOverlay(tick: number): void {
-    const phase = tick % 420;
-    const spacing = 58;
-    const columns = Math.ceil((this.canvas.width + 180) / spacing);
-    const rows = Math.ceil((this.canvas.height + 180) / spacing);
+    const phase = tick % 320;
+    const spacing = 44;
+    const columns = Math.ceil((this.canvas.width + 160) / spacing);
+    const rows = Math.ceil((this.canvas.height + 160) / spacing);
     const dropCount = columns * rows;
 
     this.ctx.save();
     this.ctx.lineCap = 'round';
-    this.ctx.lineJoin = 'round';
+    this.ctx.lineWidth = 1;
 
     for (let i = 0; i < dropCount; i += 1) {
       const column = i % columns;
       const row = Math.floor(i / columns);
-      const laneShift = (((row * 23 + column * 11) % 17) - 8) * 0.9;
-      const driftX = ((row * 29 + phase * 0.42) % spacing) - spacing * 0.5;
-      const travelY = (row * spacing + phase * 2.55 + column * 9) % (this.canvas.height + 180);
-      const x = column * spacing + driftX + laneShift - 70;
-      const y = travelY - 90;
+      const xJitter = (((row * 31 + column * 17) % 13) - 6) * 1.1;
+      const travelY = (row * spacing + phase * 3.2 + column * 11) % (this.canvas.height + 140);
+      const x = column * spacing + xJitter - 60;
+      const y = travelY - 70;
+      const length = 8 + ((row * 7 + column * 5) % 5) * 2;
+      const slant = 2 + ((row * 5 + column * 3) % 4);
 
-      const sizeClass = (column * 3 + row * 5) % 4;
-      const size = 2.6 + sizeClass * 1.1;
-      const topY = y - size * 1.18;
-      const bottomY = y + size * 1.5;
-
-      const bodyGradient = this.ctx.createLinearGradient(x, topY, x, bottomY);
-      bodyGradient.addColorStop(0, 'rgba(222, 248, 255, 0.62)');
-      bodyGradient.addColorStop(0.4, 'rgba(112, 212, 234, 0.5)');
-      bodyGradient.addColorStop(1, 'rgba(26, 109, 145, 0.56)');
-      this.ctx.fillStyle = bodyGradient;
+      this.ctx.strokeStyle = 'rgba(64, 126, 159, 0.24)';
       this.ctx.beginPath();
-      this.ctx.moveTo(x, topY);
-      this.ctx.bezierCurveTo(
-        x + size * 1.1,
-        y - size * 0.5,
-        x + size * 0.9,
-        y + size * 0.9,
-        x,
-        bottomY,
-      );
-      this.ctx.bezierCurveTo(
-        x - size * 0.9,
-        y + size * 0.9,
-        x - size * 1.1,
-        y - size * 0.5,
-        x,
-        topY,
-      );
-      this.ctx.closePath();
-      this.ctx.fill();
-
-      const edgeGradient = this.ctx.createLinearGradient(x, topY, x, bottomY);
-      edgeGradient.addColorStop(0, 'rgba(204, 241, 252, 0.52)');
-      edgeGradient.addColorStop(1, 'rgba(15, 79, 108, 0.44)');
-      this.ctx.strokeStyle = edgeGradient;
-      this.ctx.lineWidth = Math.max(0.7, size * 0.16);
+      this.ctx.moveTo(x + slant * 0.3, y);
+      this.ctx.lineTo(x - slant, y + length);
       this.ctx.stroke();
 
-      this.ctx.fillStyle = 'rgba(243, 252, 255, 0.3)';
+      this.ctx.strokeStyle = 'rgba(223, 245, 252, 0.18)';
       this.ctx.beginPath();
-      this.ctx.ellipse(x - size * 0.24, y - size * 0.08, size * 0.22, size * 0.5, -0.42, 0, Math.PI * 2);
-      this.ctx.fill();
-
-      // Tail: preserve a clear falling direction without turning drops into spikes.
-      this.ctx.strokeStyle = 'rgba(48, 107, 139, 0.24)';
-      this.ctx.lineWidth = Math.max(0.6, size * 0.14);
-      this.ctx.beginPath();
-      this.ctx.moveTo(x, y + size * 0.72);
-      this.ctx.lineTo(x - size * 0.5, y + size * 2.05);
+      this.ctx.moveTo(x + slant * 0.55, y + 0.8);
+      this.ctx.lineTo(x - slant * 0.75, y + length - 1.1);
       this.ctx.stroke();
     }
 

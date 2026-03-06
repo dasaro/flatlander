@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import { spawnEntity } from '../src/core/factory';
+import { requestStillness } from '../src/core/stillness';
 import { FixedTimestepSimulation } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { MovementSystem } from '../src/systems/movementSystem';
+import { SleepSystem } from '../src/systems/sleepSystem';
 import { SocialNavMindSystem } from '../src/systems/socialNavMindSystem';
 import { SocialNavSteeringSystem } from '../src/systems/socialNavSteeringSystem';
+import { StillnessControllerSystem } from '../src/systems/stillnessControllerSystem';
 
 function normalizeAngle(angle: number): number {
   let value = angle;
@@ -177,5 +180,58 @@ describe('social nav movement', () => {
 
     const nextMovement = world.movements.get(observerId);
     expect(nextMovement && nextMovement.type === 'socialNav' ? nextMovement.intention : null).toBe('roam');
+  });
+
+  it('resumes walking after temporary stillness without getting trapped in hold-still sleep', () => {
+    const world = createWorld(404, {
+      southAttractionEnabled: false,
+      sleepEnabled: true,
+      sleepAfterTicks: 2,
+    });
+    const id = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 4, size: 18, irregular: false },
+      {
+        type: 'socialNav',
+        boundary: 'wrap',
+        maxSpeed: 12,
+        maxTurnRate: 0.9,
+        decisionEveryTicks: 4,
+        intentionMinTicks: 12,
+      },
+      { x: 320, y: 180 },
+    );
+
+    requestStillness(world, {
+      entityId: id,
+      mode: 'translation',
+      reason: 'manual',
+      ticksRemaining: 2,
+      requestedBy: null,
+    });
+
+    const simulation = new FixedTimestepSimulation(world, [
+      new SocialNavMindSystem(),
+      new StillnessControllerSystem(),
+      new SleepSystem(),
+      new SocialNavSteeringSystem(),
+      new MovementSystem(),
+    ]);
+
+    const start = { ...world.transforms.get(id)!.position };
+    for (let i = 0; i < 8; i += 1) {
+      simulation.stepOneTick();
+    }
+
+    const transform = world.transforms.get(id);
+    const movement = world.movements.get(id);
+    expect(transform).toBeDefined();
+    expect(movement && movement.type === 'socialNav' ? movement.intention : null).not.toBe('holdStill');
+    expect(world.sleep.get(id)?.asleep ?? false).toBe(false);
+    const distanceMoved = Math.hypot(
+      (transform?.position.x ?? start.x) - start.x,
+      (transform?.position.y ?? start.y) - start.y,
+    );
+    expect(distanceMoved).toBeGreaterThan(0);
   });
 });
