@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.25] - 2026-03-06
+
+### Fixed
+- Strengthened novel-style north-yield etiquette during nearby peace-cry exposure so non-segment walkers respond more reliably before resuming their other goals.
+- Refined the mid-run ecology audit to use horizon-aware acceptance and directional yielding detection, so the smoke audit now measures the shipped short-horizon behavior instead of expecting full long-cycle structure from a brief run.
+
+### Changed
+- `npm run sim:midrun` now defaults to a 5k-tick shared-stack audit focused on rain sheltering, etiquette compliance, and short-horizon ecological signal. Full long-horizon gates remain in `stability -- --full`.
+
+### Validation
+- `npm run sim:midrun` passed.
+- `npm test` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm run sim:v1` passed.
+
 ## [0.9.24] - 2026-03-06
 
 ### Added

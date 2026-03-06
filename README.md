@@ -28,7 +28,7 @@ Flatlandia-inspired browser simulator built with TypeScript + Vite.
 - `npm run preview` - preview production build
 - `npm test` - run unit tests
 - `npm run stability` - run headless multi-seed balance harness
-- `npm run sim:midrun` - run multi-seed ecology/rain-housing audit
+- `npm run sim:midrun` - run short multi-seed ecology/rain-housing smoke audit
 - `npm run sim:v1` - run version-one readiness audit
 - `npm run lint` - lint TypeScript sources
 - `npm run format` - format files

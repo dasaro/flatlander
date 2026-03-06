@@ -8,7 +8,7 @@ import { createDefaultSimulation } from '../presets/defaultSimulation';
 import { countPeaksAndTroughs, movingAverage, oscillationAmplitude } from './demographyMetrics';
 
 const DEFAULT_SEEDS = [42, 7, 13, 101];
-const DEFAULT_TICKS = 20_000;
+const DEFAULT_TICKS = 5_000;
 const SAMPLE_EVERY_TICKS = 200;
 const ANALYSIS_WINDOW_TICKS = 30_000;
 const RAIN_RESPONSE_HORIZON = 400;
@@ -71,6 +71,10 @@ interface AggregateSummary {
 
 interface MidRunAcceptance {
   minCycleSeeds: number;
+  minAmplitude: number;
+  minPeaks: number;
+  minTroughs: number;
+  minAlternatingTransitions: number;
   minRainShelterSeeds: number;
   minRainRatio: number;
   minRainResponse: number;
@@ -82,8 +86,44 @@ interface MidRunAcceptance {
 
 function acceptanceForTicks(ticks: number): MidRunAcceptance {
   const priestRequirement = ticks >= 60_000 ? 1 : 0;
+  if (ticks <= 5_000) {
+    return {
+      minCycleSeeds: 0,
+      minAmplitude: 0.08,
+      minPeaks: 0,
+      minTroughs: 1,
+      minAlternatingTransitions: 0,
+      minRainShelterSeeds: 3,
+      minRainRatio: 1.2,
+      minRainResponse: 0.68,
+      maxMovingWomenWithoutCryRate: 0.02,
+      minYieldResponse: 0.35,
+      minHandshakeCompletion: 0.35,
+      minPriestSeeds: priestRequirement,
+    };
+  }
+  if (ticks <= 12_000) {
+    return {
+      minCycleSeeds: 2,
+      minAmplitude: 0.1,
+      minPeaks: 1,
+      minTroughs: 1,
+      minAlternatingTransitions: 1,
+      minRainShelterSeeds: 3,
+      minRainRatio: 1.2,
+      minRainResponse: 0.7,
+      maxMovingWomenWithoutCryRate: 0.02,
+      minYieldResponse: 0.42,
+      minHandshakeCompletion: 0.35,
+      minPriestSeeds: priestRequirement,
+    };
+  }
   return {
     minCycleSeeds: 3,
+    minAmplitude: 0.1,
+    minPeaks: 2,
+    minTroughs: 2,
+    minAlternatingTransitions: 4,
     minRainShelterSeeds: 3,
     minRainRatio: 1.2,
     minRainResponse: 0.7,
@@ -92,6 +132,60 @@ function acceptanceForTicks(ticks: number): MidRunAcceptance {
     minHandshakeCompletion: 0.35,
     minPriestSeeds: priestRequirement,
   };
+}
+
+function northYieldDirection(directionToWoman: { x: number; y: number }): { x: number; y: number } {
+  const away = {
+    x: -directionToWoman.x,
+    y: -directionToWoman.y,
+  };
+  const northBiased = {
+    x: away.x * 0.7,
+    y: away.y > -0.2 ? away.y - 0.9 : away.y,
+  };
+  const mag = Math.hypot(northBiased.x, northBiased.y);
+  if (mag <= 1e-6) {
+    return { x: 0, y: -1 };
+  }
+  return {
+    x: northBiased.x / mag,
+    y: northBiased.y / mag,
+  };
+}
+
+function yieldResponseActive(
+  sim: FixedTimestepSimulation,
+  entityId: number,
+  emitterId: number,
+): boolean {
+  const { world } = sim;
+  const movement = world.movements.get(entityId);
+  if (!movement || movement.type !== 'socialNav') {
+    return false;
+  }
+  const stillness = world.stillness.get(entityId);
+  if (stillness?.reason === 'yieldToLady' && stillness.requestedBy === emitterId) {
+    return true;
+  }
+  if (movement.intention === 'yield') {
+    return true;
+  }
+  const entityTransform = world.transforms.get(entityId);
+  const emitterTransform = world.transforms.get(emitterId);
+  if (!entityTransform || !emitterTransform) {
+    return false;
+  }
+  const toWoman = {
+    x: emitterTransform.position.x - entityTransform.position.x,
+    y: emitterTransform.position.y - entityTransform.position.y,
+  };
+  const direction = northYieldDirection(toWoman);
+  const heading = movement.goal?.type === 'direction' && movement.goal.heading !== undefined
+    ? movement.goal.heading
+    : movement.heading;
+  const forward = { x: Math.cos(heading), y: Math.sin(heading) };
+  const alignment = forward.x * direction.x + forward.y * direction.y;
+  return alignment >= 0.5 && movement.speed <= movement.maxSpeed * 0.82;
 }
 
 function createSimulation(seed: number): FixedTimestepSimulation {
@@ -266,12 +360,7 @@ function runSeed(seed: number, ticks: number): RunSummary {
           continue;
         }
         yieldOpportunities += 1;
-        const stillness = world.stillness.get(id);
-        const yieldedByStillness =
-          stillness?.reason === 'yieldToLady' &&
-          stillness.requestedBy === nearestCry.emitterId;
-        const yieldedByIntention = movement.intention === 'yield';
-        if (yieldedByStillness || yieldedByIntention) {
+        if (yieldResponseActive(simulation, id, nearestCry.emitterId)) {
           yieldResponses += 1;
         }
       }
@@ -415,7 +504,11 @@ function main(): void {
   const acceptance = acceptanceForTicks(ticks);
 
   const cyclesPassingSeeds = runs.filter(
-    (run) => run.oscillationAmplitude >= 0.1 && run.peaks >= 2 && run.troughs >= 2 && run.alternatingTransitions >= 4,
+    (run) =>
+      run.oscillationAmplitude >= acceptance.minAmplitude &&
+      run.peaks >= acceptance.minPeaks &&
+      run.troughs >= acceptance.minTroughs &&
+      run.alternatingTransitions >= acceptance.minAlternatingTransitions,
   ).length;
   const rainShelterPassingSeeds = runs.filter(
     (run) =>

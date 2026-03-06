@@ -460,7 +460,7 @@ export class SocialNavMindSystem implements System {
         : Number.POSITIVE_INFINITY;
       const hazardDistance = Math.min(sightHazardDistance, contactDistance);
       const emergencyAvoid = hazardDistance <= Math.max(4, movement.maxSpeed * 0.45);
-      const etiquetteUrgent = womanCryPressure >= 0.28;
+      const etiquetteUrgent = womanCryPressure >= 0.18;
       const rainingShelterOverride =
         world.weather.isRaining &&
         shelterWanted &&
@@ -505,8 +505,8 @@ export class SocialNavMindSystem implements System {
         localFogCaution * 0.16;
       const desireYield =
         (higher === null ? 0 : Math.max(0, (140 - higher.distance) / 140) * (0.25 + caution * 0.8)) +
-        womanCryPressure * 1.05 +
-        socialCrowdPressure * 0.08;
+        womanCryPressure * 1.38 +
+        socialCrowdPressure * 0.1;
       const desireHome =
         !homeWanted || homeDoorTarget === null
           ? 0
@@ -554,7 +554,19 @@ export class SocialNavMindSystem implements System {
         movement.intention = homeWanted ? 'seekHome' : 'seekShelter';
       } else if (rainingShelterOverride) {
         movement.intention = 'seekShelter';
-      } else if (etiquetteUrgent) {
+      } else if (
+        etiquetteUrgent &&
+        !(
+          homeWanted &&
+          homeDoorTarget !== null &&
+          homeDoorTarget.distance <= Math.max(12, world.config.preContactRadius * 1.2)
+        ) &&
+        !(
+          shelterWanted &&
+          shelterTarget !== null &&
+          shelterTarget.distance <= Math.max(12, world.config.preContactRadius * 1.2)
+        )
+      ) {
         movement.intention = 'yield';
       }
 
