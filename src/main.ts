@@ -252,7 +252,6 @@ let flatlanderHoverEntityId: number | null = null;
 let flatlanderHoverSampleIndex: number | null = null;
 let flatlanderHoverNormalizedX: number | null = null;
 let hoveredWorldEntityId: number | null = null;
-let hoveredWorldPoint: Vec2 | null = null;
 let hoveredWorldClientPoint: Vec2 | null = null;
 let lastNarrativeTick = -1;
 const NARRATIVE_UPDATE_INTERVAL_TICKS = 45;
@@ -341,7 +340,6 @@ const ui = new UIController({
     lastFlatlanderScanConfigKey = '';
     clearFlatlanderHover();
     hoveredWorldEntityId = null;
-    hoveredWorldPoint = null;
     hoveredWorldClientPoint = null;
     lastRenderTimeMs = 0;
     renderSelection();
@@ -587,7 +585,6 @@ selectionState.subscribe(() => {
   flatlanderScanDirty = true;
   clearFlatlanderHover();
   hoveredWorldEntityId = null;
-  hoveredWorldPoint = null;
   hoveredWorldClientPoint = null;
   renderSelection();
 });
@@ -600,9 +597,8 @@ const pickingController = new PickingController({
   onSelectionApplied: () => {
     renderSelection();
   },
-  onHoverApplied: (hoveredId, pointWorld, clientPoint) => {
+  onHoverApplied: (hoveredId, _pointWorld, clientPoint) => {
     hoveredWorldEntityId = hoveredId;
-    hoveredWorldPoint = pointWorld;
     hoveredWorldClientPoint = clientPoint;
   },
   tolerancePx: 10,
@@ -911,12 +907,6 @@ function renderWorldHoverInfo(): void {
     history,
     narrativeEntityLabel,
   );
-  const lines = [
-    ...narrative.lines,
-    hoveredWorldPoint
-      ? `Position: x ${hoveredWorldPoint.x.toFixed(1)} · y ${hoveredWorldPoint.y.toFixed(1)}`
-      : '',
-  ];
   const hpBarMarkup = narrative.hpBar
     ? [
         `<div class="world-hover-hp">`,
@@ -931,7 +921,7 @@ function renderWorldHoverInfo(): void {
   worldHoverInfo.innerHTML = [
     `<div class="world-hover-title">${escapeHtml(narrative.title)}</div>`,
     hpBarMarkup,
-    ...lines
+    ...narrative.lines
       .filter((line) => line.length > 0)
       .map((line) => `<div>${escapeHtml(line)}</div>`),
   ].join('');

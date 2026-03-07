@@ -1,4 +1,4 @@
-import type { MovementComponent, SocialNavMovement } from '../core/components';
+import type { SocialNavMovement } from '../core/components';
 import type { World } from '../core/world';
 import type { RecentNarrativeItem } from './recentEventNarrativeStore';
 
@@ -17,37 +17,27 @@ function round1(value: number): string {
   return Number.isFinite(value) ? value.toFixed(1) : '0.0';
 }
 
-function movementSpeed(movement: MovementComponent | undefined): number {
-  if (!movement) {
-    return 0;
-  }
-  if (movement.type === 'straightDrift') {
-    return Math.hypot(movement.vx, movement.vy);
-  }
-  return movement.speed;
-}
-
 function describeSocialIntention(world: World, movement: SocialNavMovement): string {
   switch (movement.intention) {
     case 'seekShelter':
       return world.weather.isRaining
-        ? 'is heading for shelter because rain is active.'
-        : 'is heading for shelter due to risk/pressure signals.';
+        ? 'Heading for shelter.'
+        : 'Heading for shelter.';
     case 'seekHome':
-      return 'is returning to home shelter to regroup.';
+      return 'Returning home.';
     case 'approachForFeeling':
-      return 'is approaching for a tactile introduction.';
+      return 'Approaching for introduction.';
     case 'approachMate':
-      return 'is approaching a mate candidate.';
+      return 'Approaching a mate candidate.';
     case 'yield':
-      return 'is yielding movement priority to nearby traffic.';
+      return 'Yielding movement priority.';
     case 'avoid':
-      return 'is actively avoiding a nearby threat.';
+      return 'Avoiding a nearby threat.';
     case 'holdStill':
-      return 'is intentionally holding position.';
+      return 'Holding position.';
     case 'roam':
     default:
-      return 'is roaming while monitoring local conditions.';
+      return 'Roaming.';
   }
 }
 
@@ -69,22 +59,22 @@ function reasonClauses(
   if (durability && durability.maxHp > 0) {
     const hpRatio = durability.hp / durability.maxHp;
     if (hpRatio < 0.5) {
-      clauses.push(`durability is low (${round1(durability.hp)}/${round1(durability.maxHp)} HP)`);
+      clauses.push('durability is low');
     }
   }
 
   const vision = world.visionHits.get(entityId);
   if (vision?.kind === 'entity') {
     const distanceText = vision.distance === null ? 'unknown range' : `${round1(vision.distance)} units`;
-    clauses.push(`it sees ${entityLabel(vision.hitId, resolveEntityLabel)} at ${distanceText}`);
+    clauses.push(`sees ${entityLabel(vision.hitId, resolveEntityLabel)} at ${distanceText}`);
   } else if (vision?.kind === 'boundary' && vision.boundarySide) {
-    clauses.push(`it sees the ${vision.boundarySide} boundary`);
+    clauses.push(`sees the ${vision.boundarySide} boundary`);
   }
 
   const hearing = world.hearingHits.get(entityId);
   if (hearing) {
     clauses.push(
-      `it hears ${hearing.signature} from ${entityLabel(
+      `hears ${hearing.signature} from ${entityLabel(
         hearing.otherId,
         resolveEntityLabel,
       )} nearby`,
@@ -93,13 +83,13 @@ function reasonClauses(
 
   const stillness = world.stillness.get(entityId);
   if (stillness) {
-    clauses.push(`stillness is active (${stillness.reason}, ${stillness.ticksRemaining} ticks left)`);
+    clauses.push(`stillness is active for ${stillness.reason}`);
   }
 
   const feeling = world.feeling.get(entityId);
   if (feeling && feeling.partnerId !== null && feeling.state !== 'idle') {
     clauses.push(
-      `feeling protocol is ${feeling.state} with ${entityLabel(
+      `feeling is ${feeling.state} with ${entityLabel(
         feeling.partnerId,
         resolveEntityLabel,
       )}`,
@@ -117,9 +107,9 @@ function describeHouse(world: World, houseId: number): EntityHoverNarrative {
     title: `House #${houseId} (${house?.houseKind ?? 'House'})`,
     lines: [
       world.weather.isRaining
-        ? `Rain is active; occupancy is ${occupancy} and this shelter is currently strategic.`
-        : `Dry phase; occupancy is ${occupancy}.`,
-      `Door policy: east entry for women, west entry for men.`,
+        ? `Occupancy ${occupancy}. Rain makes this shelter active.`
+        : `Occupancy ${occupancy}.`,
+      'East door for women, west door for men.',
     ],
     hpBar: null,
   };
@@ -141,10 +131,7 @@ export function buildEntityHoverNarrative(
 
   const movement = world.movements.get(entityId);
   const age = world.ages.get(entityId)?.ticksAlive ?? 0;
-  const kills = world.combatStats.get(entityId)?.kills ?? 0;
-  const job = world.jobs.get(entityId)?.job ?? null;
   const durability = world.durability.get(entityId) ?? null;
-  const speed = movementSpeed(movement);
   const title = displayName ? `${displayName} · ${rankLabel}` : rankLabel;
 
   const lines: string[] = [];
@@ -162,19 +149,14 @@ export function buildEntityHoverNarrative(
 
   const reasons = reasonClauses(world, entityId, resolveEntityLabel);
   if (reasons.length > 0) {
-    lines.push(`Why: ${reasons.slice(0, 2).join('; ')}.`);
-  }
-
-  lines.push(
-    `${shapeLabel}; speed ${round1(speed)}; age ${age}; kills ${kills}${job ? `; job ${job}` : ''}.`,
-  );
-
-  if (history.length > 0) {
-    const recent = history
-      .slice(0, 2)
-      .map((item) => `t${item.tick}: ${item.text}`)
-      .join(' ');
-    lines.push(`Recent: ${recent}`);
+    lines.push(`Because it ${reasons[0]}.`);
+  } else if (history.length > 0) {
+    const latest = history[0];
+    if (latest) {
+      lines.push(`Recently: ${latest.text}`);
+    }
+  } else if (movement) {
+    lines.push(`${shapeLabel}; age ${age}.`);
   }
 
   const hpBar =
@@ -187,5 +169,5 @@ export function buildEntityHoverNarrative(
         }
       : null;
 
-  return { title, lines: lines.slice(0, 4), hpBar };
+  return { title, lines: lines.slice(0, 2), hpBar };
 }

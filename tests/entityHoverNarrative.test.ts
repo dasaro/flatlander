@@ -5,7 +5,7 @@ import { createWorld } from '../src/core/world';
 import { buildEntityHoverNarrative } from '../src/ui/entityHoverNarrative';
 
 describe('entity hover narrative', () => {
-  it('describes social-nav behavior with explicit reasons', () => {
+  it('keeps the hover narrative concise while preserving intent and one clear reason', () => {
     const world = createWorld(9901, { rainEnabled: true, housesEnabled: true });
     world.weather.isRaining = true;
 
@@ -58,11 +58,11 @@ describe('entity hover narrative', () => {
     );
 
     expect(narrative.title).toContain('Lady Test');
-    expect(narrative.lines[0]).toContain('heading for shelter');
-    expect(narrative.lines.some((line) => line.includes('Why:'))).toBe(true);
-    expect(narrative.lines.some((line) => line.includes('Sir Granite'))).toBe(true);
-    expect(narrative.lines.some((line) => line.includes('Mrs. Elms'))).toBe(true);
-    expect(narrative.lines.some((line) => line.includes('Recent:'))).toBe(true);
+    expect(narrative.lines[0]).toContain('Heading for shelter');
+    expect(narrative.lines).toHaveLength(2);
+    expect(narrative.lines[1]).toContain('Because');
+    expect(narrative.lines[1]).toContain('Sir Granite');
+    expect(narrative.lines[1]).not.toContain('Recent:');
     expect(narrative.hpBar).not.toBeNull();
     expect(narrative.hpBar?.label).toContain('HP');
     expect(narrative.hpBar?.ratio).toBeGreaterThan(0);

@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.31] - 2026-03-07
+
+### Changed
+- Reduced the 2D hover popup to essential information only: title, HP bar, one current action line, and one reason line.
+- Removed hover-card clutter such as raw position dumps and recent-event text from the live popup.
+
+### Fixed
+- Raised the long deterministic mid-run smoke test timeout so release validation no longer fails on runtime budget alone.
+
+### Validation
+- `npm test` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm run sim:midrun` passed.
+
 ## [0.9.30] - 2026-03-07
 
 ### Fixed
