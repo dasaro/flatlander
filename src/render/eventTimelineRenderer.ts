@@ -1,6 +1,8 @@
 import type { EventType, TickSummary } from '../ui/eventAnalytics';
 import { TimelineSelectionState } from '../ui/timelineSelectionState';
 import type { RainInterval } from '../ui/rainTimelineStore';
+import type { PolicyRegimePhase } from '../core/policy';
+import type { PolicyInterval } from '../ui/policyTimelineStore';
 
 export interface TimelineRenderConfig {
   splitByRank: boolean;
@@ -11,6 +13,8 @@ export interface TimelineRenderConfig {
   tickEnd: number;
   showRainTrack?: boolean;
   rainIntervals?: RainInterval[];
+  showPolicyTrack?: boolean;
+  policyIntervals?: PolicyInterval[];
 }
 
 const MIN_CONTENT_LEFT = 48;
@@ -20,6 +24,11 @@ const BOTTOM_PADDING = 24;
 const MIN_DIAMOND_RADIUS = 2.8;
 const MAX_DIAMOND_RADIUS = 6.8;
 const RAIN_LINE_COLOR = 'rgba(58, 103, 140, 0.95)';
+const POLICY_PHASE_COLORS: Record<Exclude<PolicyRegimePhase, 'normal'>, string> = {
+  agitation: 'rgba(161, 118, 34, 0.9)',
+  suppression: 'rgba(135, 64, 48, 0.95)',
+  cooldown: 'rgba(104, 119, 72, 0.88)',
+};
 
 const TYPE_COLORS: Record<EventType, string> = {
   peaceCryComplianceHalt: '#6a4c2f',
@@ -132,6 +141,8 @@ export class EventTimelineRenderer {
   private tickEnd = 0;
   private showRainTrack = false;
   private rainIntervals: RainInterval[] = [];
+  private showPolicyTrack = false;
+  private policyIntervals: PolicyInterval[] = [];
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -183,6 +194,8 @@ export class EventTimelineRenderer {
     this.tickEnd = Math.max(this.tickStart, Math.floor(config.tickEnd));
     this.showRainTrack = Boolean(config.showRainTrack);
     this.rainIntervals = config.rainIntervals ?? [];
+    this.showPolicyTrack = Boolean(config.showPolicyTrack);
+    this.policyIntervals = config.policyIntervals ?? [];
 
     if (
       this.selection.pinnedIndex !== null &&
@@ -197,18 +210,26 @@ export class EventTimelineRenderer {
       this.selection.setHovered(null);
     }
 
-    const rows: Array<{ kind: 'rain' } | { kind: 'event'; type: EventType }> = [];
+    const rows: Array<{ kind: 'rain' } | { kind: 'policy' } | { kind: 'event'; type: EventType }> = [];
     if (this.showRainTrack) {
       rows.push({ kind: 'rain' });
     }
+    if (this.showPolicyTrack) {
+      rows.push({ kind: 'policy' });
+    }
     for (const type of this.visibleTypes) {
+      if (type === 'policyShift' && this.showPolicyTrack) {
+        continue;
+      }
       rows.push({ kind: 'event', type });
     }
 
     const { width, height } = this.canvas;
     this.ctx.font = '11px Trebuchet MS, sans-serif';
     const left = computeTimelineContentLeft(
-      rows.map((row) => (row.kind === 'rain' ? 'Rain' : typeLabel(row.type))),
+      rows.map((row) =>
+        row.kind === 'rain' ? 'Rain' : row.kind === 'policy' ? 'Policy' : typeLabel(row.type),
+      ),
       (label) => this.ctx.measureText(label).width,
     );
     this.contentLeft = left;
@@ -231,7 +252,7 @@ export class EventTimelineRenderer {
     this.ctx.lineTo(left + 0.5, bottom);
     this.ctx.stroke();
 
-    if (this.visibleTypes.length === 0 && !this.showRainTrack) {
+    if (rows.length === 0) {
       this.ctx.fillStyle = '#736a5b';
       this.ctx.font = '12px Trebuchet MS, sans-serif';
       this.ctx.fillText('Enable at least one timeline event type', left + 8, top + 14);
@@ -277,7 +298,11 @@ export class EventTimelineRenderer {
       this.ctx.font = '11px Trebuchet MS, sans-serif';
       this.ctx.textAlign = 'right';
       this.ctx.textBaseline = 'middle';
-      this.ctx.fillText(row.kind === 'rain' ? 'Rain' : typeLabel(row.type), left - 6, y);
+      this.ctx.fillText(
+        row.kind === 'rain' ? 'Rain' : row.kind === 'policy' ? 'Policy' : typeLabel(row.type),
+        left - 6,
+        y,
+      );
     }
 
     this.ctx.textAlign = 'left';
@@ -307,6 +332,36 @@ export class EventTimelineRenderer {
           this.ctx.beginPath();
           this.ctx.moveTo(startX, rainY);
           this.ctx.lineTo(endX, rainY);
+          this.ctx.stroke();
+        }
+        this.ctx.restore();
+      }
+    }
+
+    if (this.showPolicyTrack) {
+      const policyRowIndex = rows.findIndex((row) => row.kind === 'policy');
+      const policyY = policyRowIndex >= 0 ? rowCenters[policyRowIndex] : undefined;
+      if (policyY !== undefined) {
+        this.ctx.save();
+        this.ctx.strokeStyle = 'rgba(88, 78, 62, 0.22)';
+        this.ctx.lineWidth = 1.2;
+        this.ctx.beginPath();
+        this.ctx.moveTo(left, policyY);
+        this.ctx.lineTo(right, policyY);
+        this.ctx.stroke();
+
+        this.ctx.lineWidth = Math.max(2.6, rowHeight * 0.3);
+        this.ctx.lineCap = 'round';
+        for (const interval of this.policyIntervals) {
+          if (interval.endTick < this.tickStart || interval.startTick > this.tickEnd) {
+            continue;
+          }
+          const startX = xFromTick(interval.startTick);
+          const endX = xFromTick(interval.endTick);
+          this.ctx.strokeStyle = POLICY_PHASE_COLORS[interval.phase];
+          this.ctx.beginPath();
+          this.ctx.moveTo(startX, policyY);
+          this.ctx.lineTo(endX, policyY);
           this.ctx.stroke();
         }
         this.ctx.restore();
@@ -391,8 +446,9 @@ export class EventTimelineRenderer {
       typeParts.push(`${typeLabel(type)}:${count}`);
     }
     const rainLabel = this.isRainAtTick(summary.tick) ? 'rain:on' : 'rain:off';
+    const policyLabel = `policy:${this.policyPhaseAtTick(summary.tick)}`;
     const pinLabel = this.selection.pinnedIndex !== null ? ' [pinned]' : '';
-    const joined = [...typeParts, rainLabel].join('  ');
+    const joined = [...typeParts, rainLabel, policyLabel].join('  ');
     const reasonParts: string[] = [];
     for (const type of this.visibleTypes) {
       const reasons = summary.reasonsByType[type];
@@ -459,6 +515,15 @@ export class EventTimelineRenderer {
       }
     }
     return false;
+  }
+
+  private policyPhaseAtTick(tick: number): PolicyRegimePhase {
+    for (const interval of this.policyIntervals) {
+      if (tick >= interval.startTick && tick <= interval.endTick) {
+        return interval.phase;
+      }
+    }
+    return 'normal';
   }
 }
 

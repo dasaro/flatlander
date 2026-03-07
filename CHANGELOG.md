@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.32] - 2026-03-07
+
+### Fixed
+- Corrected policy-regime triggering so it reacts to sustained irregularity/overcrowding spikes over baseline instead of entering agitation immediately from the default startup population.
+- Made policy activity legible in the event timeline with a continuous policy-phase track, rather than only isolated transition diamonds.
+- Added live Stats readouts for current policy phase, remaining ticks, and current driver so regime behavior can be inspected directly.
+
+### Added
+- Added `/Users/fdasaro/Desktop/Flatlander/src/ui/policyTimelineStore.ts` to track active policy intervals in the UI layer without coupling render to mutable core state.
+- Added `/Users/fdasaro/Desktop/Flatlander/tests/policyTimelineStore.test.ts` to lock policy interval recording behavior.
+
+### Validation
+- `npm test` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm run sim:midrun` passed.
+
 ## [0.9.31] - 2026-03-07
 
 ### Changed

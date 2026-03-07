@@ -4,6 +4,10 @@ export interface PolicyRegimeState {
   phase: PolicyRegimePhase;
   ticksRemaining: number;
   cycle: number;
+  irregularShareBaseline: number | null;
+  overcrowdingBaseline: number | null;
+  triggerTicks: number;
+  reason: string | null;
 }
 
 export function conceptionMultiplierForPolicy(phase: PolicyRegimePhase): number {
@@ -47,4 +51,3 @@ export function crowdStressMultiplierForPolicy(phase: PolicyRegimePhase): number
       return 1;
   }
 }
-

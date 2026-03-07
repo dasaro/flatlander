@@ -397,6 +397,9 @@ interface InputRefs {
   seekShelterIntentValue: HTMLElement;
   seekHomeIntentValue: HTMLElement;
   stuckNearHouseValue: HTMLElement;
+  policyPhaseValue: HTMLElement;
+  policyTicksRemainingValue: HTMLElement;
+  policyReasonValue: HTMLElement;
   policyTransitionsValue: HTMLElement;
   inspectionInspectedValue: HTMLElement;
   inspectionHospitalizedValue: HTMLElement;
@@ -512,6 +515,9 @@ export class UIController {
     this.refs.seekShelterIntentValue.textContent = String(world.seekShelterIntentCount);
     this.refs.seekHomeIntentValue.textContent = String(world.seekHomeIntentCount);
     this.refs.stuckNearHouseValue.textContent = String(world.stuckNearHouseCount);
+    this.refs.policyPhaseValue.textContent = world.policy.phase;
+    this.refs.policyTicksRemainingValue.textContent = String(Math.max(0, Math.round(world.policy.ticksRemaining)));
+    this.refs.policyReasonValue.textContent = world.policy.reason ?? '—';
     this.refs.policyTransitionsValue.textContent = String(world.policyTransitionsThisTick);
     this.refs.inspectionInspectedValue.textContent = String(world.inspectionInspectedThisTick);
     this.refs.inspectionHospitalizedValue.textContent = String(world.inspectionHospitalizedThisTick);
@@ -2320,6 +2326,9 @@ function collectRefs(): InputRefs {
     seekShelterIntentValue: required<HTMLElement>('stat-seek-shelter'),
     seekHomeIntentValue: required<HTMLElement>('stat-seek-home'),
     stuckNearHouseValue: required<HTMLElement>('stat-stuck-near-house'),
+    policyPhaseValue: required<HTMLElement>('stat-policy-phase'),
+    policyTicksRemainingValue: required<HTMLElement>('stat-policy-ticks'),
+    policyReasonValue: required<HTMLElement>('stat-policy-reason'),
     policyTransitionsValue: required<HTMLElement>('stat-policy-transitions'),
     inspectionInspectedValue: required<HTMLElement>('stat-inspection-inspected'),
     inspectionHospitalizedValue: required<HTMLElement>('stat-inspection-hospitalized'),

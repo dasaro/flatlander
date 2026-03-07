@@ -92,7 +92,10 @@ export interface WorldConfig {
   priestMediationBias: number;
   policyRegimeEnabled: boolean;
   policyTriggerIrregularShare: number;
+  policyTriggerIrregularDelta: number;
   policyTriggerOvercrowding: number;
+  policyTriggerOvercrowdingDelta: number;
+  policyTriggerPersistenceTicks: number;
   policyAgitationTicks: number;
   policySuppressionTicks: number;
   policyCooldownTicks: number;
@@ -352,7 +355,10 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   priestMediationBias: 0.45,
   policyRegimeEnabled: true,
   policyTriggerIrregularShare: 0.09,
+  policyTriggerIrregularDelta: 0.03,
   policyTriggerOvercrowding: 1.25,
+  policyTriggerOvercrowdingDelta: 0.12,
+  policyTriggerPersistenceTicks: 150,
   policyAgitationTicks: 900,
   policySuppressionTicks: 1200,
   policyCooldownTicks: 1600,
@@ -535,6 +541,10 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
       phase: 'normal',
       ticksRemaining: 0,
       cycle: 0,
+      irregularShareBaseline: null,
+      overcrowdingBaseline: null,
+      triggerTicks: 0,
+      reason: null,
     },
     audiblePings: [],
     stabPressure: new Map(),

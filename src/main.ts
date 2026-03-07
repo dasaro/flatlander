@@ -52,6 +52,7 @@ import { RecentEventNarrativeStore } from './ui/recentEventNarrativeStore';
 import { EventDrainPipeline } from './ui/eventDrainPipeline';
 import { captureFrameSnapshot, type FrameSnapshot } from './ui/frameSnapshot';
 import { RainTimelineStore } from './ui/rainTimelineStore';
+import { PolicyTimelineStore } from './ui/policyTimelineStore';
 import { installParameterHelp } from './ui/parameterHelp';
 import { APP_VERSION } from './version';
 
@@ -269,6 +270,7 @@ const eventDrainPipeline = new EventDrainPipeline(
   ],
 );
 const rainTimeline = new RainTimelineStore();
+const policyTimeline = new PolicyTimelineStore();
 
 const selectedTimelineTypes = readSelectedTimelineTypes();
 const selectedTimelineRanks = readSelectedTimelineRankKeys();
@@ -325,6 +327,7 @@ const ui = new UIController({
     populationHistogram.reset(world);
     eventDrainPipeline.reset(world.tick);
     rainTimeline.reset();
+    policyTimeline.reset();
     recentEventNarrative.clear();
     lastNarrativeTick = -1;
     lastBulletinTick = -1;
@@ -632,6 +635,7 @@ function frame(now: number): void {
     showFogOverlay: environmentSettings.showFogOverlay,
   });
   rainTimeline.record(frameSnapshot.tick, frameSnapshot.isRaining);
+  policyTimeline.record(world.tick, world.policy.phase);
 
   renderFlatlanderView(frameSnapshot);
   renderer.render(world, camera, selectionState.selectedId, frameSnapshot, {
@@ -1154,6 +1158,8 @@ function renderEventTimeline(): void {
     tickEnd: world.tick,
     showRainTrack: world.config.rainEnabled && world.config.housesEnabled,
     rainIntervals: rainTimeline.getIntervals(world.tick),
+    showPolicyTrack: selectedTypes.has('policyShift'),
+    policyIntervals: policyTimeline.getIntervals(world.tick),
   });
   eventTimelineLegend.hidden = !timelineShowLegend;
 }

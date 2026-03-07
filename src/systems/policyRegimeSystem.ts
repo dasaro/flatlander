@@ -35,6 +35,16 @@ function irregularPopulation(world: World): number {
   return total;
 }
 
+function updateBaseline(current: number, baseline: number | null, alpha: number): number {
+  if (!Number.isFinite(current)) {
+    return baseline ?? 0;
+  }
+  if (baseline === null || !Number.isFinite(baseline)) {
+    return current;
+  }
+  return baseline + (current - baseline) * alpha;
+}
+
 function transitionTo(
   world: World,
   phase: PolicyRegimePhase,
@@ -43,6 +53,8 @@ function transitionTo(
 ): void {
   world.policy.phase = phase;
   world.policy.ticksRemaining = Math.max(0, Math.round(ticksRemaining));
+  world.policy.reason = reason;
+  world.policy.triggerTicks = 0;
   if (phase === 'agitation') {
     world.policy.cycle += 1;
   }
@@ -61,6 +73,8 @@ export class PolicyRegimeSystem implements System {
       if (world.policy.phase !== 'normal' || world.policy.ticksRemaining !== 0) {
         world.policy.phase = 'normal';
         world.policy.ticksRemaining = 0;
+        world.policy.reason = null;
+        world.policy.triggerTicks = 0;
       }
       return;
     }
@@ -68,14 +82,45 @@ export class PolicyRegimeSystem implements System {
     const comfortPopulation = Math.max(1, Math.round(world.config.crowdComfortPopulation));
     const activePopulation = nonObstaclePopulation(world);
     const irregularShare = irregularPopulation(world) / Math.max(1, activePopulation);
+    const overcrowdingRatio = activePopulation / comfortPopulation;
+    world.policy.irregularShareBaseline = updateBaseline(
+      irregularShare,
+      world.policy.irregularShareBaseline,
+      0.015,
+    );
+    world.policy.overcrowdingBaseline = updateBaseline(
+      overcrowdingRatio,
+      world.policy.overcrowdingBaseline,
+      0.015,
+    );
+
+    const irregularBaseline = world.policy.irregularShareBaseline ?? irregularShare;
+    const overcrowdingBaseline = world.policy.overcrowdingBaseline ?? overcrowdingRatio;
+    const irregularTrigger =
+      irregularShare >= Math.max(0, world.config.policyTriggerIrregularShare) &&
+      irregularShare >= irregularBaseline + Math.max(0, world.config.policyTriggerIrregularDelta);
     const overcrowded =
-      activePopulation >= Math.round(comfortPopulation * Math.max(1, world.config.policyTriggerOvercrowding));
-    const irregularTrigger = irregularShare >= Math.max(0, world.config.policyTriggerIrregularShare);
+      overcrowdingRatio >= Math.max(1, world.config.policyTriggerOvercrowding) &&
+      overcrowdingRatio >= overcrowdingBaseline + Math.max(0, world.config.policyTriggerOvercrowdingDelta);
 
     if (world.policy.phase === 'normal') {
       if (irregularTrigger || overcrowded) {
-        const reason: PolicyShiftReason = irregularTrigger ? 'IrregularitySpike' : 'Overcrowding';
-        transitionTo(world, 'agitation', world.config.policyAgitationTicks, reason);
+        const reason: PolicyShiftReason =
+          irregularTrigger && overcrowded
+            ? irregularShare - irregularBaseline >= overcrowdingRatio - overcrowdingBaseline
+              ? 'IrregularitySpike'
+              : 'Overcrowding'
+            : irregularTrigger
+              ? 'IrregularitySpike'
+              : 'Overcrowding';
+        world.policy.triggerTicks += 1;
+        world.policy.reason = reason;
+        if (world.policy.triggerTicks >= Math.max(1, Math.round(world.config.policyTriggerPersistenceTicks))) {
+          transitionTo(world, 'agitation', world.config.policyAgitationTicks, reason);
+        }
+      } else {
+        world.policy.triggerTicks = 0;
+        world.policy.reason = null;
       }
       return;
     }
@@ -96,6 +141,9 @@ export class PolicyRegimeSystem implements System {
         break;
       case 'cooldown':
         transitionTo(world, 'normal', 0, 'StabilityRestored');
+        world.policy.irregularShareBaseline = irregularShare;
+        world.policy.overcrowdingBaseline = overcrowdingRatio;
+        world.policy.reason = null;
         break;
       default:
         break;
