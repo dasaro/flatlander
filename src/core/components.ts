@@ -186,6 +186,7 @@ export interface NameComponent {
 export type JobKind =
   | 'Soldier'
   | 'Workman'
+  | 'Clerk'
   | 'Merchant'
   | 'Physician'
   | 'Lawyer'

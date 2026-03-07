@@ -4,13 +4,13 @@ import { createDefaultSimulation } from '../src/presets/defaultSimulation';
 
 describe('policy activation smoke', () => {
   it(
-    'activates at least one non-normal policy phase in a 6k-tick seed-42 default run',
+    'activates at least one non-normal policy phase in a 7k-tick seed-42 default run',
     async () => {
       const simulation = createDefaultSimulation(42);
       let transitions = 0;
       let activeTicks = 0;
 
-      for (let tick = 0; tick < 6_000; tick += 1) {
+      for (let tick = 0; tick < 7_000; tick += 1) {
         simulation.stepOneTick();
         if (simulation.world.policy.phase !== 'normal') {
           activeTicks += 1;

@@ -2,6 +2,7 @@ import { spawnEntity, type SpawnMovementConfig, type SpawnShapeConfig } from '..
 import { getLineagePathToRoot } from '../core/genealogy';
 import { houseCentroidWorld } from '../core/housing/houseFactory';
 import { hasHouseCapacity } from '../core/housing/shelterPolicy';
+import { isMarriageEligibleFigure } from '../core/irregularity';
 import { Rank } from '../core/rank';
 import { rankKeyForEntity } from '../core/rankKey';
 import {
@@ -44,6 +45,10 @@ function isFemaleShape(shapeKind: 'segment' | 'circle' | 'polygon'): boolean {
 
 function isMaleShape(shapeKind: 'segment' | 'circle' | 'polygon'): boolean {
   return shapeKind === 'polygon' || shapeKind === 'circle';
+}
+
+function isMarriageEligible(world: World, entityId: number): boolean {
+  return isMarriageEligibleFigure(world.ranks.get(entityId), world.shapes.get(entityId));
 }
 
 function newbornMovement(world: World): SpawnMovementConfig {
@@ -254,6 +259,9 @@ function nearestUnbondedFatherId(
     if (candidateId === motherId || world.staticObstacles.has(candidateId)) {
       continue;
     }
+    if (!isMarriageEligible(world, candidateId)) {
+      continue;
+    }
     const candidateBond = world.bonds.get(candidateId);
     if (candidateBond && candidateBond.spouseId !== null) {
       continue;
@@ -356,8 +364,11 @@ function arrangeBondIfNeeded(
   if (!motherBond) {
     return null;
   }
+  if (!isMarriageEligible(world, motherId)) {
+    return null;
+  }
   if (motherBond.spouseId !== null) {
-    return motherBond.spouseId;
+    return isMarriageEligible(world, motherBond.spouseId) ? motherBond.spouseId : null;
   }
   if (!world.config.rarityMarriageBiasEnabled) {
     return null;
@@ -409,6 +420,9 @@ function mutuallyBondedSpouse(world: World, motherId: number): number | null {
   }
 
   const fatherId = motherBond.spouseId;
+  if (!isMarriageEligible(world, fatherId)) {
+    return null;
+  }
   const fatherBond = world.bonds.get(fatherId);
   if (!fatherBond || fatherBond.spouseId !== motherId) {
     return null;

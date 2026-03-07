@@ -339,4 +339,40 @@ describe('reproduction system', () => {
     const movement = world.movements.get(childId);
     expect(movement?.type).toBe('socialNav');
   });
+
+  it('does not allow irregular male spouses to conceive children', () => {
+    const world = createWorld(909, {
+      reproductionEnabled: true,
+      gestationTicks: 1,
+      matingRadius: 80,
+      conceptionChancePerTick: 1,
+      femaleBirthProbability: 0,
+      maxPopulation: 20,
+      southAttractionEnabled: false,
+    });
+
+    const mother = spawnEntity(
+      world,
+      { kind: 'segment', size: 24 },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 180, y: 180 },
+    );
+    const father = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 5, size: 18, irregular: true },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 180, y: 180 },
+    );
+
+    makeMature(world, mother);
+    bondPair(world, mother, father);
+
+    const sim = simulationWithReproduction(world);
+    for (let i = 0; i < 5; i += 1) {
+      sim.stepOneTick();
+    }
+
+    expect(world.pregnancies.has(mother)).toBe(false);
+    expect(world.entities.size).toBe(2);
+  });
 });

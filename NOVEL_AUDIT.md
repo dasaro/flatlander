@@ -139,8 +139,9 @@ Canon status used in this patch:
 | Canon triangles (equilateral / isosceles metadata) | Part I, Sec. 3 | Directly stated in the novel | Triangle kind persisted and shown in inspector; base ratio on isosceles | `src/core/shapes.ts`; `src/core/factory.ts` `shapeFromConfig`; `src/ui/uiController.ts` `renderSelected` triangle row | Spawn controls `#spawn-triangle-kind`, `#spawn-base-ratio` | `tests/triangleMetadata.test.ts`, `tests/angles.test.ts` |
 | South attraction field | Part I, Sec. 2 | Directly stated in the novel | South force ramp by y-zone, women multiplier, damped terminal drift | `src/core/fields/southAttractionField.ts`; `src/systems/southAttractionSystem.ts` | `south*` keys in config/UI | `tests/southAttractionField.test.ts`, `tests/gravity.test.ts`, `tests/southEscape.test.ts` |
 | Escapability clamp in south | Not explicitly stated | Implementation assumption / extrapolation | Drift is capped as fraction of propulsion speed (`southEscapeFraction`) | `src/systems/southAttractionSystem.ts` `entityMaxSpeed` + clamp | `southEscapeFraction=0.5` | `tests/southEscape.test.ts` |
-| Irregular births (angle deviation model) | Part I, Sec. 7 | Strongly implied by the novel | Male polygon births can be irregular with bounded angle deviation | `src/systems/reproductionSystem.ts` + `generateAngleDeviationRadialProfile`; `src/geometry/polygon.ts` | `irregularBirthsEnabled=true`, `irregularBirthBaseChance=0.14`, cap `2°` | `tests/reproduction.test.ts` (irregular birth determinism/cap) |
-| Regularization + promotion from irregular | Part I, Sec. 7 | Strongly implied by the novel | Irregular radial profile converges to regular; rank updated; event emitted | `src/systems/regularizationSystem.ts` `update` | `regularizationEnabled=true`, `regularizationRate=0.15`, `regularityTolerance=0.015` | `tests/regularization.test.ts` |
+| Irregular births (angle deviation model) | Part I, Sec. 7 | Directly stated principle with numeric scaling assumptions | Male polygon births can be irregular from birth; default generator now creates bounded angle-deviation profiles rather than generic radial jitter | `src/systems/reproductionSystem.ts`; `src/core/factory.ts`; `src/geometry/polygon.ts` | `irregularBirthsEnabled=true`, `irregularBirthBaseChance=0.14`, cap `1.5°`, curable threshold `0.75°` | `tests/reproduction.test.ts` (irregular birth determinism/cap) |
+| Irregular curability, inspection, and promotion | Part I, Sec. 7 | Directly stated principle with simulated age threshold assumption | Slight irregulars remain curable; mature severe cases can be executed; treatment/regularization now runs through inspection confinement and age-limited correction | `src/core/irregularity.ts`; `src/systems/inspectionSystem.ts`; `src/systems/regularizationSystem.ts` | `irregularCurableDeviationDeg=0.75`, `irregularFrameSetTicks=900`, `inspectionExecuteDeviationDeg=1.4`, `regularizationRate=0.15` | `tests/inspectionSystem.test.ts`, `tests/regularization.test.ts`, `tests/irregularity.test.ts` |
+| Irregulars barred from marriage; surviving adults relegated to clerk work | Part I, Sec. 7 | Directly stated in the novel | Irregular figures cannot form new marriage/bonding pairings or father children; irregular job assignment is now `Clerk` | `src/core/irregularity.ts`; `src/systems/feelingSystem.ts`; `src/systems/reproductionSystem.ts`; `src/core/jobs.ts` | No user-facing toggle; enforced by default rules | `tests/irregularity.test.ts`, `tests/reproduction.test.ts`, `tests/jobs.test.ts` |
 | Law of Nature (regular male polygon inheritance: +1 side from father) | Part I, Sec. 3 | Directly stated in the novel | Regular polygon father produces male polygon child with one additional side | `src/core/reproduction/offspringPolicy.ts` `determineMaleChildShapeFromParents`; used by `src/systems/reproductionSystem.ts` | Inherits from `maxPolygonSides` world setting if cap applies | `tests/reproduction.test.ts`, `tests/offspringPolicy.test.ts` |
 | Male side cap (`maxPolygonSides`) and high-order fertility penalties | Part I, Sec. 3 (principle only) | Implementation assumption / extrapolation | Applies simulation caps/penalties to keep long-run populations stable | `src/core/reproduction/offspringPolicy.ts`; `src/systems/reproductionSystem.ts` | `maxPolygonSides=20`, `maleBirthHighRankPenaltyPerSide=0.085`, `conceptionHighRankPenaltyPerSide=0.13` | `tests/reproduction.test.ts`, `src/tools/stabilityHarness.ts` |
 | Isosceles brain-angle generational law (+0.5°/generation; cap 60°) | Part I, Sec. 3 | Directly stated in the novel | Isosceles father begets isosceles son with brain-angle +0.5°; at 60° child is equilateral | `src/core/isosceles.ts`; `src/core/reproduction/offspringPolicy.ts`; `src/core/factory.ts` (`brainAngleDeg` spawn metadata); `src/core/world.ts` (`brainAngles`) | Canon step and cap are fixed in code (`CANON_BRAIN_ANGLE_STEP_DEG=0.5`, `MAX_CANON_BRAIN_ANGLE_DEG=60`) | `tests/offspringPolicy.test.ts` |
@@ -429,24 +430,31 @@ Part I, Section 2: constant southward attraction, slight in temperate regions.
 Part I, Section 7: irregularity from birth, social/legal handling, potential correction thresholds.
 
 **How the app implements it**  
-- Irregular male births can be generated with angle-deviation radial profile (bounded by cap).
-- Irregular polygons carry `radial[]`, `maxDeviationDeg`, and `irregular` flags.
-- Regularization system lerps radial toward 1.0 based on intelligence; when below tolerance, shape becomes regular and rank recomputed.
+- Irregular male births are generated from angle-deviation profiles, not generic jitter, and defaults keep most congenital deviation in the slight/curable range.
+- Irregular polygons carry `radial[]`, `maxDeviationDeg`, and `irregular` flags; inspection and cure decisions now use angle deviation rather than only radial variance.
+- Slight irregulars can be cured while young or under inspection confinement; once the frame has set, only slight cases remain curable, moderate cases are monitored, and severe cases may be condemned on inspection.
+- Irregulars are barred from marriage/reproduction, and surviving irregular adults are assigned clerk work rather than ordinary rank jobs.
 
 **Key defaults**  
-- Birth side: `irregularBirthBaseChance=0.14`, `irregularInheritanceBoost=0.12`, cap `2°`.
+- Birth side: `irregularBirthBaseChance=0.14`, `irregularInheritanceBoost=0.12`, deviation cap `1.5°`.
+- Curability band: `irregularCurableDeviationDeg=0.75` (45 minutes), `irregularFrameSetTicks=900`.
+- Enforcement/treatment: `inspectionHospitalizeDeviationDeg=0.45`, `inspectionExecuteDeviationDeg=1.4`, `inspectionHospitalizeTicks=300`.
 - Regularization: enabled, rate `0.15`, tolerance `0.015`.
 
 **Observe in app**  
-- Run long sim and inspect irregular entries in Inspector (`Regularizing...`, deviation angle).
+- Run long sim and inspect irregular entries in Inspector (`Juvenile irregular`, `Slight irregular`, `Mature irregular`, `Severe irregular`, deviation angle).
 
 **Known divergences/assumptions**  
-- No explicit courts/hospitals/execution policies from Section 7.
+- The “frame begins to set” moment is modeled as a tick threshold (`irregularFrameSetTicks`), which is a simulation assumption.
+- Moderate mature irregulars are monitored rather than explicitly immured as permanent clerks by a separate institutional system.
 
 **Code pointers**  
 - `src/geometry/polygon.ts` `generateAngleDeviationRadialProfile`, `maxAngleDeviationDegrees`  
-- `src/systems/reproductionSystem.ts` irregular birth branch  
-- `src/systems/regularizationSystem.ts` `update`
+- `src/core/irregularity.ts`  
+- `src/core/factory.ts` irregular polygon spawn path  
+- `src/systems/inspectionSystem.ts`  
+- `src/systems/regularizationSystem.ts`  
+- `src/systems/reproductionSystem.ts` and `src/systems/feelingSystem.ts` marriage exclusion
 
 ---
 

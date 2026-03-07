@@ -30,6 +30,7 @@ import {
   type SpawnVoiceConfig,
 } from '../core/factory';
 import { clampFemaleRank } from '../core/femaleStatus';
+import { classifyIrregularDisposition } from '../core/irregularity';
 import { Rank } from '../core/rank';
 import type { RankComponent } from '../core/rank';
 import type { ShapeComponent, TriangleKind } from '../core/shapes';
@@ -877,8 +878,26 @@ export class UIController {
 
     if (shape.kind === 'polygon' && (shape.irregular ?? false)) {
       this.refs.inspectorIrregularRow.hidden = false;
-      this.refs.inspectorIrregularState.textContent = 'Regularizing...';
       const deviationDeg = irregularity?.angleDeviationDeg ?? shape.maxDeviationDeg;
+      const ageTicks = age?.ticksAlive ?? 0;
+      const state =
+        Number.isFinite(deviationDeg)
+          ? classifyIrregularDisposition({
+              ageTicks,
+              frameSetTicks: 900,
+              deviationDeg: deviationDeg ?? 0,
+              curableDeviationDeg: 0.75,
+              executionDeviationDeg: 1.4,
+            })
+          : 'curable';
+      this.refs.inspectorIrregularState.textContent =
+        state === 'curable'
+          ? ageTicks >= 900
+            ? 'Slight irregular'
+            : 'Juvenile irregular'
+          : state === 'monitored'
+            ? 'Mature irregular'
+            : 'Severe irregular';
       if (Number.isFinite(deviationDeg)) {
         this.refs.inspectorIrregularDeviation.textContent = `${(deviationDeg ?? 0).toFixed(2)}°`;
       } else {

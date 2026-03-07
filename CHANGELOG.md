@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.34] - 2026-03-08
+
+### Changed
+- Made irregular-figure handling more faithful to Part I, Section 7: irregular births now default to angle-deviation profiles instead of generic jitter, and most congenital irregularity stays in the slight/curable band.
+- Reworked inspection and treatment so irregular cure/execution decisions depend on angle deviation and whether the figure's frame has effectively set.
+- Stopped irregular adults from entering the normal marriage/reproduction pipeline; surviving irregulars now default to clerk work.
+- Moved actual geometric correction of irregular figures fully into `RegularizationSystem`, removing the old split where inspection mutated irregularity counters without updating polygon geometry.
+
+### Added
+- Added `/Users/fdasaro/Desktop/Flatlander/src/core/irregularity.ts` to centralize irregular severity, curability, marriage eligibility, and radial-profile updates.
+- Added `/Users/fdasaro/Desktop/Flatlander/tests/irregularity.test.ts` for canon-specific irregular disposition and marriage eligibility behavior.
+
+### Validation
+- `npm test` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm run sim:midrun` passed.
+
 ## [0.9.33] - 2026-03-07
 
 ### Changed

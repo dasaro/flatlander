@@ -1,4 +1,5 @@
 import { isEntityOutside } from '../core/housing/dwelling';
+import { updatePolygonFromRadialProfile } from '../core/irregularity';
 import { ensureCoherentJobForEntity } from '../core/jobs';
 import { retitleName } from '../core/names';
 import { crowdStressMultiplierForPolicy } from '../core/policy';
@@ -6,6 +7,7 @@ import { rankFromShape } from '../core/rank';
 import { rankKeyForEntity } from '../core/rankKey';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
+import { generateAngleDeviationRadialProfile } from '../geometry/polygon';
 import type { Vec2 } from '../geometry/vector';
 import type { System } from './system';
 
@@ -108,21 +110,31 @@ function applyStressIrregularity(world: World, entityId: number, stress: number)
       : 1;
 
   if (!shape.irregular) {
-      const chance =
-        Math.max(0, world.config.crowdStressIrregularChance) *
-        stress *
-        overloadScale *
-        rainBoost;
+    const chance =
+      Math.max(0, world.config.crowdStressIrregularChance) *
+      stress *
+      overloadScale *
+      rainBoost;
     if (world.rng.next() < chance) {
-      shape.irregular = true;
-      shape.regular = false;
-      shape.irregularity = Math.max(shape.irregularity, world.config.irregularityTolerance + 0.02 + stress * 0.03);
+      const baseRadius = shape.baseRadius ?? shape.boundingRadius;
+      const targetMax = Math.min(
+        world.config.irregularDeviationCapDeg,
+        world.config.irregularCurableDeviationDeg * (1.15 + stress * 0.22),
+      );
+      const targetMin = Math.max(0.12, Math.min(world.config.irregularDeviationStdMinDeg, targetMax * 0.55));
+      const result = generateAngleDeviationRadialProfile(
+        shape.sides,
+        baseRadius,
+        world.rng,
+        targetMin,
+        Math.max(targetMin, targetMax),
+        targetMax,
+      );
+      const metrics = updatePolygonFromRadialProfile(shape, baseRadius, result.radial);
+      shape.maxDeviationDeg = result.maxDeviationDeg;
       world.irregularity.set(entityId, {
-        deviation: shape.irregularity,
-        angleDeviationDeg: Math.min(
-          world.config.irregularDeviationCapDeg,
-          (world.config.irregularityTolerance + stress) * 20,
-        ),
+        deviation: metrics.deviation,
+        angleDeviationDeg: result.maxDeviationDeg,
       });
       const rank = rankFromShape(shape, {
         irregularityTolerance: world.config.irregularityTolerance,

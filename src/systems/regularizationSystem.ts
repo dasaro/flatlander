@@ -1,21 +1,17 @@
 import { ensureCoherentJobForEntity } from '../core/jobs';
 import { retitleName } from '../core/names';
+import {
+  irregularAngleDeviationDeg,
+  irregularFrameHasSet,
+  regularizePolygonShape,
+  updatePolygonFromRadialProfile,
+} from '../core/irregularity';
 import { rankFromShape, Rank } from '../core/rank';
 import { rankKeyForEntity } from '../core/rankKey';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
-import {
-  maxAngleDeviationDegrees,
-  radialDeviation,
-  radialPolygonVertices,
-  regularPolygonVertices,
-} from '../geometry/polygon';
-import { clamp, distance, vec } from '../geometry/vector';
+import { clamp } from '../geometry/vector';
 import type { System } from './system';
-
-function boundingRadius(vertices: Array<{ x: number; y: number }>): number {
-  return vertices.reduce((max, vertex) => Math.max(max, distance(vertex, vec(0, 0))), 0);
-}
 
 export class RegularizationSystem implements System {
   update(world: World, dt: number): void {
@@ -30,6 +26,8 @@ export class RegularizationSystem implements System {
     for (const id of ids) {
       const shape = world.shapes.get(id);
       const intelligence = world.intelligence.get(id);
+      const ageTicks = world.ages.get(id)?.ticksAlive ?? 0;
+      const confined = world.inspectionConfinement.has(id);
       if (
         !shape ||
         shape.kind !== 'polygon' ||
@@ -42,7 +40,21 @@ export class RegularizationSystem implements System {
         continue;
       }
 
-      const step = clamp(rate * intelligence.value * dt, 0, 1);
+      if (!confined && irregularFrameHasSet(ageTicks, world.config.irregularFrameSetTicks)) {
+        continue;
+      }
+
+      const deviationDeg = irregularAngleDeviationDeg(shape, world.irregularity.get(id));
+      const curable = deviationDeg <= world.config.irregularCurableDeviationDeg;
+      const ageFactor = irregularFrameHasSet(ageTicks, world.config.irregularFrameSetTicks) ? 0.55 : 1.2;
+      const confinementFactor = confined ? 2.4 : 1;
+      const curabilityFactor = curable ? 1.15 : 0.78;
+      const intelligenceFactor = clamp(0.45 + intelligence.value, 0.45, 1.4);
+      const step = clamp(
+        rate * intelligenceFactor * ageFactor * confinementFactor * curabilityFactor * dt,
+        0,
+        1,
+      );
       if (step > 0) {
         for (let i = 0; i < shape.radial.length; i += 1) {
           const current = shape.radial[i] ?? 1;
@@ -50,30 +62,14 @@ export class RegularizationSystem implements System {
         }
       }
 
-      shape.vertices = radialPolygonVertices(shape.sides, shape.baseRadius, shape.radial);
-      const deviation = radialDeviation(shape.radial);
-      const angleDeviationDeg = maxAngleDeviationDegrees(shape.vertices);
-      shape.irregularity = deviation;
-      shape.boundingRadius = boundingRadius(shape.vertices);
-      shape.maxDeviationDeg = angleDeviationDeg;
-      world.irregularity.set(id, {
-        deviation,
-        angleDeviationDeg,
-      });
+      const metrics = updatePolygonFromRadialProfile(shape, shape.baseRadius, shape.radial);
+      world.irregularity.set(id, metrics);
 
-      if (deviation > tolerance) {
+      if (metrics.deviation > tolerance) {
         continue;
       }
 
-      const regularVertices = regularPolygonVertices(shape.sides, shape.baseRadius);
-      shape.vertices = regularVertices;
-      shape.boundingRadius = boundingRadius(regularVertices);
-      shape.irregularity = 0;
-      shape.irregular = false;
-      delete shape.radial;
-      delete shape.baseRadius;
-      delete shape.maxDeviationDeg;
-      shape.regular = true;
+      regularizePolygonShape(shape);
       world.irregularity.delete(id);
 
       const previousRank = world.ranks.get(id);

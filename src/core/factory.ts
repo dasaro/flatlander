@@ -1,5 +1,5 @@
 import {
-  generateIrregularRadialPolygon,
+  generateAngleDeviationRadialProfile,
   isoscelesTriangleVertices,
   radialDeviation,
   radialPolygonVertices,
@@ -39,6 +39,7 @@ import {
 } from './isosceles';
 import { initialIntelligenceForRank } from './intelligence';
 import { computeDefaultEyeComponent } from './eyePose';
+import { updatePolygonFromRadialProfile } from './irregularity';
 import { deterministicJobForEntity } from './jobs';
 import { buildDeterministicName } from './names';
 import { defaultPerceptionForRank } from './perceptionPresets';
@@ -492,15 +493,18 @@ function shapeFromConfig(world: World, config: SpawnShapeConfig): ShapeComponent
       irregularity = radialDeviation(radial);
       maxDeviationDeg = config.maxDeviationDeg;
     } else {
-      const irregularResult = generateIrregularRadialPolygon(
+      const irregularResult = generateAngleDeviationRadialProfile(
         sides,
         radius,
-        world.config.irregularJitter,
         world.rng,
+        world.config.irregularDeviationStdMinDeg,
+        world.config.irregularDeviationStdMaxDeg,
+        world.config.irregularDeviationCapDeg,
       );
       vertices = irregularResult.vertices;
-      irregularity = irregularResult.irregularity;
       radial = irregularResult.radial;
+      irregularity = radialDeviation(irregularResult.radial);
+      maxDeviationDeg = irregularResult.maxDeviationDeg;
     }
     baseRadius = radius;
     regular = false;
@@ -520,7 +524,7 @@ function shapeFromConfig(world: World, config: SpawnShapeConfig): ShapeComponent
     0,
   );
 
-  return {
+  const shape: ShapeComponent = {
     kind: 'polygon',
     sides,
     vertices,
@@ -534,6 +538,17 @@ function shapeFromConfig(world: World, config: SpawnShapeConfig): ShapeComponent
     ...(isoscelesBaseRatio !== undefined ? { isoscelesBaseRatio } : {}),
     ...(maxDeviationDeg !== undefined ? { maxDeviationDeg } : {}),
   };
+
+  if (shape.kind === 'polygon' && irregular && radial && baseRadius !== undefined) {
+    const metrics = updatePolygonFromRadialProfile(shape, baseRadius, radial);
+    if (maxDeviationDeg !== undefined) {
+      shape.maxDeviationDeg = maxDeviationDeg;
+    } else {
+      shape.maxDeviationDeg = metrics.angleDeviationDeg;
+    }
+  }
+
+  return shape;
 }
 
 function movementFromConfig(

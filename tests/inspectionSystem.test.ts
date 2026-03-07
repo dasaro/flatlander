@@ -34,6 +34,11 @@ describe('InspectionSystem', () => {
     });
     const system = new InspectionSystem();
     const id = spawnIrregularPolygon(world, 180, 180);
+    const age = world.ages.get(id);
+    if (!age) {
+      throw new Error('Missing age component in inspection test.');
+    }
+    age.ticksAlive = 120;
 
     world.irregularity.set(id, {
       deviation: 0.3,
@@ -74,6 +79,11 @@ describe('InspectionSystem', () => {
     const system = new InspectionSystem();
     const id = spawnIrregularPolygon(world, 220, 180);
     world.policy.phase = 'suppression';
+    const age = world.ages.get(id);
+    if (!age) {
+      throw new Error('Missing age component in inspection execution test.');
+    }
+    age.ticksAlive = world.config.irregularFrameSetTicks + 1;
 
     world.irregularity.set(id, {
       deviation: 0.45,
@@ -95,5 +105,32 @@ describe('InspectionSystem', () => {
     expect(inspectionEvent.entityId).toBe(id);
     expect(inspectionEvent.deviationDeg).toBeGreaterThanOrEqual(1);
   });
-});
 
+  it('leaves mature moderate irregulars under monitoring without automatic hospital or execution', () => {
+    const world = createWorld(404, {
+      inspectionEnabled: true,
+      inspectionCadenceTicks: 1,
+      inspectionSampleSize: 1,
+      inspectionHospitalizeDeviationDeg: 0.2,
+      inspectionExecuteDeviationDeg: 1.4,
+      inspectionMaxExecutionsPerPass: 1,
+    });
+    const system = new InspectionSystem();
+    const id = spawnIrregularPolygon(world, 260, 180);
+    const age = world.ages.get(id);
+    if (!age) {
+      throw new Error('Missing age component in mature monitoring test.');
+    }
+    age.ticksAlive = world.config.irregularFrameSetTicks + 50;
+    world.irregularity.set(id, {
+      deviation: 0.25,
+      angleDeviationDeg: 0.95,
+    });
+
+    system.update(world);
+    expect(world.inspectionHospitalizedThisTick).toBe(0);
+    expect(world.inspectionExecutedThisTick).toBe(0);
+    expect(world.inspectionConfinement.has(id)).toBe(false);
+    expect(world.pendingDeaths.has(id)).toBe(false);
+  });
+});

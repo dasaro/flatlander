@@ -1,8 +1,6 @@
 import { isEntityOutside } from '../core/housing/dwelling';
-import { ensureCoherentJobForEntity } from '../core/jobs';
-import { retitleName } from '../core/names';
+import { classifyIrregularDisposition, irregularAngleDeviationDeg } from '../core/irregularity';
 import { crowdStressMultiplierForPolicy } from '../core/policy';
-import { rankFromShape } from '../core/rank';
 import { rankKeyForEntity } from '../core/rankKey';
 import { requestStillness } from '../core/stillness';
 import { getSortedEntityIds } from '../core/world';
@@ -35,61 +33,6 @@ function markInspectionExecution(world: World, entityId: number, deviationDeg: n
       deviationDeg,
       rankKey: rankKeyForEntity(world, entityId),
     });
-  }
-}
-
-function irregularDeviationDeg(world: World, entityId: number): number {
-  const irregularity = world.irregularity.get(entityId);
-  if (irregularity?.angleDeviationDeg !== undefined && Number.isFinite(irregularity.angleDeviationDeg)) {
-    return Math.max(0, irregularity.angleDeviationDeg);
-  }
-  const shape = world.shapes.get(entityId);
-  if (!shape || shape.kind !== 'polygon') {
-    return 0;
-  }
-  return Math.max(0, shape.irregularity * 80);
-}
-
-function applyHospitalTreatment(world: World, entityId: number): void {
-  const shape = world.shapes.get(entityId);
-  if (!shape || shape.kind !== 'polygon' || !shape.irregular) {
-    return;
-  }
-  shape.irregularity = Math.max(0, shape.irregularity * 0.985);
-
-  const irregularity = world.irregularity.get(entityId);
-  if (irregularity) {
-    irregularity.deviation = shape.irregularity;
-    if (irregularity.angleDeviationDeg !== undefined) {
-      irregularity.angleDeviationDeg = Math.max(0, irregularity.angleDeviationDeg * 0.985);
-    }
-  }
-
-  if (shape.irregularity <= world.config.irregularityTolerance * 0.9) {
-    shape.irregular = false;
-    shape.regular = true;
-    const rank = rankFromShape(shape, {
-      irregularityTolerance: world.config.irregularityTolerance,
-      nearCircleThreshold: world.config.nearCircleThreshold,
-    });
-    world.ranks.set(entityId, rank);
-    ensureCoherentJobForEntity(world, entityId);
-    const name = world.names.get(entityId);
-    if (name) {
-      world.names.set(entityId, retitleName(name, rank.rank, shape));
-    }
-    world.irregularity.delete(entityId);
-    const transform = world.transforms.get(entityId);
-    if (transform) {
-      world.events.push({
-        type: 'regularized',
-        tick: world.tick,
-        entityId,
-        pos: transform.position,
-        rankKey: rankKeyForEntity(world, entityId),
-      });
-    }
-    world.regularizedThisTick += 1;
   }
 }
 
@@ -127,8 +70,6 @@ function applyConfinement(world: World): void {
       movement.intentionTicksLeft = Math.max(1, confinement.ticksRemaining);
       delete movement.goal;
     }
-
-    applyHospitalTreatment(world, id);
 
     if (confinement.ticksRemaining <= 0) {
       world.inspectionConfinement.delete(id);
@@ -191,15 +132,26 @@ export class InspectionSystem implements System {
         continue;
       }
       world.inspectionInspectedThisTick += 1;
-      const deviationDeg = irregularDeviationDeg(world, id) * phaseStress;
+      const shape = world.shapes.get(id);
+      const ageTicks = world.ages.get(id)?.ticksAlive ?? 0;
+      const deviationDeg = irregularAngleDeviationDeg(shape, world.irregularity.get(id)) * phaseStress;
+      const disposition = classifyIrregularDisposition({
+        ageTicks,
+        frameSetTicks: world.config.irregularFrameSetTicks,
+        deviationDeg,
+        curableDeviationDeg: world.config.irregularCurableDeviationDeg,
+        executionDeviationDeg: executionThreshold,
+      });
 
-      if (deviationDeg >= executionThreshold && executions < maxExecutions) {
+      // Flatland Part I §7: slight deviations are curable; severe mature cases
+      // are condemned only after the figure's frame has begun to set.
+      if (disposition === 'condemned' && executions < maxExecutions) {
         executions += 1;
         markInspectionExecution(world, id, deviationDeg);
         continue;
       }
 
-      if (deviationDeg < hospitalThreshold) {
+      if (deviationDeg < hospitalThreshold || disposition === 'monitored') {
         continue;
       }
       world.inspectionConfinement.set(id, {
@@ -221,4 +173,3 @@ export class InspectionSystem implements System {
     }
   }
 }
-

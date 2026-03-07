@@ -3,6 +3,7 @@ import type { HandshakeFailureReason } from '../core/events';
 import type { EntityId } from '../core/components';
 import { houseCentroidWorld } from '../core/housing/houseFactory';
 import { hasHouseCapacity } from '../core/housing/shelterPolicy';
+import { isMarriageEligibleFigure } from '../core/irregularity';
 import { rankKeyForEntity } from '../core/rankKey';
 import { requestStillness } from '../core/stillness';
 import { angleToVector } from '../geometry/vector';
@@ -524,6 +525,12 @@ function maybeCreateHouseholdBond(
   bShape: ReturnType<World['shapes']['get']>,
 ): void {
   if (!aShape || !bShape) {
+    return;
+  }
+  if (
+    !isMarriageEligibleFigure(world.ranks.get(aId), aShape) ||
+    !isMarriageEligibleFigure(world.ranks.get(bId), bShape)
+  ) {
     return;
   }
   const oppositeSex =

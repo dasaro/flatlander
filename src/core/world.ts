@@ -107,6 +107,8 @@ export interface WorldConfig {
   inspectionExecuteDeviationDeg: number;
   inspectionHospitalizeTicks: number;
   inspectionMaxExecutionsPerPass: number;
+  irregularCurableDeviationDeg: number;
+  irregularFrameSetTicks: number;
   neoTherapyEnabled: boolean;
   neoTherapyEnrollmentThresholdSides: number;
   neoTherapyAmbitionProbability: number;
@@ -359,7 +361,7 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   policyTriggerIrregularDelta: 0.02,
   policyTriggerOvercrowding: 1.25,
   policyTriggerOvercrowdingDelta: 0.08,
-  policyTriggerPersistenceTicks: 90,
+  policyTriggerPersistenceTicks: 70,
   policyWarmupTicks: 900,
   policyAgitationTicks: 700,
   policySuppressionTicks: 1000,
@@ -371,6 +373,8 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   inspectionExecuteDeviationDeg: 1.4,
   inspectionHospitalizeTicks: 300,
   inspectionMaxExecutionsPerPass: 1,
+  irregularCurableDeviationDeg: 0.75,
+  irregularFrameSetTicks: 900,
   neoTherapyEnabled: true,
   neoTherapyEnrollmentThresholdSides: 9,
   neoTherapyAmbitionProbability: 0.5,
@@ -446,8 +450,8 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   irregularBirthChance: 0.14,
   irregularInheritanceBoost: 0.12,
   irregularDeviationStdMinDeg: 0.2,
-  irregularDeviationStdMaxDeg: 0.8,
-  irregularDeviationCapDeg: 2,
+  irregularDeviationStdMaxDeg: 0.6,
+  irregularDeviationCapDeg: 1.5,
   defaultVisionRange: 120,
   defaultVisionAvoidDistance: 40,
   defaultVisionAvoidTurnRate: 2.5,

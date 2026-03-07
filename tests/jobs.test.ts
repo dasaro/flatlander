@@ -47,6 +47,18 @@ describe('deterministic jobs', () => {
         rank: buildRank(Rank.Priest),
         shape: { kind: 'circle', radius: 11, boundingRadius: 11 },
       },
+      {
+        rank: buildRank(Rank.Irregular),
+        shape: {
+          kind: 'polygon',
+          sides: 5,
+          vertices: [],
+          irregularity: 0.1,
+          regular: false,
+          irregular: true,
+          boundingRadius: 12,
+        },
+      },
     ];
 
     for (const [index, scenario] of cases.entries()) {
@@ -76,5 +88,21 @@ describe('deterministic jobs', () => {
       expect(picked).not.toBe('Priest');
       expect(picked).not.toBe('Soldier');
     }
+  });
+
+  it('assigns surviving irregulars to clerk work', () => {
+    const rank = buildRank(Rank.Irregular);
+    const shape: ShapeComponent = {
+      kind: 'polygon',
+      sides: 6,
+      vertices: [],
+      irregularity: 0.12,
+      regular: false,
+      irregular: true,
+      boundingRadius: 12,
+    };
+
+    expect(allowedJobsFor(rank, shape)).toEqual(['Clerk']);
+    expect(deterministicJobForEntity(42, 9, rank, shape)).toBe('Clerk');
   });
 });

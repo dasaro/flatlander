@@ -49,7 +49,8 @@ export function allowedJobsFor(rank: RankComponent, shape: ShapeComponent): JobK
       }
       return ['Merchant', 'Workman'];
     case Rank.Irregular:
-      return ['Workman'];
+      // Flatland Part I §7: surviving irregulars may be reduced to clerk work.
+      return ['Clerk'];
     default:
       return ['Workman'];
   }
