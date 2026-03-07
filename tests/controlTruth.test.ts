@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  describeBoundarySelectorTruth,
   describeEnvironmentControlTruth,
   describeFlatlanderControlTruth,
   describeOverlayControlTruth,
@@ -10,13 +9,6 @@ import {
 } from '../src/ui/controlTruth';
 
 describe('controlTruth', () => {
-  it('marks boundary selectors as topology-driven read-only controls', () => {
-    const truth = describeBoundarySelectorTruth();
-
-    expect(truth.enabled).toBe(false);
-    expect(truth.disabledReason).toContain('World Topology');
-  });
-
   it('explains square-house suppression in large towns', () => {
     const truth = describeEnvironmentControlTruth({
       housesEnabled: true,

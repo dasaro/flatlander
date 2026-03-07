@@ -12,8 +12,6 @@ const EXPLICIT_HELP: Record<string, string> = {
   'south-max-terminal': 'Caps the maximum downward drift speed caused by south-attraction.',
   'south-escape-fraction': 'Limits south drift relative to self-propulsion so northward escape remains possible.',
   'south-show-zone': 'Shows the southern danger zone overlay in God-view.',
-  'south-show-click-debug': 'Shows click-debug markers for the south field overlay.',
-
   'event-highlights-enabled': 'Enables renderer-side interaction overlays and related display options.',
   'event-highlights-show-legend': 'Shows or hides the dynamic legend for currently active overlays and events.',
   'event-highlights-intensity': 'Scales the brightness and prominence of interaction highlights.',
@@ -53,7 +51,6 @@ const EXPLICIT_HELP: Record<string, string> = {
   'env-show-fog-overlay': 'Shows the God-view fog field overlay.',
   'env-show-house-doors': 'Draws door markers on houses in God-view.',
   'env-show-house-occupancy': 'Shows current occupancy counts on houses in God-view.',
-  'env-show-housing-debug': 'Shows house-door targeting diagnostics for selected shelter seekers.',
 
   'peace-cry-enabled': 'Sets the default peace-cry behavior used for segments.',
   'peace-cry-cadence': 'Sets how often default peace-cry emits.',

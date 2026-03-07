@@ -13,7 +13,6 @@ export interface EnvironmentControlTruth {
   rainOverlay: Availability;
   houseDoors: Availability;
   houseOccupancy: Availability;
-  housingDebug: Availability;
 }
 
 export interface PeaceCryControlTruth {
@@ -122,17 +121,8 @@ export function describeEnvironmentControlTruth(settings: {
           enabledHint: activeHouseOverlayHint,
         }
       : {
-          enabled: false,
-          disabledReason: 'Enable houses first.',
-        },
-    housingDebug: settings.housesEnabled
-      ? {
-          enabled: true,
-          enabledHint: 'Only draws when a selected entity has a house-related goal.',
-        }
-      : {
-          enabled: false,
-          disabledReason: 'Enable houses first.',
+        enabled: false,
+        disabledReason: 'Enable houses first.',
         },
   };
 }
@@ -346,12 +336,5 @@ export function describeFlatlanderControlTruth(
       enabled: true,
       enabledHint: 'Shows bounded-world edges in the 1D view.',
     },
-  };
-}
-
-export function describeBoundarySelectorTruth(): Availability {
-  return {
-    enabled: false,
-    disabledReason: 'Boundary is controlled by World Topology.',
   };
 }

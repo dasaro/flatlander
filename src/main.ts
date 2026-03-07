@@ -133,7 +133,6 @@ let environmentSettings: EnvironmentSettings = {
   showFogOverlay: true,
   showDoors: true,
   showOccupancy: true,
-  showHousingDebug: false,
 };
 let peaceCrySettings: PeaceCrySettings = {
   enabled: true,
@@ -211,7 +210,6 @@ let southAttractionSettings: SouthAttractionSettings = {
   maxTerminal: 1.8,
   escapeFraction: 0.5,
   showSouthZoneOverlay: false,
-  showClickDebug: false,
 };
 let world = createWorld(
   readInitialSeed(initialSeedInput.value),
@@ -244,7 +242,6 @@ const eventTimelineRenderer = hasEventTimelineUi
 populationHistogram.reset(world);
 const camera = new Camera(world.config.width, world.config.height);
 const selectionState = new SelectionState();
-let debugClickPoint: Vec2 | null = null;
 let lastRenderTimeMs = 0;
 let lastFlatlanderScanTick = -1;
 let lastFlatlanderScanViewerId: number | null = null;
@@ -346,7 +343,6 @@ const ui = new UIController({
     hoveredWorldEntityId = null;
     hoveredWorldPoint = null;
     hoveredWorldClientPoint = null;
-    debugClickPoint = null;
     lastRenderTimeMs = 0;
     renderSelection();
   },
@@ -394,16 +390,6 @@ const ui = new UIController({
     fogSightSettings = settings;
     world.config.sightEnabled = settings.sightEnabled;
     world.config.fogDensity = settings.fogDensity;
-  },
-  onApplyNovelSafetyPreset: () => {
-    applyNovelSafetyPreset(world);
-    spawnPlan = applyNovelSafetyPresetToPlan(spawnPlan);
-    renderSelection();
-  },
-  onApplyHarmonicMotionPreset: () => {
-    applyHarmonicMotionPreset(world);
-    spawnPlan = applyHarmonicMotionPresetToPlan(spawnPlan);
-    renderSelection();
   },
   onSouthAttractionUpdate: (settings) => {
     southAttractionSettings = settings;
@@ -611,9 +597,6 @@ const pickingController = new PickingController({
   camera,
   selectionState,
   getWorld: () => world,
-  onClickWorldPoint: (point) => {
-    debugClickPoint = point;
-  },
   onSelectionApplied: () => {
     renderSelection();
   },
@@ -653,13 +636,10 @@ function frame(now: number): void {
     showFogOverlay: environmentSettings.showFogOverlay,
   });
   rainTimeline.record(frameSnapshot.tick, frameSnapshot.isRaining);
-  const clickPoint = debugClickPoint;
-  debugClickPoint = null;
 
   renderFlatlanderView(frameSnapshot);
   renderer.render(world, camera, selectionState.selectedId, frameSnapshot, {
     showSouthZoneOverlay: southAttractionSettings.showSouthZoneOverlay,
-    debugClickPoint: southAttractionSettings.showClickDebug ? clickPoint : null,
     effectsManager,
     strokeByKills: eventHighlightsSettings.strokeByKills,
     showHearingOverlay: eventHighlightsSettings.showHearingOverlay,
@@ -683,7 +663,6 @@ function frame(now: number): void {
     flatlanderHoverEntityId,
     showHouseDoors: environmentSettings.showDoors,
     showHouseOccupancy: environmentSettings.showOccupancy,
-    showHousingDebug: environmentSettings.showHousingDebug,
   });
   populationHistogram.render();
   renderEventTimeline();
@@ -1574,177 +1553,6 @@ function applyBoundaryToSpawnRequest(request: SpawnRequest, boundary: BoundaryMo
 
 function applyBoundaryToSpawnPlan(plan: SpawnRequest[], boundary: BoundaryMode): SpawnRequest[] {
   return plan.map((request) => applyBoundaryToSpawnRequest(request, boundary));
-}
-
-function applyNovelSafetyPreset(worldState: typeof world): void {
-  worldState.config.handshakeStillnessTicks = 12;
-  worldState.config.compensationEnabled = false;
-  worldState.config.compensationRate = 0.55;
-  worldState.config.intelligenceGrowthPerSecond = 0.004;
-  worldState.config.handshakeIntelligenceBonus = 0.015;
-  worldState.config.southStringencyEnabled = true;
-  worldState.config.southStringencyMultiplier = 1.9;
-  worldState.config.feelSpeedThreshold = Math.max(worldState.config.feelSpeedThreshold, 8);
-  worldState.config.killThreshold = Math.max(worldState.config.killThreshold, 24);
-  worldState.config.killSeverityThreshold = Math.max(7, worldState.config.killSeverityThreshold);
-  worldState.config.stabSharpnessExponent = Math.max(1.8, worldState.config.stabSharpnessExponent);
-  worldState.config.pressureTicksToKill = Math.max(90, worldState.config.pressureTicksToKill);
-  worldState.config.regularizationEnabled = true;
-  worldState.config.regularizationRate = Math.max(0.15, worldState.config.regularizationRate);
-  worldState.config.reproductionEnabled = true;
-  worldState.config.gestationTicks = 220;
-  worldState.config.matingRadius = 65;
-  worldState.config.conceptionChancePerTick = 0.0042;
-  worldState.config.femaleBirthProbability = 0.56;
-  worldState.config.maleBirthHighRankPenaltyPerSide = 0.085;
-  worldState.config.conceptionHighRankPenaltyPerSide = 0.13;
-  worldState.config.maxPopulation = 550;
-  worldState.config.irregularBirthsEnabled = true;
-  worldState.config.irregularBirthBaseChance = 0.14;
-  worldState.config.irregularBirthChance = 0.14;
-  worldState.config.defaultVisionAvoidDistance = Math.max(worldState.config.defaultVisionAvoidDistance, 55);
-  worldState.config.defaultVisionAvoidTurnRate = Math.max(worldState.config.defaultVisionAvoidTurnRate, 2.8);
-  worldState.config.peaceCryEnabled = true;
-  worldState.config.strictPeaceCryComplianceEnabled = true;
-  worldState.config.peaceCryComplianceStillnessTicks = 3;
-  worldState.config.northYieldEtiquetteEnabled = true;
-  worldState.config.northYieldRadius = 170;
-  worldState.config.defaultPeaceCryCadenceTicks = 16;
-  worldState.config.defaultPeaceCryRadius = 150;
-  worldState.config.sightEnabled = true;
-  worldState.config.fogDensity = Math.max(worldState.config.fogDensity, 0.012);
-  worldState.config.southEscapeFraction = Math.max(0.45, worldState.config.southEscapeFraction);
-
-  const ids = [...worldState.entities].sort((a, b) => a - b);
-  for (const id of ids) {
-    const shape = worldState.shapes.get(id);
-    const movement = worldState.movements.get(id);
-    if (!shape || !movement) {
-      continue;
-    }
-
-    const vision = worldState.vision.get(id);
-    if (vision) {
-      vision.avoidDistance = Math.max(vision.avoidDistance, 55);
-      vision.avoidTurnRate = Math.max(vision.avoidTurnRate, 2.8);
-    }
-
-    const feeling = worldState.feeling.get(id);
-    if (feeling) {
-      feeling.enabled = true;
-      feeling.feelCooldownTicks = Math.max(feeling.feelCooldownTicks, 20);
-      feeling.approachSpeed = Math.min(feeling.approachSpeed, 9);
-    }
-
-    const peaceCry = worldState.peaceCry.get(id);
-    if (peaceCry) {
-      peaceCry.enabled = true;
-      peaceCry.cadenceTicks = 16;
-      peaceCry.radius = 150;
-    }
-
-    const isIsosceles =
-      shape.kind === 'polygon' && shape.sides === 3 && shape.triangleKind === 'Isosceles';
-    const isWoman = shape.kind === 'segment';
-    const cap = isWoman ? 14 : isIsosceles ? 16 : 13;
-    if (movement.type === 'straightDrift') {
-      const driftScale = isWoman ? 0.75 : isIsosceles ? 0.65 : 0.8;
-      movement.vx *= driftScale;
-      movement.vy *= driftScale;
-      continue;
-    }
-
-    if (movement.type === 'socialNav') {
-      movement.maxSpeed = Math.min(movement.maxSpeed, cap);
-      movement.maxTurnRate = Math.max(movement.maxTurnRate, isWoman ? 1.4 : 1);
-      movement.speed = Math.min(movement.speed, movement.maxSpeed);
-      movement.smoothSpeed = Math.min(movement.smoothSpeed, movement.maxSpeed);
-      movement.decisionEveryTicks = Math.max(16, movement.decisionEveryTicks);
-      movement.intentionMinTicks = Math.max(80, movement.intentionMinTicks);
-      continue;
-    }
-
-    movement.speed = Math.min(movement.speed, cap);
-  }
-}
-
-function applyNovelSafetyPresetToPlan(plan: SpawnRequest[]): SpawnRequest[] {
-  return plan.map((request) => {
-    const shape = request.shape;
-    const movement = request.movement;
-    const isIsosceles =
-      shape.kind === 'polygon' && shape.sides === 3 && shape.triangleKind === 'Isosceles';
-    const isWoman = shape.kind === 'segment';
-    const cap = isWoman ? 14 : isIsosceles ? 16 : 13;
-
-    const adjustedMovement: SpawnMovementConfig =
-      movement.type === 'straightDrift'
-        ? {
-            ...movement,
-            vx: movement.vx * (isWoman ? 0.75 : isIsosceles ? 0.65 : 0.8),
-            vy: movement.vy * (isWoman ? 0.75 : isIsosceles ? 0.65 : 0.8),
-          }
-        : movement.type === 'socialNav'
-          ? {
-              ...movement,
-              maxSpeed: Math.min(movement.maxSpeed, cap),
-              maxTurnRate: Math.max(movement.maxTurnRate, isWoman ? 1.4 : 1),
-              decisionEveryTicks: Math.max(16, movement.decisionEveryTicks),
-              intentionMinTicks: Math.max(80, movement.intentionMinTicks),
-            }
-        : {
-            ...movement,
-            speed: Math.min(movement.speed, cap),
-          };
-
-    return {
-      ...request,
-      movement: adjustedMovement,
-      feeling: {
-        enabled: request.feeling?.enabled ?? true,
-        feelCooldownTicks: Math.max(20, request.feeling?.feelCooldownTicks ?? 20),
-        approachSpeed: Math.min(9, request.feeling?.approachSpeed ?? 9),
-      },
-    };
-  });
-}
-
-function applyHarmonicMotionPreset(worldState: typeof world): void {
-  for (const [id, movement] of worldState.movements) {
-    if (!worldState.entities.has(id)) {
-      continue;
-    }
-
-    if (movement.type !== 'socialNav') {
-      continue;
-    }
-
-    movement.maxSpeed = Math.min(Math.max(10, movement.maxSpeed), 15);
-    movement.maxTurnRate = Math.min(Math.max(0.8, movement.maxTurnRate), 1.4);
-    movement.decisionEveryTicks = Math.max(18, movement.decisionEveryTicks);
-    movement.intentionMinTicks = Math.max(88, movement.intentionMinTicks);
-    movement.speed = Math.min(movement.speed, movement.maxSpeed);
-    movement.smoothSpeed = Math.min(movement.smoothSpeed, movement.maxSpeed);
-  }
-}
-
-function applyHarmonicMotionPresetToPlan(plan: SpawnRequest[]): SpawnRequest[] {
-  return plan.map((request) => {
-    if (request.movement.type !== 'socialNav') {
-      return request;
-    }
-
-    return {
-      ...request,
-      movement: {
-        ...request.movement,
-        maxSpeed: Math.min(Math.max(10, request.movement.maxSpeed), 15),
-        maxTurnRate: Math.min(Math.max(0.8, request.movement.maxTurnRate), 1.4),
-        decisionEveryTicks: Math.max(18, request.movement.decisionEveryTicks),
-        intentionMinTicks: Math.max(88, request.movement.intentionMinTicks),
-      },
-    };
-  });
 }
 
 function readCheckbox(id: string): boolean {

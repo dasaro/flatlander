@@ -39,7 +39,6 @@ import type { Vec2 } from '../geometry/vector';
 import type { FlatlanderViewConfig } from '../render/flatlanderScan';
 import { setButtonEnabled, setControlEnabled } from './buttonState';
 import {
-  describeBoundarySelectorTruth,
   describeEnvironmentControlTruth,
   describeFlatlanderControlTruth,
   describeOverlayControlTruth,
@@ -57,7 +56,6 @@ export interface SouthAttractionSettings {
   maxTerminal: number;
   escapeFraction: number;
   showSouthZoneOverlay: boolean;
-  showClickDebug: boolean;
 }
 
 export interface EnvironmentSettings {
@@ -72,7 +70,6 @@ export interface EnvironmentSettings {
   showFogOverlay: boolean;
   showDoors: boolean;
   showOccupancy: boolean;
-  showHousingDebug: boolean;
 }
 
 export interface PeaceCrySettings {
@@ -149,8 +146,6 @@ interface UiCallbacks {
   onClearEventHighlights: () => void;
   onFlatlanderViewUpdate: (settings: FlatlanderViewSettings) => void;
   onFogSightUpdate: (settings: FogSightSettings) => void;
-  onApplyNovelSafetyPreset: () => void;
-  onApplyHarmonicMotionPreset: () => void;
   onSouthAttractionUpdate: (settings: SouthAttractionSettings) => void;
   onInspectorUpdate: (movement: SpawnMovementConfig) => void;
   onInspectorVisionUpdate: (vision: Partial<VisionComponent>) => void;
@@ -168,8 +163,6 @@ interface InputRefs {
   stepButton: HTMLButtonElement;
   resetButton: HTMLButtonElement;
   speedSelect: HTMLSelectElement;
-  novelSafetyPresetButton: HTMLButtonElement | null;
-  harmonicMotionPresetButton: HTMLButtonElement | null;
   seedInput: HTMLInputElement;
   worldTopology: HTMLSelectElement;
   envHousesEnabled: HTMLInputElement;
@@ -183,7 +176,6 @@ interface InputRefs {
   envShowFogOverlay: HTMLInputElement;
   envShowHouseDoors: HTMLInputElement;
   envShowHouseOccupancy: HTMLInputElement;
-  envShowHousingDebug: HTMLInputElement;
   peaceCryEnabledGlobal: HTMLInputElement;
   peaceCryCadenceGlobal: HTMLInputElement;
   peaceCryRadiusGlobal: HTMLInputElement;
@@ -251,7 +243,6 @@ interface InputRefs {
   southMaxTerminal: HTMLInputElement;
   southEscapeFraction: HTMLInputElement;
   southShowZone: HTMLInputElement;
-  southShowClickDebug: HTMLInputElement;
   spawnButton: HTMLButtonElement;
   spawnShape: HTMLSelectElement;
   spawnSides: HTMLInputElement;
@@ -261,7 +252,6 @@ interface InputRefs {
   spawnSize: HTMLInputElement;
   spawnCount: HTMLInputElement;
   spawnMovementType: HTMLSelectElement;
-  spawnBoundary: HTMLSelectElement;
   spawnSpeed: HTMLInputElement;
   spawnTurnRate: HTMLInputElement;
   spawnDecisionTicks: HTMLInputElement;
@@ -302,7 +292,6 @@ interface InputRefs {
   inspectorHouseOccupantTotal: HTMLElement;
   inspectorHouseOccupants: HTMLElement;
   inspectorMovementType: HTMLSelectElement;
-  inspectorBoundary: HTMLSelectElement;
   inspectorVisionEnabled: HTMLInputElement;
   inspectorVisionRange: HTMLInputElement;
   inspectorAvoidDistance: HTMLInputElement;
@@ -423,7 +412,6 @@ export class UIController {
   constructor(private readonly callbacks: UiCallbacks) {
     this.refs = collectRefs();
     this.syncLegendVisibility();
-    this.syncBoundaryControlsToTopology(this.readTopology());
     const environment = this.readEnvironmentSettings();
     this.syncEnvironmentFieldState(environment);
     this.syncEventHighlightsFieldState(this.readEventHighlightsSettings());
@@ -702,7 +690,6 @@ export class UIController {
     this.refs.inspectorFields.hidden = false;
 
     this.refs.inspectorMovementType.value = movement.type;
-    this.refs.inspectorBoundary.value = movement.boundary;
     this.refs.inspectorVisionEnabled.checked = vision.enabled;
     this.refs.inspectorVisionRange.value = vision.range.toFixed(1);
     this.refs.inspectorAvoidDistance.value = vision.avoidDistance.toFixed(1);
@@ -1008,24 +995,14 @@ export class UIController {
       this.callbacks.onSimulationSpeedUpdate(this.readSimulationSpeed());
     });
 
-    this.refs.novelSafetyPresetButton?.addEventListener('click', () => {
-      this.applyNovelSafetyPresetInputs();
-      this.callbacks.onApplyNovelSafetyPreset();
-    });
-
-    this.refs.harmonicMotionPresetButton?.addEventListener('click', () => {
-      this.applyHarmonicMotionPresetInputs();
-      this.callbacks.onApplyHarmonicMotionPreset();
-    });
-
     this.refs.worldTopology.addEventListener('input', () => {
       const topology = this.readTopology();
-      this.syncBoundaryControlsToTopology(topology);
+      this.syncFlatlanderFieldState(this.readFlatlanderViewSettings(), topology);
       this.callbacks.onTopologyUpdate(topology);
     });
     this.refs.worldTopology.addEventListener('change', () => {
       const topology = this.readTopology();
-      this.syncBoundaryControlsToTopology(topology);
+      this.syncFlatlanderFieldState(this.readFlatlanderViewSettings(), topology);
       this.callbacks.onTopologyUpdate(topology);
     });
 
@@ -1041,7 +1018,6 @@ export class UIController {
       this.refs.envShowFogOverlay,
       this.refs.envShowHouseDoors,
       this.refs.envShowHouseOccupancy,
-      this.refs.envShowHousingDebug,
     ];
 
     for (const input of environmentInputs) {
@@ -1213,7 +1189,6 @@ export class UIController {
       this.refs.southMaxTerminal,
       this.refs.southEscapeFraction,
       this.refs.southShowZone,
-      this.refs.southShowClickDebug,
     ];
 
     for (const input of southInputs) {
@@ -1336,7 +1311,6 @@ export class UIController {
       maxTerminal: clampPositive(parseNumber(this.refs.southMaxTerminal.value, 1.8)),
       escapeFraction: clampRange(parseNumber(this.refs.southEscapeFraction.value, 0.5), 0, 1),
       showSouthZoneOverlay: this.refs.southShowZone.checked,
-      showClickDebug: this.refs.southShowClickDebug.checked,
     };
   }
 
@@ -1354,71 +1328,6 @@ export class UIController {
     );
   }
 
-  private applyNovelSafetyPresetInputs(): void {
-    this.refs.spawnSpeed.value = '18';
-    this.refs.spawnTurnRate.value = '1.8';
-    this.refs.spawnDecisionTicks.value = '18';
-    this.refs.spawnIntentionMinTicks.value = '80';
-    this.refs.spawnVx.value = '12';
-    this.refs.spawnVy.value = '0';
-    this.refs.spawnFeelingEnabled.checked = true;
-    this.refs.spawnFeelCooldown.value = '20';
-    this.refs.spawnApproachSpeed.value = '9';
-
-    this.refs.inspectorAvoidDistance.value = '55';
-
-    this.refs.peaceCryEnabledGlobal.checked = true;
-    this.refs.peaceCryCadenceGlobal.value = '16';
-    this.refs.peaceCryRadiusGlobal.value = '150';
-    this.refs.peaceCryStrictComplianceGlobal.checked = true;
-    this.refs.peaceCryComplianceStillnessGlobal.value = '3';
-    this.refs.peaceCryNorthYieldEnabledGlobal.checked = true;
-    this.refs.peaceCryNorthYieldRadiusGlobal.value = '170';
-    this.refs.peaceCryRainCurfewEnabledGlobal.checked = true;
-    this.refs.peaceCryRainCurfewGraceTicksGlobal.value = '150';
-
-    this.refs.reproductionEnabled.checked = true;
-    this.refs.reproductionGestationTicks.value = '130';
-    this.refs.reproductionMatingRadius.value = '65';
-    this.refs.reproductionConceptionChance.value = '0.0205';
-    this.refs.reproductionFemaleBirthProbability.value = '0.52';
-    this.refs.reproductionMaxPopulation.value = '650';
-    this.refs.reproductionIrregularEnabled.checked = true;
-    this.refs.reproductionIrregularBaseChance.value = '0.14';
-    this.refs.reproductionPriestMediationEnabled.checked = true;
-    this.refs.reproductionPriestMediationRadius.value = '180';
-    this.refs.reproductionPriestMediationBias.value = '0.45';
-
-    this.refs.southEnabled.checked = true;
-    this.refs.southStrength.value = '2';
-    this.refs.southWomenMultiplier.value = '2.2';
-    this.refs.southDrag.value = '12';
-    this.refs.southMaxTerminal.value = '1.8';
-    this.refs.southEscapeFraction.value = '0.5';
-    this.refs.fogSightEnabled.checked = true;
-    this.refs.fogSightDensity.value = '0.012';
-
-    this.callbacks.onPeaceCryDefaultsUpdate(this.readPeaceCrySettings());
-    this.callbacks.onReproductionUpdate(this.readReproductionSettings());
-    this.callbacks.onFogSightUpdate(this.readFogSightSettings());
-    this.callbacks.onSouthAttractionUpdate(this.readSouthAttractionSettings());
-  }
-
-  private applyHarmonicMotionPresetInputs(): void {
-    this.refs.spawnMovementType.value = 'socialNav';
-    this.refs.spawnSpeed.value = '14';
-    this.refs.spawnTurnRate.value = '1.2';
-    this.refs.spawnDecisionTicks.value = '20';
-    this.refs.spawnIntentionMinTicks.value = '90';
-    this.refs.inspectorMovementType.value = 'socialNav';
-    this.refs.inspectorSpeed.value = '14';
-    this.refs.inspectorTurnRate.value = '1.2';
-    this.refs.inspectorDecisionTicks.value = '20';
-    this.refs.inspectorIntentionMinTicks.value = '90';
-    this.updateSpawnFieldVisibility();
-    this.updateInspectorFieldVisibility();
-  }
-
   private readEnvironmentSettings(): EnvironmentSettings {
     const townPopulation = Math.max(0, parseInteger(this.refs.envTownPopulation.value, 5000));
     const allowSquareHouses = this.refs.envAllowSquareHouses.checked && townPopulation < 10_000;
@@ -1434,7 +1343,6 @@ export class UIController {
       showFogOverlay: this.refs.envShowFogOverlay.checked,
       showDoors: this.refs.envShowHouseDoors.checked,
       showOccupancy: this.refs.envShowHouseOccupancy.checked,
-      showHousingDebug: this.refs.envShowHousingDebug.checked,
     };
   }
 
@@ -1473,12 +1381,6 @@ export class UIController {
       truth.rainEnabled.enabled,
       truth.rainEnabled.disabledReason,
       truth.rainEnabled.enabledHint,
-    );
-    setControlEnabled(
-      this.refs.envShowHousingDebug,
-      truth.housingDebug.enabled,
-      truth.housingDebug.disabledReason,
-      truth.housingDebug.enabledHint,
     );
     setControlEnabled(
       this.refs.envShowHouseDoors,
@@ -1727,7 +1629,10 @@ export class UIController {
     };
   }
 
-  private syncFlatlanderFieldState(settings: FlatlanderViewSettings): void {
+  private syncFlatlanderFieldState(
+    settings: FlatlanderViewSettings,
+    topology: WorldTopology = this.readTopology(),
+  ): void {
     const enabled = settings.enabled;
     setControlEnabled(this.refs.flatlanderRays, enabled, 'Enable Flatlander View first.');
     setControlEnabled(this.refs.flatlanderFov, enabled, 'Enable Flatlander View first.');
@@ -1736,7 +1641,7 @@ export class UIController {
     setControlEnabled(this.refs.flatlanderFogDensity, enabled, 'Enable Flatlander View first.');
     setControlEnabled(this.refs.flatlanderGrayscale, enabled, 'Enable Flatlander View first.');
     setControlEnabled(this.refs.flatlanderIncludeObstacles, enabled, 'Enable Flatlander View first.');
-    const flatlanderTruth = describeFlatlanderControlTruth({ enabled }, this.readTopology());
+    const flatlanderTruth = describeFlatlanderControlTruth({ enabled }, topology);
     setControlEnabled(
       this.refs.flatlanderIncludeBoundaries,
       flatlanderTruth.includeBoundaries.enabled,
@@ -2019,26 +1924,6 @@ export class UIController {
     return this.refs.worldTopology.value === 'bounded' ? 'bounded' : 'torus';
   }
 
-  private syncBoundaryControlsToTopology(topology: WorldTopology): void {
-    const boundary = boundaryFromTopology(topology);
-    this.refs.spawnBoundary.value = boundary;
-    this.refs.inspectorBoundary.value = boundary;
-    const boundaryTruth = describeBoundarySelectorTruth();
-    setControlEnabled(
-      this.refs.spawnBoundary,
-      boundaryTruth.enabled,
-      boundaryTruth.disabledReason,
-      boundaryTruth.enabledHint,
-    );
-    setControlEnabled(
-      this.refs.inspectorBoundary,
-      boundaryTruth.enabled,
-      boundaryTruth.disabledReason,
-      boundaryTruth.enabledHint,
-    );
-    this.syncFlatlanderFieldState(this.readFlatlanderViewSettings());
-  }
-
   private syncPeaceCryFieldState(settings: PeaceCrySettings): void {
     const truth = describePeaceCryControlTruth(settings);
     setControlEnabled(
@@ -2201,8 +2086,6 @@ function collectRefs(): InputRefs {
     stepButton: required<HTMLButtonElement>('step-btn'),
     resetButton: required<HTMLButtonElement>('reset-btn'),
     speedSelect: required<HTMLSelectElement>('speed-select'),
-    novelSafetyPresetButton: optional<HTMLButtonElement>('novel-safety-preset-btn'),
-    harmonicMotionPresetButton: optional<HTMLButtonElement>('harmonic-motion-preset-btn'),
     seedInput: required<HTMLInputElement>('seed-input'),
     worldTopology: required<HTMLSelectElement>('world-topology'),
     envHousesEnabled: required<HTMLInputElement>('env-houses-enabled'),
@@ -2216,7 +2099,6 @@ function collectRefs(): InputRefs {
     envShowFogOverlay: required<HTMLInputElement>('env-show-fog-overlay'),
     envShowHouseDoors: required<HTMLInputElement>('env-show-house-doors'),
     envShowHouseOccupancy: required<HTMLInputElement>('env-show-house-occupancy'),
-    envShowHousingDebug: required<HTMLInputElement>('env-show-housing-debug'),
     peaceCryEnabledGlobal: required<HTMLInputElement>('peace-cry-enabled'),
     peaceCryCadenceGlobal: required<HTMLInputElement>('peace-cry-cadence'),
     peaceCryRadiusGlobal: required<HTMLInputElement>('peace-cry-radius'),
@@ -2284,7 +2166,6 @@ function collectRefs(): InputRefs {
     southMaxTerminal: required<HTMLInputElement>('south-max-terminal'),
     southEscapeFraction: required<HTMLInputElement>('south-escape-fraction'),
     southShowZone: required<HTMLInputElement>('south-show-zone'),
-    southShowClickDebug: required<HTMLInputElement>('south-show-click-debug'),
     spawnButton: required<HTMLButtonElement>('spawn-btn'),
     spawnShape: required<HTMLSelectElement>('spawn-shape'),
     spawnSides: required<HTMLInputElement>('spawn-sides'),
@@ -2294,7 +2175,6 @@ function collectRefs(): InputRefs {
     spawnSize: required<HTMLInputElement>('spawn-size'),
     spawnCount: required<HTMLInputElement>('spawn-count'),
     spawnMovementType: required<HTMLSelectElement>('spawn-movement-type'),
-    spawnBoundary: required<HTMLSelectElement>('spawn-boundary'),
     spawnSpeed: required<HTMLInputElement>('spawn-speed'),
     spawnTurnRate: required<HTMLInputElement>('spawn-turn-rate'),
     spawnDecisionTicks: required<HTMLInputElement>('spawn-decision-ticks'),
@@ -2335,7 +2215,6 @@ function collectRefs(): InputRefs {
     inspectorHouseOccupantTotal: required<HTMLElement>('inspector-house-occupant-total'),
     inspectorHouseOccupants: required<HTMLElement>('inspector-house-occupants'),
     inspectorMovementType: required<HTMLSelectElement>('inspector-movement-type'),
-    inspectorBoundary: required<HTMLSelectElement>('inspector-boundary'),
     inspectorVisionEnabled: required<HTMLInputElement>('inspector-vision-enabled'),
     inspectorVisionRange: required<HTMLInputElement>('inspector-vision-range'),
     inspectorAvoidDistance: required<HTMLInputElement>('inspector-avoid-distance'),
@@ -2456,11 +2335,6 @@ function required<T extends HTMLElement>(id: string): T {
     throw new Error(`Missing required element #${id}`);
   }
   return element as T;
-}
-
-function optional<T extends HTMLElement>(id: string): T | null {
-  const element = document.getElementById(id);
-  return element instanceof HTMLElement ? (element as T) : null;
 }
 
 export function movementToSpawnConfig(movement: MovementComponent): SpawnMovementConfig {

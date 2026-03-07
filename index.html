@@ -77,10 +77,6 @@
             <label for="south-show-zone">Show South Zone</label>
             <input id="south-show-zone" type="checkbox" />
           </div>
-          <div class="row">
-            <label for="south-show-click-debug">Show Click Debug</label>
-            <input id="south-show-click-debug" type="checkbox" />
-          </div>
           <div class="button-row">
             <button id="run-btn" type="button">Start</button>
             <button id="step-btn" type="button">Step 1 Tick</button>
@@ -300,10 +296,6 @@
             <input id="env-show-house-occupancy" type="checkbox" checked />
           </div>
           <div class="row">
-            <label for="env-show-housing-debug">Show Housing Debug</label>
-            <input id="env-show-housing-debug" type="checkbox" />
-          </div>
-          <div class="row">
             <label for="peace-cry-enabled">Peace-Cry Enabled</label>
             <input id="peace-cry-enabled" type="checkbox" checked />
           </div>
@@ -478,14 +470,6 @@
               <option value="seekPoint">Seek Point</option>
             </select>
           </div>
-          <div class="row">
-            <label for="spawn-boundary">Boundary</label>
-            <select id="spawn-boundary" disabled>
-              <option value="wrap" selected>Wrap Torus</option>
-              <option value="bounce">Bounded Walls</option>
-            </select>
-          </div>
-          <p class="hint">Boundary is controlled by World Topology.</p>
           <div class="row" id="spawn-speed-row">
             <label for="spawn-speed">Speed</label>
             <input id="spawn-speed" type="number" step="0.1" value="25" />
@@ -568,14 +552,6 @@
                 <option value="seekPoint">Seek Point</option>
               </select>
             </div>
-            <div class="row">
-              <label for="inspector-boundary">Boundary</label>
-              <select id="inspector-boundary" disabled>
-                <option value="wrap">Wrap Torus</option>
-                <option value="bounce">Bounded Walls</option>
-              </select>
-            </div>
-            <p class="hint">Boundary is controlled by World Topology.</p>
             <div class="row">
               <label for="inspector-vision-enabled">Vision</label>
               <input id="inspector-vision-enabled" type="checkbox" />

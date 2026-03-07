@@ -18,7 +18,6 @@ import type { FrameSnapshot } from '../ui/frameSnapshot';
 
 export interface RenderOptions {
   showSouthZoneOverlay?: boolean;
-  debugClickPoint?: Vec2 | null;
   effectsManager?: EffectsManager;
   strokeByKills?: boolean;
   showHearingOverlay?: boolean;
@@ -42,7 +41,6 @@ export interface RenderOptions {
   flatlanderHoverEntityId?: number | null;
   showHouseDoors?: boolean;
   showHouseOccupancy?: boolean;
-  showHousingDebug?: boolean;
 }
 
 export class CanvasRenderer {
@@ -305,10 +303,6 @@ export class CanvasRenderer {
     if (options.showHearingOverlay && selectedEntityId !== null) {
       this.drawSelectedHearingOverlay(world, selectedEntityId, camera, options.showTalkingOverlay ?? false);
     }
-    if (options.showHousingDebug && selectedEntityId !== null) {
-      this.drawHousingDebugOverlay(world, selectedEntityId, camera);
-    }
-
     options.effectsManager?.render(this.ctx, camera, selectedEntityId);
 
     this.ctx.restore();
@@ -317,9 +311,6 @@ export class CanvasRenderer {
     this.ctx.lineWidth = 2;
     this.ctx.strokeRect(1, 1, this.canvas.width - 2, this.canvas.height - 2);
     this.drawSouthIndicator(frameSnapshot);
-    if (options.debugClickPoint) {
-      this.drawDebugClick(options.debugClickPoint, camera);
-    }
   }
 
   private drawStillnessCue(
@@ -948,48 +939,6 @@ export class CanvasRenderer {
     this.ctx.restore();
   }
 
-  private drawDebugClick(pointWorld: Vec2, camera: Camera): void {
-    const pointScreen = camera.worldToScreen(pointWorld.x, pointWorld.y, this.canvas);
-
-    this.ctx.save();
-    this.ctx.fillStyle = '#111111';
-    this.ctx.strokeStyle = '#ffffff';
-    this.ctx.lineWidth = 1;
-    this.ctx.beginPath();
-    this.ctx.arc(pointScreen.x, pointScreen.y, 4, 0, Math.PI * 2);
-    this.ctx.fill();
-    this.ctx.stroke();
-    this.ctx.restore();
-  }
-
-  private drawHousingDebugOverlay(world: World, selectedEntityId: number, camera: Camera): void {
-    const debug = world.houseApproachDebug.get(selectedEntityId);
-    if (!debug) {
-      return;
-    }
-
-    this.ctx.save();
-    this.ctx.strokeStyle = 'rgba(49, 92, 170, 0.75)';
-    this.ctx.fillStyle = 'rgba(49, 92, 170, 0.18)';
-    this.ctx.lineWidth = 1.2 / camera.zoom;
-    this.ctx.beginPath();
-    this.ctx.arc(debug.doorPoint.x, debug.doorPoint.y, Math.max(2, debug.enterRadius), 0, Math.PI * 2);
-    this.ctx.fill();
-    this.ctx.stroke();
-
-    this.ctx.strokeStyle = 'rgba(216, 138, 31, 0.85)';
-    this.ctx.lineWidth = 1.35 / camera.zoom;
-    this.ctx.beginPath();
-    this.ctx.moveTo(debug.contactPoint.x, debug.contactPoint.y);
-    this.ctx.lineTo(debug.doorPoint.x, debug.doorPoint.y);
-    this.ctx.stroke();
-
-    this.ctx.fillStyle = 'rgba(216, 138, 31, 0.9)';
-    this.ctx.beginPath();
-    this.ctx.arc(debug.contactPoint.x, debug.contactPoint.y, 2.1 / camera.zoom, 0, Math.PI * 2);
-    this.ctx.fill();
-    this.ctx.restore();
-  }
 }
 
 function polygonCentroid(vertices: Vec2[]): Vec2 {

@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.29] - 2026-03-07
+
+### Removed
+- Removed the remaining legacy preset plumbing from the UI/controller/main wiring after the preset buttons had already been dropped from the DOM.
+- Removed the public `Show Click Debug` and `Show Housing Debug` toggles, which only exposed internal diagnostics.
+- Removed the read-only Spawn and Inspector `Boundary` selectors that only mirrored `World Topology` and never acted as real parameters.
+
+### Added
+- Added `/Users/fdasaro/Desktop/Flatlander/LEGACY_UI_AUDIT.md`, documenting which legacy controls were removed and why.
+
+### Validation
+- `npm test` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm run sim:midrun` passed.
+
 ## [0.9.28] - 2026-03-07
 
 ### Fixed
