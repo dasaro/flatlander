@@ -96,6 +96,7 @@ export interface WorldConfig {
   policyTriggerOvercrowding: number;
   policyTriggerOvercrowdingDelta: number;
   policyTriggerPersistenceTicks: number;
+  policyWarmupTicks: number;
   policyAgitationTicks: number;
   policySuppressionTicks: number;
   policyCooldownTicks: number;
@@ -355,13 +356,14 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   priestMediationBias: 0.45,
   policyRegimeEnabled: true,
   policyTriggerIrregularShare: 0.09,
-  policyTriggerIrregularDelta: 0.03,
+  policyTriggerIrregularDelta: 0.02,
   policyTriggerOvercrowding: 1.25,
-  policyTriggerOvercrowdingDelta: 0.12,
-  policyTriggerPersistenceTicks: 150,
-  policyAgitationTicks: 900,
-  policySuppressionTicks: 1200,
-  policyCooldownTicks: 1600,
+  policyTriggerOvercrowdingDelta: 0.08,
+  policyTriggerPersistenceTicks: 90,
+  policyWarmupTicks: 900,
+  policyAgitationTicks: 700,
+  policySuppressionTicks: 1000,
+  policyCooldownTicks: 1300,
   inspectionEnabled: true,
   inspectionCadenceTicks: 120,
   inspectionSampleSize: 8,

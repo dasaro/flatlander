@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.33] - 2026-03-07
+
+### Changed
+- Made civic policy activation more frequent under the shipped preset while preserving a startup warmup: the regime now reacts after warmup to sustained irregularity or overcrowding pressure, with lower hysteresis and shorter persistence.
+- Added policy status to the narrative overview so the UI explains active `agitation`, `suppression`, and `cooldown` phases in plain language.
+- Extended the mid-run ecology audit to report policy shift counts and active-phase ratios per seed.
+
+### Added
+- Added `/Users/fdasaro/Desktop/Flatlander/tests/policyActivationSmoke.test.ts` to ensure seed `42` enters a non-normal policy phase in a deterministic short default run.
+
+### Validation
+- `npm test` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm run sim:midrun` passed.
+
 ## [0.9.32] - 2026-03-07
 
 ### Fixed

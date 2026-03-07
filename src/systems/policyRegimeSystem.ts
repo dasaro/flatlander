@@ -97,13 +97,18 @@ export class PolicyRegimeSystem implements System {
     const irregularBaseline = world.policy.irregularShareBaseline ?? irregularShare;
     const overcrowdingBaseline = world.policy.overcrowdingBaseline ?? overcrowdingRatio;
     const irregularTrigger =
-      irregularShare >= Math.max(0, world.config.policyTriggerIrregularShare) &&
+      irregularShare >= Math.max(0, world.config.policyTriggerIrregularShare) ||
       irregularShare >= irregularBaseline + Math.max(0, world.config.policyTriggerIrregularDelta);
     const overcrowded =
-      overcrowdingRatio >= Math.max(1, world.config.policyTriggerOvercrowding) &&
+      overcrowdingRatio >= Math.max(1, world.config.policyTriggerOvercrowding) ||
       overcrowdingRatio >= overcrowdingBaseline + Math.max(0, world.config.policyTriggerOvercrowdingDelta);
 
     if (world.policy.phase === 'normal') {
+      if (world.tick < Math.max(0, Math.round(world.config.policyWarmupTicks))) {
+        world.policy.triggerTicks = 0;
+        world.policy.reason = null;
+        return;
+      }
       if (irregularTrigger || overcrowded) {
         const reason: PolicyShiftReason =
           irregularTrigger && overcrowded

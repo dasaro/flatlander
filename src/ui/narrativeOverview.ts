@@ -1,3 +1,4 @@
+import type { PolicyRegimePhase } from '../core/policy';
 import type { EventType, TickSummary } from './eventAnalytics';
 
 export interface NarrativeOverviewInput {
@@ -13,6 +14,9 @@ export interface NarrativeOverviewInput {
   recentPeaceCries?: number;
   notableEvents?: string[];
   recentWindowTicks?: number;
+  policyPhase?: PolicyRegimePhase;
+  policyTicksRemaining?: number;
+  policyDriver?: string | null;
 }
 
 export interface NarrativeOverview {
@@ -210,6 +214,12 @@ export function buildNarrativeOverview(
     headline = 'Rain phase: most inhabitants are sheltering or moving to doors.';
   } else if (input.isRaining) {
     headline = 'Rain phase: shelter demand is active but many inhabitants remain exposed.';
+  } else if (input.policyPhase === 'suppression') {
+    headline = 'Suppression phase: civic enforcement is actively reshaping the streets.';
+  } else if (input.policyPhase === 'agitation') {
+    headline = 'Agitation phase: officials are preparing a stronger civic response.';
+  } else if (input.policyPhase === 'cooldown') {
+    headline = 'Cooldown phase: civic pressure is easing, but the regime is not yet normal.';
   } else if (inspectionExecuted >= Math.max(1, births)) {
     headline = 'Inspection crackdown: coercive policy is driving visible losses.';
   } else if (policyShifts > 0) {
@@ -248,6 +258,15 @@ export function buildNarrativeOverview(
     reasonCandidates.push({
       score: 0.91,
       text: `Policy desk: ${policyShifts} regime shift events, led by ${describePolicyShiftReason(topPolicyShiftReason.reason)} (${topPolicyShiftReason.count}x).`,
+    });
+  }
+  if (input.policyPhase && input.policyPhase !== 'normal') {
+    reasonCandidates.push({
+      score: 0.9,
+      text: `Policy status: ${input.policyPhase} for ${Math.max(
+        0,
+        Math.round(input.policyTicksRemaining ?? 0),
+      )} more ticks${input.policyDriver ? `; current driver is ${input.policyDriver}` : ''}.`,
     });
   }
 

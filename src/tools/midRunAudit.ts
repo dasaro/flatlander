@@ -45,6 +45,8 @@ interface RunSummary {
   rainResponseMean: number;
   houseEnterCount: number;
   houseExitCount: number;
+  policyShiftCount: number;
+  policyActiveRatio: number;
   movingWomenWithoutCryRate: number;
   etiquetteYieldResponseRate: number;
   handshakeCompletionRate: number;
@@ -317,6 +319,8 @@ function runSeed(seed: number, ticks: number): RunSummary {
   let dryTicks = 0;
   let houseEnterCount = 0;
   let houseExitCount = 0;
+  let policyShiftCount = 0;
+  let policyActiveTicks = 0;
   let movingWomenWithoutCryTicks = 0;
   let movingWomenTicks = 0;
   let yieldOpportunities = 0;
@@ -332,6 +336,9 @@ function runSeed(seed: number, ticks: number): RunSummary {
 
   for (let step = 1; step <= ticks; step += 1) {
     simulation.stepOneTick();
+    if (world.policy.phase !== 'normal') {
+      policyActiveTicks += 1;
+    }
 
     for (const id of world.entities) {
       if (world.staticObstacles.has(id) || !isEntityOutside(world, id)) {
@@ -416,6 +423,8 @@ function runSeed(seed: number, ticks: number): RunSummary {
         housesUsed.add(event.houseId);
       } else if (event.type === 'houseExit') {
         houseExitCount += 1;
+      } else if (event.type === 'policyShift') {
+        policyShiftCount += 1;
       } else if (event.type === 'birth' && event.childRankKey === Rank.Priest) {
         priestBirthEvents += 1;
       } else if (event.type === 'regularized' && event.rankKey === Rank.Priest) {
@@ -454,6 +463,8 @@ function runSeed(seed: number, ticks: number): RunSummary {
         : 0,
     houseEnterCount,
     houseExitCount,
+    policyShiftCount,
+    policyActiveRatio: ticks > 0 ? policyActiveTicks / ticks : 0,
     movingWomenWithoutCryRate:
       movingWomenTicks > 0 ? movingWomenWithoutCryTicks / movingWomenTicks : 0,
     etiquetteYieldResponseRate: yieldOpportunities > 0 ? yieldResponses / yieldOpportunities : 1,
@@ -494,6 +505,8 @@ function main(): void {
         `handshakeCompletion=${(run.handshakeCompletionRate * 100).toFixed(1)}%`,
         `enter=${run.houseEnterCount}`,
         `exit=${run.houseExitCount}`,
+        `policyShifts=${run.policyShiftCount}`,
+        `policyActive=${(run.policyActiveRatio * 100).toFixed(1)}%`,
         `housesUsed=${run.housesUsed}`,
         `newPriests=${run.newPriests}`,
         `priestPromotions=${run.priestPromotionEvents}`,

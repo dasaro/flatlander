@@ -8,9 +8,10 @@ describe('PolicyRegimeSystem', () => {
   it('does not trigger immediately from baseline irregular composition', () => {
     const world = createWorld(101, {
       policyRegimeEnabled: true,
-      policyTriggerIrregularShare: 0.1,
+      policyTriggerIrregularShare: 1,
       policyTriggerIrregularDelta: 0.03,
       policyTriggerPersistenceTicks: 1,
+      policyWarmupTicks: 10,
     });
     const system = new PolicyRegimeSystem();
 
@@ -30,9 +31,10 @@ describe('PolicyRegimeSystem', () => {
   it('enters agitation when irregular share spikes above baseline and then cycles deterministically', () => {
     const world = createWorld(101, {
       policyRegimeEnabled: true,
-      policyTriggerIrregularShare: 0.1,
+      policyTriggerIrregularShare: 1,
       policyTriggerIrregularDelta: 0.01,
       policyTriggerPersistenceTicks: 1,
+      policyWarmupTicks: 0,
       policyAgitationTicks: 1,
       policySuppressionTicks: 1,
       policyCooldownTicks: 1,
@@ -59,6 +61,7 @@ describe('PolicyRegimeSystem', () => {
     }
     shape.irregular = true;
 
+    world.tick = 1;
     system.update(world); // establish baseline
     expect(world.policy.phase).toBe('normal');
 

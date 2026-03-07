@@ -1227,6 +1227,9 @@ function renderNarrativeOverview(): void {
       stuckNearHouse: world.stuckNearHouseCount,
       recentStabs: narrativeTypeCounts.stab ?? 0,
       recentPeaceCries: narrativeTypeCounts.peaceCry ?? 0,
+      policyPhase: world.policy.phase,
+      policyTicksRemaining: world.policy.ticksRemaining,
+      policyDriver: world.policy.reason,
       notableEvents: recentEventNarrative
         .getGlobalHighlights(world.tick, 3, 1800, narrativeEntityLabel)
         .map((event) => `At tick ${event.tick}, ${event.text}`),
