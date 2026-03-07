@@ -13,6 +13,7 @@ import type { Vec2 } from '../geometry/vector';
 import type { Camera } from './camera';
 import { contactCurveControlPoint, selectTopKnownIds } from './contactNetwork';
 import type { EffectsManager } from './effects';
+import { resolveEntityStrokeColor } from './entityStyle';
 import { finalEntityAlpha, fogIntensityAtDistance, fogRingRadiusForLevel } from './viewModifiers';
 import type { FrameSnapshot } from '../ui/frameSnapshot';
 
@@ -155,9 +156,6 @@ export class CanvasRenderer {
       }
       const kills = world.combatStats.get(id)?.kills ?? 0;
       const killStrokeColor = colorForKillCount(kills);
-      const defaultStroke =
-        shape.kind === 'polygon' && shape.sides === 3 && !isSelected ? fillColor : '#232323';
-      const pregnancyStrokeColor = isPregnantWoman ? '#d9578a' : defaultStroke;
       let fogPreviewIntensity: number | null = null;
       if (selectedObserverEye && options.fogPreviewEnabled && id !== selectedEntityId) {
         const center = geometryCenter(geometry);
@@ -191,13 +189,14 @@ export class CanvasRenderer {
       this.ctx.save();
       this.ctx.globalAlpha = entityAlpha;
       this.ctx.fillStyle = fillColor;
-      this.ctx.strokeStyle = isSelected
-        ? '#111111'
-        : isFlatlanderHovered
-          ? '#d88a1f'
-          : options.strokeByKills
-            ? killStrokeColor
-            : pregnancyStrokeColor;
+      this.ctx.strokeStyle = resolveEntityStrokeColor({
+        fillColor,
+        pregnantFillColor: isPregnantWoman ? '#d9578a' : null,
+        strokeByKills: options.strokeByKills ?? false,
+        killStrokeColor,
+        isSelected,
+        isHovered: isFlatlanderHovered,
+      });
       this.ctx.lineWidth = (isSelected ? 3 : isFlatlanderHovered ? 2.8 : 1.5) / camera.zoom;
 
       if (geometry.kind === 'circle') {

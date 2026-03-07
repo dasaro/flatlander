@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.30] - 2026-03-07
+
+### Fixed
+- Unified ordinary shape outline styling so non-highlighted entities no longer mix black outer strokes with rank-colored strokes.
+
+### Added
+- Added `/Users/fdasaro/Desktop/Flatlander/src/render/entityStyle.ts` to centralize renderer-side stroke policy.
+- Added `/Users/fdasaro/Desktop/Flatlander/tests/entityStyle.test.ts` to lock the outline policy to deterministic, testable behavior.
+
+### Validation
+- `npm test` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm run sim:midrun` passed.
+
 ## [0.9.29] - 2026-03-07
 
 ### Removed
