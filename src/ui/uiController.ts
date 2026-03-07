@@ -168,8 +168,8 @@ interface InputRefs {
   stepButton: HTMLButtonElement;
   resetButton: HTMLButtonElement;
   speedSelect: HTMLSelectElement;
-  novelSafetyPresetButton: HTMLButtonElement;
-  harmonicMotionPresetButton: HTMLButtonElement;
+  novelSafetyPresetButton: HTMLButtonElement | null;
+  harmonicMotionPresetButton: HTMLButtonElement | null;
   seedInput: HTMLInputElement;
   worldTopology: HTMLSelectElement;
   envHousesEnabled: HTMLInputElement;
@@ -1008,12 +1008,12 @@ export class UIController {
       this.callbacks.onSimulationSpeedUpdate(this.readSimulationSpeed());
     });
 
-    this.refs.novelSafetyPresetButton.addEventListener('click', () => {
+    this.refs.novelSafetyPresetButton?.addEventListener('click', () => {
       this.applyNovelSafetyPresetInputs();
       this.callbacks.onApplyNovelSafetyPreset();
     });
 
-    this.refs.harmonicMotionPresetButton.addEventListener('click', () => {
+    this.refs.harmonicMotionPresetButton?.addEventListener('click', () => {
       this.applyHarmonicMotionPresetInputs();
       this.callbacks.onApplyHarmonicMotionPreset();
     });
@@ -2201,8 +2201,8 @@ function collectRefs(): InputRefs {
     stepButton: required<HTMLButtonElement>('step-btn'),
     resetButton: required<HTMLButtonElement>('reset-btn'),
     speedSelect: required<HTMLSelectElement>('speed-select'),
-    novelSafetyPresetButton: required<HTMLButtonElement>('novel-safety-preset-btn'),
-    harmonicMotionPresetButton: required<HTMLButtonElement>('harmonic-motion-preset-btn'),
+    novelSafetyPresetButton: optional<HTMLButtonElement>('novel-safety-preset-btn'),
+    harmonicMotionPresetButton: optional<HTMLButtonElement>('harmonic-motion-preset-btn'),
     seedInput: required<HTMLInputElement>('seed-input'),
     worldTopology: required<HTMLSelectElement>('world-topology'),
     envHousesEnabled: required<HTMLInputElement>('env-houses-enabled'),
@@ -2456,6 +2456,11 @@ function required<T extends HTMLElement>(id: string): T {
     throw new Error(`Missing required element #${id}`);
   }
   return element as T;
+}
+
+function optional<T extends HTMLElement>(id: string): T | null {
+  const element = document.getElementById(id);
+  return element instanceof HTMLElement ? (element as T) : null;
 }
 
 export function movementToSpawnConfig(movement: MovementComponent): SpawnMovementConfig {

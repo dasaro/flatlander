@@ -52,6 +52,7 @@ import { RecentEventNarrativeStore } from './ui/recentEventNarrativeStore';
 import { EventDrainPipeline } from './ui/eventDrainPipeline';
 import { captureFrameSnapshot, type FrameSnapshot } from './ui/frameSnapshot';
 import { RainTimelineStore } from './ui/rainTimelineStore';
+import { installParameterHelp } from './ui/parameterHelp';
 import { APP_VERSION } from './version';
 
 const TIMELINE_TYPE_CONTROL_IDS: Partial<Record<EventType, string>> = {
@@ -112,6 +113,8 @@ const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
 const sidebar = document.getElementById('sidebar');
 const mobileMenuBackdrop = document.getElementById('mobile-menu-backdrop');
 const primaryRunBtn = document.getElementById('run-btn');
+
+installParameterHelp(document);
 
 const systems = createDefaultSystems();
 

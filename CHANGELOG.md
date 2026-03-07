@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.28] - 2026-03-07
+
+### Fixed
+- Event timeline rows now reserve enough left gutter for their labels, so long labels no longer clip against the canvas edge.
+- The top-left menu toggle now collapses and restores the sidebar on desktop instead of no-oping outside the mobile drawer layout.
+
+### Changed
+- Removed the legacy “Novel Safety Preset” and “Harmonic Motion Preset” buttons from the main GUI to reduce control clutter.
+- Added hoverable circled help badges for parameter controls across the GUI, with panel-aware fallback descriptions when no explicit help text is needed.
+
+### Validation
+- `npm test` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm run sim:midrun` passed.
+
 ## [0.9.27] - 2026-03-06
 
 ### Added

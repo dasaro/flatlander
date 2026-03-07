@@ -13,7 +13,7 @@ export interface TimelineRenderConfig {
   rainIntervals?: RainInterval[];
 }
 
-const CONTENT_LEFT = 48;
+const MIN_CONTENT_LEFT = 48;
 const CONTENT_RIGHT_PADDING = 12;
 const TOP_PADDING = 10;
 const BOTTOM_PADDING = 24;
@@ -127,6 +127,7 @@ export class EventTimelineRenderer {
   private visibleTypes: EventType[] = [];
   private readonly selection = new TimelineSelectionState();
   private summaryXs: number[] = [];
+  private contentLeft = MIN_CONTENT_LEFT;
   private tickStart = 0;
   private tickEnd = 0;
   private showRainTrack = false;
@@ -145,7 +146,7 @@ export class EventTimelineRenderer {
     this.canvas.addEventListener('mousemove', (event) => {
       const rect = this.canvas.getBoundingClientRect();
       const xPx = (event.clientX - rect.left) * (this.canvas.width / Math.max(1, rect.width));
-      const contentLeft = CONTENT_LEFT;
+      const contentLeft = this.contentLeft;
       const contentRight = this.canvas.width - CONTENT_RIGHT_PADDING;
       if (xPx < contentLeft || xPx > contentRight) {
         this.selection.setHovered(null);
@@ -163,7 +164,7 @@ export class EventTimelineRenderer {
     this.canvas.addEventListener('click', (event) => {
       const rect = this.canvas.getBoundingClientRect();
       const xPx = (event.clientX - rect.left) * (this.canvas.width / Math.max(1, rect.width));
-      const contentLeft = CONTENT_LEFT;
+      const contentLeft = this.contentLeft;
       const contentRight = this.canvas.width - CONTENT_RIGHT_PADDING;
       if (xPx < contentLeft || xPx > contentRight) {
         this.selection.clearPin();
@@ -196,8 +197,21 @@ export class EventTimelineRenderer {
       this.selection.setHovered(null);
     }
 
+    const rows: Array<{ kind: 'rain' } | { kind: 'event'; type: EventType }> = [];
+    if (this.showRainTrack) {
+      rows.push({ kind: 'rain' });
+    }
+    for (const type of this.visibleTypes) {
+      rows.push({ kind: 'event', type });
+    }
+
     const { width, height } = this.canvas;
-    const left = CONTENT_LEFT;
+    this.ctx.font = '11px Trebuchet MS, sans-serif';
+    const left = computeTimelineContentLeft(
+      rows.map((row) => (row.kind === 'rain' ? 'Rain' : typeLabel(row.type))),
+      (label) => this.ctx.measureText(label).width,
+    );
+    this.contentLeft = left;
     const right = width - CONTENT_RIGHT_PADDING;
     const top = TOP_PADDING;
     const bottom = height - BOTTOM_PADDING;
@@ -236,13 +250,6 @@ export class EventTimelineRenderer {
       return left + normalized * contentWidth;
     };
 
-    const rows: Array<{ kind: 'rain' } | { kind: 'event'; type: EventType }> = [];
-    if (this.showRainTrack) {
-      rows.push({ kind: 'rain' });
-    }
-    for (const type of this.visibleTypes) {
-      rows.push({ kind: 'event', type });
-    }
     const rowHeight = contentHeight / Math.max(1, rows.length);
     const rowCenters = rows.map((_, index) => top + rowHeight * (index + 0.5));
     const perTypeMax = new Map<EventType, number>();
@@ -453,4 +460,15 @@ export class EventTimelineRenderer {
     }
     return false;
   }
+}
+
+export function computeTimelineContentLeft(
+  labels: string[],
+  measureWidth: (label: string) => number,
+): number {
+  if (labels.length === 0) {
+    return MIN_CONTENT_LEFT;
+  }
+  const maxLabelWidth = labels.reduce((best, label) => Math.max(best, measureWidth(label)), 0);
+  return Math.max(MIN_CONTENT_LEFT, Math.ceil(maxLabelWidth) + 16);
 }

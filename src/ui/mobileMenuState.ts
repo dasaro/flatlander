@@ -1,5 +1,6 @@
 export class MobileMenuState {
-  private isOpen = false;
+  private mobileOpen = false;
+  private desktopExpanded = true;
 
   constructor(
     private readonly toggleButton: HTMLButtonElement,
@@ -13,19 +14,20 @@ export class MobileMenuState {
 
   bind(): void {
     this.toggleButton.addEventListener('click', () => {
-      if (!this.isMobileViewport()) {
-        return;
+      if (this.isMobileViewport()) {
+        this.toggleMobile();
+      } else {
+        this.toggleDesktop();
       }
-      this.toggle();
     });
 
     this.backdrop.addEventListener('click', () => {
-      this.close();
+      this.closeMobile();
     });
 
     window.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
-        this.close();
+        this.closeMobile();
       }
     });
 
@@ -34,41 +36,71 @@ export class MobileMenuState {
       const media = matchMedia('(max-width: 900px)');
       media.addEventListener('change', () => {
         if (!this.isMobileViewport()) {
-          this.close();
+          this.closeMobile();
         }
+        this.syncState();
       });
     }
   }
 
   open(): void {
-    if (!this.isMobileViewport()) {
+    if (this.isMobileViewport()) {
+      this.mobileOpen = true;
+      this.syncState();
       return;
     }
-    this.isOpen = true;
-    document.body.classList.add('menu-open');
-    this.syncAria();
+    this.desktopExpanded = true;
+    this.syncState();
   }
 
   close(): void {
-    this.isOpen = false;
-    document.body.classList.remove('menu-open');
-    this.syncAria();
+    if (this.isMobileViewport()) {
+      this.closeMobile();
+      return;
+    }
+    this.desktopExpanded = false;
+    this.syncState();
   }
 
   toggle(): void {
-    if (this.isOpen) {
-      this.close();
-      return;
+    if (this.isMobileViewport()) {
+      this.toggleMobile();
+    } else {
+      this.toggleDesktop();
     }
-    this.open();
   }
 
   get opened(): boolean {
-    return this.isOpen;
+    return this.isMobileViewport() ? this.mobileOpen : this.desktopExpanded;
+  }
+
+  private toggleMobile(): void {
+    this.mobileOpen = !this.mobileOpen;
+    this.syncState();
+  }
+
+  private toggleDesktop(): void {
+    this.desktopExpanded = !this.desktopExpanded;
+    this.syncState();
+  }
+
+  private closeMobile(): void {
+    if (!this.mobileOpen) {
+      return;
+    }
+    this.mobileOpen = false;
+    this.syncState();
+  }
+
+  private syncState(): void {
+    document.body.classList.toggle('menu-open', this.mobileOpen);
+    document.body.classList.toggle('sidebar-collapsed', !this.isMobileViewport() && !this.desktopExpanded);
+    this.syncAria();
   }
 
   private syncAria(): void {
-    this.toggleButton.setAttribute('aria-expanded', this.isOpen ? 'true' : 'false');
-    this.backdrop.setAttribute('aria-hidden', this.isOpen ? 'false' : 'true');
+    const expanded = this.isMobileViewport() ? this.mobileOpen : this.desktopExpanded;
+    this.toggleButton.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    this.backdrop.setAttribute('aria-hidden', this.mobileOpen ? 'false' : 'true');
   }
 }

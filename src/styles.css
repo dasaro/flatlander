@@ -91,6 +91,14 @@ body {
   padding-right: 4px;
 }
 
+body.sidebar-collapsed .app-shell {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+body.sidebar-collapsed .sidebar {
+  display: none;
+}
+
 .mobile-menu-backdrop {
   display: none;
 }
@@ -205,6 +213,24 @@ button[aria-disabled='true']:hover {
   margin: 0;
   color: #6f6554;
   font-size: 0.9rem;
+}
+
+.help-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 6px;
+  border: 1px solid #8d8778;
+  border-radius: 999px;
+  background: rgba(255, 252, 245, 0.92);
+  color: #4e4437;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  vertical-align: text-top;
 }
 
 .rank-list {

@@ -35,4 +35,30 @@ describe('mobile menu drawer state', () => {
     backdrop.click();
     expect(document.body.classList.contains('menu-open')).toBe(false);
   });
+
+  it('collapses the sidebar on desktop', () => {
+    document.body.innerHTML = `
+      <button id="toggle"></button>
+      <aside id="sidebar"></aside>
+      <div id="backdrop"></div>
+    `;
+
+    const toggle = document.getElementById('toggle');
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('backdrop');
+    if (!(toggle instanceof HTMLButtonElement) || !(sidebar instanceof HTMLElement) || !(backdrop instanceof HTMLElement)) {
+      throw new Error('Failed to initialize desktop menu test DOM.');
+    }
+
+    const menu = new MobileMenuState(toggle, sidebar, backdrop, () => false);
+    menu.bind();
+
+    toggle.click();
+    expect(document.body.classList.contains('sidebar-collapsed')).toBe(true);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+
+    toggle.click();
+    expect(document.body.classList.contains('sidebar-collapsed')).toBe(false);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  });
 });
