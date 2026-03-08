@@ -1,5 +1,6 @@
 import { ensureCoherentJobForEntity } from '../core/jobs';
 import { retitleName } from '../core/names';
+import { resetGrowthAdultSize } from '../core/growth';
 import {
   irregularAngleDeviationDeg,
   irregularFrameHasSet,
@@ -63,6 +64,10 @@ export class RegularizationSystem implements System {
       }
 
       const metrics = updatePolygonFromRadialProfile(shape, shape.baseRadius, shape.radial);
+      const growth = world.growth.get(id);
+      if (growth) {
+        resetGrowthAdultSize(growth, shape);
+      }
       world.irregularity.set(id, metrics);
 
       if (metrics.deviation > tolerance) {
@@ -70,6 +75,9 @@ export class RegularizationSystem implements System {
       }
 
       regularizePolygonShape(shape);
+      if (growth) {
+        resetGrowthAdultSize(growth, shape);
+      }
       world.irregularity.delete(id);
 
       const previousRank = world.ranks.get(id);

@@ -1,4 +1,5 @@
 import { isEntityOutside } from '../core/housing/dwelling';
+import { resetGrowthAdultSize } from '../core/growth';
 import { updatePolygonFromRadialProfile } from '../core/irregularity';
 import { ensureCoherentJobForEntity } from '../core/jobs';
 import { retitleName } from '../core/names';
@@ -131,6 +132,10 @@ function applyStressIrregularity(world: World, entityId: number, stress: number)
         targetMax,
       );
       const metrics = updatePolygonFromRadialProfile(shape, baseRadius, result.radial);
+      const growth = world.growth.get(entityId);
+      if (growth) {
+        resetGrowthAdultSize(growth, shape);
+      }
       shape.maxDeviationDeg = result.maxDeviationDeg;
       world.irregularity.set(entityId, {
         deviation: metrics.deviation,

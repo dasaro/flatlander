@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.36] - 2026-03-08
+
+### Added
+- Added `/Users/fdasaro/Desktop/Flatlander/src/core/growth.ts` and `/Users/fdasaro/Desktop/Flatlander/src/systems/ageGrowthSystem.ts` so newborn figures now start smaller and grow toward adult size using headless geometry updates.
+- Added `/Users/fdasaro/Desktop/Flatlander/tests/ageGrowthSystem.test.ts` to lock age-linked growth behavior for both segments and polygons.
+
+### Changed
+- Births now explicitly reset the child growth stage, so only newborns start juvenile-sized while the default scenario population remains adult-sized.
+- Structural shape-changing systems now preserve the stored adult baseline size when compensation, regularization, crowd irregularity, or neo-therapy alter geometry.
+
+### Validation
+- `npm test` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm run sim:midrun` passed.
+
 ## [0.9.35] - 2026-03-08
 
 ### Added

@@ -40,6 +40,7 @@ import {
 import { initialIntelligenceForRank } from './intelligence';
 import { computeDefaultEyeComponent } from './eyePose';
 import { updatePolygonFromRadialProfile } from './irregularity';
+import { createAdultGrowthComponent } from './growth';
 import { deterministicJobForEntity } from './jobs';
 import { buildDeterministicName } from './names';
 import { defaultPerceptionForRank } from './perceptionPresets';
@@ -236,6 +237,14 @@ export function spawnEntity(
   world.feeling.set(id, feeling);
   world.knowledge.set(id, { known: new Map() });
   world.ages.set(id, { ticksAlive: 0 });
+  world.growth.set(
+    id,
+    createAdultGrowthComponent(
+      shape,
+      world.config.growthBirthScale,
+      world.config.growthMaturityTicks,
+    ),
+  );
   world.sleep.set(id, { asleep: false, stillTicks: 0 });
   world.intelligence.set(id, { value: initialIntelligenceForRank(rank) });
   if (

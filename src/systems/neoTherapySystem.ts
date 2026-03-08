@@ -2,6 +2,7 @@ import { computeDefaultEyeComponent } from '../core/eyePose';
 import { ensureCoherentJobForEntity } from '../core/jobs';
 import { retitleName } from '../core/names';
 import { defaultPerceptionForRank } from '../core/perceptionPresets';
+import { resetGrowthAdultSize } from '../core/growth';
 import { rankFromShape, Rank } from '../core/rank';
 import { rankKeyForEntity } from '../core/rankKey';
 import { defaultVoiceComponent } from '../core/voice';
@@ -108,6 +109,10 @@ function promoteByCourtesy(world: World, entityId: number, target: 'NearCircle' 
   }
 
   world.shapes.set(entityId, nextShape);
+  const growth = world.growth.get(entityId);
+  if (growth) {
+    resetGrowthAdultSize(growth, nextShape);
+  }
   world.irregularity.delete(entityId);
   world.brainAngles.delete(entityId);
 

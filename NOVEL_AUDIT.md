@@ -1,8 +1,8 @@
-# NOVEL_FAITHFULNESS AUDIT (Flatlander v0.9.35)
+# NOVEL_FAITHFULNESS AUDIT (Flatlander v0.9.36)
 
 ## 0. Repo snapshot
 - Commit: `HEAD` (current working revision at audit time)
-- App version: `0.9.6` (`package.json` at audit update time)
+- App version: `0.9.36` (`package.json` at audit update time)
 - Runtime: browser-only Vite/TS app (`src/main.ts`, `src/core/world.ts`)
 - Run commands:
   - `npm run dev`
@@ -26,6 +26,8 @@
   Quote: “If Fog were non-existent, all lines would appear equally and indistinguishably clear.”
 - **Ancient painting** — Part I, Section 8, [Project Gutenberg link](https://www.gutenberg.org/files/201/201-h/201-h.htm#chap08)  
   Quote: “no one was left uncoloured except the Women and the Priests.”
+- **Age-linked side length** — Part I, Section 7, [Project Gutenberg link](https://www.gutenberg.org/files/201/201-h/201-h.htm#chap07)  
+  Quote: “The size of the sides would of course depend upon the age of the individual.”
 
 Canon status used in this patch:
 - **Directly stated**: rain as interval-based climate signal; fog-dependent comparative dimness; class-linked occupations.
@@ -45,6 +47,7 @@ Canon status used in this patch:
 - Wear/erosion (attritional damage) and durability dimming hooks.
 - Pentagonal houses with east/west gendered doors, north roof alignment, and indoor shelter state.
 - Monochrome-by-default rendering with optional ancient painting: ordinary polygons can show deterministic painted stroke colours while women and priests remain colourless.
+- Juveniles now grow toward adult size over time; newborns start smaller while the initial scenario population is seeded as already adult-sized.
 - Reproduction with gestation, lineage, generation, dynasty, legacy counters, and irregular births.
 - Isosceles generational brain-angle heredity (+0.5°/generation, cap at 60°→equilateral) and irregular regularization.
 - Optional non-canon compensation system remains available but is OFF by default.
@@ -149,6 +152,7 @@ Canon status used in this patch:
 | Male side cap (`maxPolygonSides`) and high-order fertility penalties | Part I, Sec. 3 (principle only) | Implementation assumption / extrapolation | Applies simulation caps/penalties to keep long-run populations stable | `src/core/reproduction/offspringPolicy.ts`; `src/systems/reproductionSystem.ts` | `maxPolygonSides=20`, `maleBirthHighRankPenaltyPerSide=0.085`, `conceptionHighRankPenaltyPerSide=0.13` | `tests/reproduction.test.ts`, `src/tools/stabilityHarness.ts` |
 | Isosceles brain-angle generational law (+0.5°/generation; cap 60°) | Part I, Sec. 3 | Directly stated in the novel | Isosceles father begets isosceles son with brain-angle +0.5°; at 60° child is equilateral | `src/core/isosceles.ts`; `src/core/reproduction/offspringPolicy.ts`; `src/core/factory.ts` (`brainAngleDeg` spawn metadata); `src/core/world.ts` (`brainAngles`) | Canon step and cap are fixed in code (`CANON_BRAIN_ANGLE_STEP_DEG=0.5`, `MAX_CANON_BRAIN_ANGLE_DEG=60`) | `tests/offspringPolicy.test.ts` |
 | Reproduction + lineage + dynasty/legacy | Generational hierarchy is strongly implied; exact fertility math is not | Implementation assumption / extrapolation | Pregnancy countdown, deterministic births, parent links, generation/dynasty, legacy counts | `src/systems/reproductionSystem.ts`; `src/core/genealogy.ts`; `src/systems/cleanupSystem.ts` | Reproduction panel keys (`gestationTicks`, `matingRadius`, etc.) | `tests/reproduction.test.ts`, `tests/genealogy.test.ts` |
+| Age-linked geometric growth | Part I, Sec. 7 | Directly stated principle with adult-initial-population assumption | Newborn figures start smaller and grow toward their adult side length / radius; collisions, perception, and rendering all use the same current geometry because the shape itself is rescaled in headless systems. | `src/core/growth.ts`; `src/systems/ageGrowthSystem.ts`; `src/core/factory.ts`; `src/systems/reproductionSystem.ts`; `src/systems/cleanupSystem.ts` | `ageSizeEnabled=true`, `growthBirthScale=0.35`, `growthMaturityTicks=360`; no UI controls yet | `tests/ageGrowthSystem.test.ts` |
 | Non-canon compensation (time/intelligence blunting) | No direct textual numeric law | Implementation assumption / extrapolation | Optional system widens isosceles base over time; used as non-canon smoothing mode | `src/systems/compensationSystem.ts`; intelligence from `src/systems/intelligenceGrowthSystem.ts` | `compensationEnabled=false` by default, `compensationRate=0.4` | `tests/compensation.test.ts` |
 | Perimeter eyes + directional glance (limited FOV) | Part I, Sec. 4; Part I, Sec. 6; Part II (Sphere dialogue) | Directly stated (eye on perimeter), directional FOV angle is implementation assumption | Each figure has one perimeter eye and forward glance; scan/vision only sample within eye FOV | `src/core/eyePose.ts` `computeDefaultEyeComponent`, `eyePoseWorld`; `src/core/factory.ts` spawn eye assignment; `src/systems/visionSystem.ts` eye/FOV-gated rays | `defaultEyeFovDeg=180`; Inspector `#inspector-eye-fov` | `tests/eyePose.test.ts`, `tests/visionFog.test.ts` |
 | 1D Flatlander retina strip | Part I, Sec. 6 | Strongly implied by the novel | Ray-based strip with nearest-hit occlusion, fog intensity, endpoint/closest markers, using selected eye origin/FOV | `src/render/flatlanderScan.ts` `computeFlatlanderScan` & `extractFlatlanderSegments`; `src/render/flatlanderViewRenderer.ts` | Flatlander panel controls (`rays`, `lookOffset`, `fogDensity`, grayscale, include boundaries); effective FOV from eye | `tests/flatlanderScan.test.ts`, `tests/raycast.test.ts` |

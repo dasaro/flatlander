@@ -237,6 +237,14 @@ export interface AgeComponent {
   ticksAlive: number;
 }
 
+export interface GrowthComponent {
+  adultSize: number;
+  birthScale: number;
+  maturityTicks: number;
+  currentScale: number;
+  growthTicks: number;
+}
+
 export interface FertilityComponent {
   enabled: boolean;
   maturityTicks: number;

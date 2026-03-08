@@ -1,6 +1,7 @@
 import { regularityMetric, isoscelesTriangleVertices } from '../geometry/polygon';
 import { clamp, distance, vec } from '../geometry/vector';
 import { MAX_ISOSCELES_BASE_RATIO, MIN_ISOSCELES_BASE_RATIO } from '../core/factory';
+import { resetGrowthAdultSize } from '../core/growth';
 import { brainAngleDegFromBaseRatio } from '../core/isosceles';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
@@ -77,6 +78,10 @@ export class CompensationSystem implements System {
         (max, vertex) => Math.max(max, distance(vertex, vec(0, 0))),
         0,
       );
+      const growth = world.growth.get(id);
+      if (growth) {
+        resetGrowthAdultSize(growth, shape);
+      }
       world.brainAngles.set(id, {
         brainAngleDeg: brainAngleDegFromBaseRatio(nextRatio),
       });

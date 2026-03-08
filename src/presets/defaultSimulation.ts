@@ -8,6 +8,7 @@ import { CompensationSystem } from '../systems/compensationSystem';
 import { CrowdStressSystem } from '../systems/crowdStressSystem';
 import { ErosionSystem } from '../systems/erosionSystem';
 import { AgeDeteriorationSystem } from '../systems/ageDeteriorationSystem';
+import { AgeGrowthSystem } from '../systems/ageGrowthSystem';
 import { FeelingApproachSystem } from '../systems/feelingApproachSystem';
 import { FeelingSystem } from '../systems/feelingSystem';
 import { HearingSystem } from '../systems/hearingSystem';
@@ -42,6 +43,8 @@ export function createDefaultSystems(): System[] {
     new RainSystem(),
     // Policy regime is computed before deliberative behavior and enforcement.
     new PolicyRegimeSystem(),
+    // Size depends on age before any perception, movement, or collision work.
+    new AgeGrowthSystem(),
     new HearingSystem(),
     new VisionSystem(),
     new SocialNavMindSystem(),

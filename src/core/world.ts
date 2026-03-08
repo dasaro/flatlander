@@ -4,6 +4,7 @@ import { EventQueue } from './events';
 import type { WorldTopology } from './topology';
 import type {
   AgeComponent,
+  GrowthComponent,
   AudiblePing,
   BondComponent,
   BrainAngleComponent,
@@ -177,6 +178,9 @@ export interface WorldConfig {
   ageWearStartTicks: number;
   ageWearRampTicks: number;
   ageWearRate: number;
+  ageSizeEnabled: boolean;
+  growthBirthScale: number;
+  growthMaturityTicks: number;
   regularizationEnabled: boolean;
   regularizationRate: number;
   regularityTolerance: number;
@@ -258,6 +262,7 @@ export interface World {
   feeling: Map<EntityId, FeelingComponent>;
   knowledge: Map<EntityId, KnowledgeComponent>;
   ages: Map<EntityId, AgeComponent>;
+  growth: Map<EntityId, GrowthComponent>;
   fertility: Map<EntityId, FertilityComponent>;
   pregnancies: Map<EntityId, PregnancyComponent>;
   neoTherapy: Map<EntityId, NeoTherapyComponent>;
@@ -444,6 +449,9 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   ageWearStartTicks: 3_000,
   ageWearRampTicks: 6_000,
   ageWearRate: 0.32,
+  ageSizeEnabled: true,
+  growthBirthScale: 0.35,
+  growthMaturityTicks: 360,
   regularizationEnabled: true,
   regularizationRate: 0.15,
   regularityTolerance: 0.015,
@@ -524,6 +532,7 @@ export function createWorld(seed: number, overrides: Partial<WorldConfig> = {}):
     feeling: new Map(),
     knowledge: new Map(),
     ages: new Map(),
+    growth: new Map(),
     fertility: new Map(),
     pregnancies: new Map(),
     neoTherapy: new Map(),

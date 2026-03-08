@@ -1,5 +1,6 @@
 import { spawnEntity, type SpawnMovementConfig, type SpawnShapeConfig } from '../core/factory';
 import { getLineagePathToRoot } from '../core/genealogy';
+import { applyGrowthToShape, resetEntityToNewborn } from '../core/growth';
 import { houseCentroidWorld } from '../core/housing/houseFactory';
 import { hasHouseCapacity } from '../core/housing/shelterPolicy';
 import { isMarriageEligibleFigure } from '../core/irregularity';
@@ -631,6 +632,14 @@ export class ReproductionSystem implements System {
         undefined,
         inheritedFemaleRank ? { femaleRank: inheritedFemaleRank } : undefined,
       );
+      const childAge = world.ages.get(childId);
+      const childGrowth = world.growth.get(childId);
+      const childShapeState = world.shapes.get(childId);
+      if (childAge && childGrowth && childShapeState) {
+        childAge.ticksAlive = 0;
+        resetEntityToNewborn(childGrowth);
+        applyGrowthToShape(childShapeState, childGrowth);
+      }
       world.birthsThisTick += 1;
       const childTransform = world.transforms.get(childId);
       if (childTransform) {
