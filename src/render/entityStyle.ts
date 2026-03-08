@@ -3,6 +3,8 @@ export interface EntityStrokeStyleInput {
   pregnantFillColor?: string | null;
   strokeByKills: boolean;
   killStrokeColor: string;
+  allowColor: boolean;
+  paintStrokeColor?: string | null;
   isSelected: boolean;
   isHovered: boolean;
 }
@@ -34,6 +36,9 @@ export function resolveEntityStrokeColor(input: EntityStrokeStyleInput): string 
   }
   if (input.strokeByKills) {
     return input.killStrokeColor;
+  }
+  if (input.allowColor && input.paintStrokeColor) {
+    return input.paintStrokeColor;
   }
 
   const source = input.pregnantFillColor ?? input.fillColor;

@@ -4,7 +4,6 @@ import { getEyeWorldPosition } from '../core/eye';
 import { fogDensityAt } from '../core/fogField';
 import { isEntityOutside } from '../core/housing/dwelling';
 import { doorPoseWorld } from '../core/housing/houseFactory';
-import { Rank } from '../core/rank';
 import { getSortedEntityIds } from '../core/world';
 import type { World } from '../core/world';
 import type { HouseComponent, TransformComponent } from '../core/components';
@@ -14,6 +13,11 @@ import type { Camera } from './camera';
 import { contactCurveControlPoint, selectTopKnownIds } from './contactNetwork';
 import type { EffectsManager } from './effects';
 import { resolveEntityStrokeColor } from './entityStyle';
+import {
+  monochromeFillForRank,
+  monochromeKillStrokeForCount,
+  paintedStrokeColorForEntity,
+} from './painting';
 import { finalEntityAlpha, fogIntensityAtDistance, fogRingRadiusForLevel } from './viewModifiers';
 import type { FrameSnapshot } from '../ui/frameSnapshot';
 
@@ -150,12 +154,12 @@ export class CanvasRenderer {
         options.flatlanderHoverEntityId !== undefined &&
         options.flatlanderHoverEntityId === id;
       const isPregnantWoman = shape.kind === 'segment' && world.pregnancies.has(id);
-      let fillColor = colorForRank(rank.rank);
-      if (isPregnantWoman) {
-        fillColor = '#d9578a';
-      }
+      const fillColor = monochromeFillForRank(rank.rank);
       const kills = world.combatStats.get(id)?.kills ?? 0;
-      const killStrokeColor = colorForKillCount(kills);
+      const killStrokeColor = frameSnapshot.colorEnabled
+        ? colorForKillCount(kills)
+        : monochromeKillStrokeForCount(kills);
+      const paintStrokeColor = paintedStrokeColorForEntity(world.seed, id, shape);
       let fogPreviewIntensity: number | null = null;
       if (selectedObserverEye && options.fogPreviewEnabled && id !== selectedEntityId) {
         const center = geometryCenter(geometry);
@@ -191,9 +195,11 @@ export class CanvasRenderer {
       this.ctx.fillStyle = fillColor;
       this.ctx.strokeStyle = resolveEntityStrokeColor({
         fillColor,
-        pregnantFillColor: isPregnantWoman ? '#d9578a' : null,
+        pregnantFillColor: isPregnantWoman ? '#b6afa3' : null,
         strokeByKills: options.strokeByKills ?? false,
         killStrokeColor,
+        allowColor: frameSnapshot.colorEnabled,
+        paintStrokeColor,
         isSelected,
         isHovered: isFlatlanderHovered,
       });
@@ -208,7 +214,7 @@ export class CanvasRenderer {
         if (isPregnantWoman) {
           this.ctx.save();
           this.ctx.globalAlpha = Math.max(0.45, entityAlpha * 0.92);
-          this.ctx.strokeStyle = '#f3a8c2';
+          this.ctx.strokeStyle = '#b6afa3';
           this.ctx.lineWidth = (isSelected ? 5 : isFlatlanderHovered ? 4.4 : 3.2) / camera.zoom;
           this.ctx.beginPath();
           this.ctx.moveTo(geometry.a.x, geometry.a.y);
@@ -987,27 +993,6 @@ function polygonYRange(vertices: Vec2[]): { minY: number; maxY: number } {
     return { minY, maxY: minY + 1 };
   }
   return { minY, maxY };
-}
-
-function colorForRank(rank: Rank): string {
-  switch (rank) {
-    case Rank.Woman:
-      return '#d94f3d';
-    case Rank.Priest:
-      return '#f4c542';
-    case Rank.Irregular:
-      return '#8a1c1c';
-    case Rank.Triangle:
-      return '#5984b3';
-    case Rank.Gentleman:
-      return '#3aa17e';
-    case Rank.Noble:
-      return '#7f66b3';
-    case Rank.NearCircle:
-      return '#2f4f7f';
-    default:
-      return '#777777';
-  }
 }
 
 function colorForKillCount(kills: number): string {

@@ -130,6 +130,7 @@ let environmentSettings: EnvironmentSettings = {
   allowSquareHouses: false,
   houseSize: 30,
   rainEnabled: true,
+  colorEnabled: false,
   showRainOverlay: true,
   showFogOverlay: true,
   showDoors: true,
@@ -1079,6 +1080,7 @@ function renderFlatlanderView(frameSnapshot: Readonly<FrameSnapshot>): void {
     {
       isRaining: frameSnapshot.isRaining,
       tick: frameSnapshot.tick,
+      colorEnabled: frameSnapshot.colorEnabled,
     },
   );
 }
@@ -1427,6 +1429,7 @@ function settingsToWorldConfig(
     houseSize: Math.max(4, environment.houseSize),
     houseMinSpacing: Math.max(0, Math.round(environment.houseSize * 0.35)),
     rainEnabled: environment.rainEnabled && environment.housesEnabled,
+    colorEnabled: environment.colorEnabled,
     peaceCryEnabled: peaceCry.enabled,
     strictPeaceCryComplianceEnabled: peaceCry.strictComplianceEnabled,
     peaceCryComplianceStillnessTicks: peaceCry.complianceStillnessTicks,
@@ -1468,6 +1471,7 @@ function applyEnvironmentSettingsToWorld(
   worldState.config.houseSize = Math.max(4, environment.houseSize);
   worldState.config.houseMinSpacing = Math.max(0, Math.round(environment.houseSize * 0.35));
   worldState.config.rainEnabled = environment.rainEnabled && environment.housesEnabled;
+  worldState.config.colorEnabled = environment.colorEnabled;
   if (!worldState.config.rainEnabled) {
     worldState.weather.isRaining = false;
     worldState.weather.ticksUntilRain = Math.max(1, Math.round(worldState.config.rainBasePeriodTicks));

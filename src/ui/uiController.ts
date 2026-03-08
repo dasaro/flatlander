@@ -67,6 +67,7 @@ export interface EnvironmentSettings {
   allowSquareHouses: boolean;
   houseSize: number;
   rainEnabled: boolean;
+  colorEnabled: boolean;
   showRainOverlay: boolean;
   showFogOverlay: boolean;
   showDoors: boolean;
@@ -173,6 +174,7 @@ interface InputRefs {
   envAllowSquareHouses: HTMLInputElement;
   envHouseSize: HTMLInputElement;
   envRainEnabled: HTMLInputElement;
+  envColorEnabled: HTMLInputElement;
   envShowRainOverlay: HTMLInputElement;
   envShowFogOverlay: HTMLInputElement;
   envShowHouseDoors: HTMLInputElement;
@@ -419,7 +421,7 @@ export class UIController {
     const environment = this.readEnvironmentSettings();
     this.syncEnvironmentFieldState(environment);
     this.syncEventHighlightsFieldState(this.readEventHighlightsSettings());
-    this.syncFlatlanderFieldState(this.readFlatlanderViewSettings());
+    this.syncFlatlanderFieldState(this.readFlatlanderViewSettings(), this.readTopology(), environment);
     const peaceCry = this.readPeaceCrySettings();
     const reproduction = this.readReproductionSettings();
     this.syncPeaceCryFieldState(peaceCry);
@@ -1027,7 +1029,7 @@ export class UIController {
     });
     this.refs.worldTopology.addEventListener('change', () => {
       const topology = this.readTopology();
-      this.syncFlatlanderFieldState(this.readFlatlanderViewSettings(), topology);
+      this.syncFlatlanderFieldState(this.readFlatlanderViewSettings(), topology, this.readEnvironmentSettings());
       this.callbacks.onTopologyUpdate(topology);
     });
 
@@ -1039,6 +1041,7 @@ export class UIController {
       this.refs.envAllowSquareHouses,
       this.refs.envHouseSize,
       this.refs.envRainEnabled,
+      this.refs.envColorEnabled,
       this.refs.envShowRainOverlay,
       this.refs.envShowFogOverlay,
       this.refs.envShowHouseDoors,
@@ -1049,12 +1052,16 @@ export class UIController {
       input.addEventListener('input', () => {
         const settings = this.readEnvironmentSettings();
         this.syncEnvironmentFieldState(settings);
+        this.syncFlatlanderFieldState(this.readFlatlanderViewSettings(), this.readTopology(), settings);
         this.callbacks.onEnvironmentUpdate(settings);
+        this.callbacks.onFlatlanderViewUpdate(this.readFlatlanderViewSettings());
       });
       input.addEventListener('change', () => {
         const settings = this.readEnvironmentSettings();
         this.syncEnvironmentFieldState(settings);
+        this.syncFlatlanderFieldState(this.readFlatlanderViewSettings(), this.readTopology(), settings);
         this.callbacks.onEnvironmentUpdate(settings);
+        this.callbacks.onFlatlanderViewUpdate(this.readFlatlanderViewSettings());
       });
     }
 
@@ -1172,12 +1179,12 @@ export class UIController {
     for (const input of flatlanderInputs) {
       input.addEventListener('input', () => {
         const settings = this.readFlatlanderViewSettings();
-        this.syncFlatlanderFieldState(settings);
+        this.syncFlatlanderFieldState(settings, this.readTopology(), this.readEnvironmentSettings());
         this.callbacks.onFlatlanderViewUpdate(settings);
       });
       input.addEventListener('change', () => {
         const settings = this.readFlatlanderViewSettings();
-        this.syncFlatlanderFieldState(settings);
+        this.syncFlatlanderFieldState(settings, this.readTopology(), this.readEnvironmentSettings());
         this.callbacks.onFlatlanderViewUpdate(settings);
       });
     }
@@ -1364,6 +1371,7 @@ export class UIController {
       allowSquareHouses,
       houseSize: Math.max(4, parseNumber(this.refs.envHouseSize.value, 30)),
       rainEnabled: this.refs.envRainEnabled.checked,
+      colorEnabled: this.refs.envColorEnabled.checked,
       showRainOverlay: this.refs.envShowRainOverlay.checked,
       showFogOverlay: this.refs.envShowFogOverlay.checked,
       showDoors: this.refs.envShowHouseDoors.checked,
@@ -1425,6 +1433,7 @@ export class UIController {
       truth.rainOverlay.disabledReason,
       truth.rainOverlay.enabledHint,
     );
+    setControlEnabled(this.refs.envColorEnabled, true);
     if (!truth.squareHouses.enabled) {
       this.refs.envAllowSquareHouses.checked = false;
     }
@@ -1638,6 +1647,7 @@ export class UIController {
     const rays = Math.max(16, parseInteger(this.refs.flatlanderRays.value, 720));
     const fovDeg = clampRange(parseNumber(this.refs.flatlanderFov.value, 360), 30, 360);
     const lookOffsetDeg = clampRange(parseNumber(this.refs.flatlanderLookOffset.value, 0), -180, 180);
+    const colorAllowed = this.refs.envColorEnabled.checked;
 
     return {
       enabled: this.refs.flatlanderEnabled.checked,
@@ -1647,7 +1657,7 @@ export class UIController {
       maxDistance: Math.max(1, parseNumber(this.refs.flatlanderMaxDistance.value, 400)),
       fogDensity: Math.max(0, parseNumber(this.refs.flatlanderFogDensity.value, 0.012)),
       minVisibleIntensity: 0.06,
-      grayscaleMode: this.refs.flatlanderGrayscale.checked,
+      grayscaleMode: !colorAllowed || this.refs.flatlanderGrayscale.checked,
       includeObstacles: this.refs.flatlanderIncludeObstacles.checked,
       includeBoundaries: this.refs.flatlanderIncludeBoundaries.checked,
       inanimateDimMultiplier: 0.65,
@@ -1657,6 +1667,7 @@ export class UIController {
   private syncFlatlanderFieldState(
     settings: FlatlanderViewSettings,
     topology: WorldTopology = this.readTopology(),
+    environment: EnvironmentSettings = this.readEnvironmentSettings(),
   ): void {
     const enabled = settings.enabled;
     setControlEnabled(this.refs.flatlanderRays, enabled, 'Enable Flatlander View first.');
@@ -1664,7 +1675,14 @@ export class UIController {
     setControlEnabled(this.refs.flatlanderLookOffset, enabled, 'Enable Flatlander View first.');
     setControlEnabled(this.refs.flatlanderMaxDistance, enabled, 'Enable Flatlander View first.');
     setControlEnabled(this.refs.flatlanderFogDensity, enabled, 'Enable Flatlander View first.');
-    setControlEnabled(this.refs.flatlanderGrayscale, enabled, 'Enable Flatlander View first.');
+    if (!environment.colorEnabled) {
+      this.refs.flatlanderGrayscale.checked = true;
+    }
+    setControlEnabled(
+      this.refs.flatlanderGrayscale,
+      enabled && environment.colorEnabled,
+      environment.colorEnabled ? 'Enable Flatlander View first.' : 'Allow Colour in World / Environment first.',
+    );
     setControlEnabled(this.refs.flatlanderIncludeObstacles, enabled, 'Enable Flatlander View first.');
     const flatlanderTruth = describeFlatlanderControlTruth({ enabled }, topology);
     setControlEnabled(
@@ -2120,6 +2138,7 @@ function collectRefs(): InputRefs {
     envAllowSquareHouses: required<HTMLInputElement>('env-allow-square-houses'),
     envHouseSize: required<HTMLInputElement>('env-house-size'),
     envRainEnabled: required<HTMLInputElement>('env-rain-enabled'),
+    envColorEnabled: required<HTMLInputElement>('env-color-enabled'),
     envShowRainOverlay: required<HTMLInputElement>('env-show-rain-overlay'),
     envShowFogOverlay: required<HTMLInputElement>('env-show-fog-overlay'),
     envShowHouseDoors: required<HTMLInputElement>('env-show-house-doors'),

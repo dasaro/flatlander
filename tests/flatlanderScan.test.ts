@@ -122,6 +122,40 @@ describe('flatlander scan', () => {
     expect(hitSample?.intensity ?? 0).toBeCloseTo(1, 9);
   });
 
+  it('records paint colours only for paintable figures', () => {
+    const world = createWorld(444, {
+      southAttractionEnabled: false,
+      reproductionEnabled: false,
+    });
+    const viewerId = spawnEntity(
+      world,
+      { kind: 'circle', size: 8 },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 100, y: 120 },
+    );
+    const polygonId = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 4, size: 12, irregular: false },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 150, y: 120 },
+    );
+    const segmentId = spawnEntity(
+      world,
+      { kind: 'segment', size: 16 },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 100, y: 170 },
+    );
+
+    const result = computeFlatlanderScan(world, viewerId, {
+      ...BASE_SCAN_CONFIG,
+      maxDistance: 300,
+      minVisibleIntensity: 0,
+    });
+
+    expect(result.samples.some((sample) => sample.hitId === polygonId && sample.paintColor !== null)).toBe(true);
+    expect(result.samples.some((sample) => sample.hitId === segmentId && sample.paintColor !== null)).toBe(false);
+  });
+
   it('decreases intensity with greater distance when fog is enabled', () => {
     const near = setupViewerAndTarget(145);
     const far = setupViewerAndTarget(240);
@@ -202,12 +236,12 @@ describe('flatlander scan', () => {
 describe('flatlander segment extraction', () => {
   it('groups contiguous hit ids and tracks minDistanceIndex', () => {
     const samples: FlatlanderSample[] = [
-      { angle: -1, hitId: null, distance: null, intensity: 0 },
-      { angle: -0.5, hitId: 10, distance: 9, intensity: 0.4 },
-      { angle: -0.2, hitId: 10, distance: 4, intensity: 0.7 },
-      { angle: 0.1, hitId: 10, distance: 6, intensity: 0.5 },
-      { angle: 0.4, hitId: null, distance: null, intensity: 0 },
-      { angle: 0.8, hitId: 22, distance: 7, intensity: 0.6 },
+      { angle: -1, hitId: null, distance: null, intensity: 0, paintColor: null },
+      { angle: -0.5, hitId: 10, distance: 9, intensity: 0.4, paintColor: '#123456' },
+      { angle: -0.2, hitId: 10, distance: 4, intensity: 0.7, paintColor: '#123456' },
+      { angle: 0.1, hitId: 10, distance: 6, intensity: 0.5, paintColor: '#123456' },
+      { angle: 0.4, hitId: null, distance: null, intensity: 0, paintColor: null },
+      { angle: 0.8, hitId: 22, distance: 7, intensity: 0.6, paintColor: '#654321' },
     ];
 
     const segments = extractFlatlanderSegments(samples);

@@ -35,7 +35,7 @@ const EXPLICIT_HELP: Record<string, string> = {
   'flatlander-max-distance': 'Caps how far the 1D scan looks from the selected eye.',
   'flatlander-fog-density': 'Sets the 1D view fog strength used for dimness in the retina strip.',
   'flatlander-include-obstacles': 'Includes inanimate obstacles and houses in the 1D scan.',
-  'flatlander-grayscale': 'Switches the 1D view between grayscale and color coding.',
+  'flatlander-grayscale': 'When colour is allowed, keeps the 1D view in grayscale instead of using painted stroke colours.',
 
   'fog-sight-enabled': 'Enables headless sight recognition behavior in the simulation.',
   'fog-sight-density': 'Sets the global base fog density used by sight recognition and fog fields.',
@@ -47,6 +47,7 @@ const EXPLICIT_HELP: Record<string, string> = {
   'env-allow-square-houses': 'Allows square houses when the town-population restriction permits them.',
   'env-house-size': 'Sets the base generated house size on reset.',
   'env-rain-enabled': 'Turns the headless rain schedule on or off.',
+  'env-color-enabled': 'Allows the ancient practice of painting: ordinary polygons may show painted stroke colours; women and priests remain colourless.',
   'env-show-rain-overlay': 'Shows the God-view rain overlay.',
   'env-show-fog-overlay': 'Shows the God-view fog field overlay.',
   'env-show-house-doors': 'Draws door markers on houses in God-view.',

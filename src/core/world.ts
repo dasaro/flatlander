@@ -58,6 +58,7 @@ export interface WorldConfig {
   houseSize: number;
   houseMinSpacing: number;
   rainEnabled: boolean;
+  colorEnabled: boolean;
   rainPeriodTicks: number;
   rainDurationTicks: number;
   rainBasePeriodTicks: number;
@@ -324,6 +325,7 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   houseSize: 30,
   houseMinSpacing: 16,
   rainEnabled: false,
+  colorEnabled: false,
   rainPeriodTicks: 2000,
   rainDurationTicks: 700,
   rainBasePeriodTicks: 2000,

@@ -8,6 +8,7 @@ describe('frame snapshot', () => {
     const world = createWorld(42, {
       housesEnabled: true,
       rainEnabled: true,
+      colorEnabled: true,
       fogDensity: 0.013,
     });
     world.tick = 123;
@@ -20,6 +21,7 @@ describe('frame snapshot', () => {
 
     expect(snapshot.tick).toBe(123);
     expect(snapshot.isRaining).toBe(true);
+    expect(snapshot.colorEnabled).toBe(true);
     expect(snapshot.fogDensity).toBeCloseTo(0.013, 8);
     expect(snapshot.fogMinIntensity).toBeCloseTo(world.config.fogMinIntensity, 8);
     expect(snapshot.fogMaxDistance).toBeCloseTo(world.config.fogMaxDistance, 8);

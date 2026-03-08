@@ -3,14 +3,20 @@ import type { FlatlanderScanResult, FlatlanderViewConfig } from './flatlanderSca
 interface FlatlanderEnvironmentOverlay {
   isRaining: boolean;
   tick: number;
+  colorEnabled: boolean;
 }
 
-function tintFromHitId(hitId: number, alpha: number): string {
-  if (hitId < 0) {
-    return `hsla(34, 24%, 38%, ${alpha.toFixed(3)})`;
+function applyAlphaToHexColor(color: string, alpha: number): string {
+  const trimmed = color.trim();
+  const match = /^#([0-9a-f]{6})$/i.exec(trimmed);
+  if (!match) {
+    return `rgba(33, 31, 28, ${alpha.toFixed(3)})`;
   }
-  const hue = ((hitId * 53) % 360 + 360) % 360;
-  return `hsla(${hue}, 56%, 42%, ${alpha.toFixed(3)})`;
+  const hex = match[1]!;
+  const r = Number.parseInt(hex.slice(0, 2), 16);
+  const g = Number.parseInt(hex.slice(2, 4), 16);
+  const b = Number.parseInt(hex.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(3)})`;
 }
 
 function scaleCanvasToDisplay(canvas: HTMLCanvasElement): { width: number; height: number } {
@@ -75,6 +81,8 @@ export class FlatlanderViewRenderer {
     if (environmentOverlay?.isRaining) {
       this.drawRainAtmosphere(environmentOverlay.tick, width, height);
     }
+    const colorAllowed = environmentOverlay?.colorEnabled ?? false;
+    const useColor = colorAllowed && !cfg.grayscaleMode;
 
     const baselineY = Math.round(height * 0.58);
     this.ctx.strokeStyle = 'rgba(70, 65, 58, 0.28)';
@@ -107,9 +115,10 @@ export class FlatlanderViewRenderer {
         : Math.max(0.05, Math.min(1, visualIntensity));
       const halfHeight = 2 + visualIntensity * 10 + (isHighlighted ? 4 : 0);
 
-      this.ctx.strokeStyle = cfg.grayscaleMode
-        ? `rgba(33, 31, 28, ${alpha.toFixed(3)})`
-        : tintFromHitId(sample.hitId, alpha);
+      this.ctx.strokeStyle =
+        useColor && sample.paintColor
+          ? applyAlphaToHexColor(sample.paintColor, alpha)
+          : `rgba(33, 31, 28, ${alpha.toFixed(3)})`;
       this.ctx.lineWidth = isHighlighted ? 2 : 1;
       this.ctx.beginPath();
       this.ctx.moveTo(x, baselineY - halfHeight);
@@ -135,9 +144,10 @@ export class FlatlanderViewRenderer {
         const radius = isClosest ? (isHighlightedHit ? 4.1 : 3.2) : isHighlightedHit ? 3.1 : 2.2;
         const visualIntensity = Math.max(0, Math.min(1, sample.intensity ** 1.4));
         const alpha = Math.max(0.2, Math.min(1, visualIntensity * (isClosest ? 1 : 0.8)));
-        const fill = cfg.grayscaleMode
-          ? `rgba(22, 20, 18, ${alpha.toFixed(3)})`
-          : tintFromHitId(sample.hitId, alpha);
+        const fill =
+          useColor && sample.paintColor
+            ? applyAlphaToHexColor(sample.paintColor, alpha)
+            : `rgba(22, 20, 18, ${alpha.toFixed(3)})`;
 
         this.ctx.fillStyle = fill;
         this.ctx.beginPath();

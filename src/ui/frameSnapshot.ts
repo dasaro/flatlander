@@ -9,6 +9,7 @@ export interface FrameEnvironmentState {
 export interface FrameSnapshot {
   tick: number;
   isRaining: boolean;
+  colorEnabled: boolean;
   fogDensity: number;
   fogMinIntensity: number;
   fogMaxDistance: number;
@@ -25,6 +26,7 @@ export function captureFrameSnapshot(
   return Object.freeze({
     tick: world.tick,
     isRaining: world.weather.isRaining,
+    colorEnabled: world.config.colorEnabled,
     fogDensity: Math.max(0, world.config.fogDensity),
     fogMinIntensity: Math.max(0, world.config.fogMinIntensity),
     fogMaxDistance: Math.max(0, world.config.fogMaxDistance),

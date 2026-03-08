@@ -15,6 +15,8 @@ describe('entityStyle', () => {
       pregnantFillColor: null,
       strokeByKills: false,
       killStrokeColor: '#6c4a2c',
+      allowColor: false,
+      paintStrokeColor: '#2f5e97',
       isSelected: false,
       isHovered: false,
     });
@@ -23,6 +25,8 @@ describe('entityStyle', () => {
       pregnantFillColor: null,
       strokeByKills: false,
       killStrokeColor: '#6c4a2c',
+      allowColor: false,
+      paintStrokeColor: '#2f5e97',
       isSelected: true,
       isHovered: false,
     });
@@ -31,6 +35,8 @@ describe('entityStyle', () => {
       pregnantFillColor: null,
       strokeByKills: false,
       killStrokeColor: '#6c4a2c',
+      allowColor: false,
+      paintStrokeColor: '#2f5e97',
       isSelected: false,
       isHovered: true,
     });
@@ -39,6 +45,8 @@ describe('entityStyle', () => {
       pregnantFillColor: null,
       strokeByKills: true,
       killStrokeColor: '#6c4a2c',
+      allowColor: false,
+      paintStrokeColor: '#2f5e97',
       isSelected: false,
       isHovered: false,
     });
@@ -47,5 +55,31 @@ describe('entityStyle', () => {
     expect(selected).toBe('#111111');
     expect(hovered).toBe('#d88a1f');
     expect(killStyled).toBe('#6c4a2c');
+  });
+
+  it('uses painted strokes only when colour is allowed', () => {
+    const monochrome = resolveEntityStrokeColor({
+      fillColor: '#8a8478',
+      pregnantFillColor: null,
+      strokeByKills: false,
+      killStrokeColor: '#1b1712',
+      allowColor: false,
+      paintStrokeColor: '#2f5e97',
+      isSelected: false,
+      isHovered: false,
+    });
+    const coloured = resolveEntityStrokeColor({
+      fillColor: '#8a8478',
+      pregnantFillColor: null,
+      strokeByKills: false,
+      killStrokeColor: '#1b1712',
+      allowColor: true,
+      paintStrokeColor: '#2f5e97',
+      isSelected: false,
+      isHovered: false,
+    });
+
+    expect(monochrome).toBe(deriveOutlineColor('#8a8478'));
+    expect(coloured).toBe('#2f5e97');
   });
 });

@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.35] - 2026-03-08
+
+### Added
+- Added a novel-faithful ancient-painting mode: a new `Allow Colour` environment toggle enables deterministic painted stroke colours for ordinary polygons while women and priests remain colourless.
+- Added `/Users/fdasaro/Desktop/Flatlander/src/render/painting.ts` to centralize monochrome rank fills, monochrome kill-stroke fallbacks, and deterministic painted-stroke assignment.
+- Added `/Users/fdasaro/Desktop/Flatlander/tests/painting.test.ts` to lock the painting policy to deterministic, canon-oriented behavior.
+
+### Changed
+- God-view entities now render monochrome by default; enabling colour affects strokes rather than fills, keeping the simplest faithful interpretation of Part I, Section 8.
+- The Flatlander 1D view now uses the same shared painting policy as God-view instead of arbitrary hit-id tinting, and `Use Greyscale` is disabled unless colour is allowed.
+- Pregnant segment cues remain visible but monochrome, so the default no-colour presentation stays black and white across both viewpoints.
+
+### Validation
+- `npm test` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm run sim:midrun` passed.
+
 ## [0.9.34] - 2026-03-08
 
 ### Changed

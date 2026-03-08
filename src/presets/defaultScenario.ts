@@ -206,6 +206,7 @@ export function defaultWorldConfig(topology: 'torus' | 'bounded' = 'torus'): Par
     houseSize: 30,
     houseMinSpacing: 11,
     rainEnabled: true,
+    colorEnabled: false,
     rainPeriodTicks: 2000,
     rainDurationTicks: 700,
     rainBasePeriodTicks: 2000,

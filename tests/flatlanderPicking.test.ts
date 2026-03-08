@@ -26,9 +26,9 @@ describe('flatlander picking helpers', () => {
 
   it('picks sample and hit id from normalized x', () => {
     const samples: FlatlanderSample[] = [
-      { angle: -1, hitId: 11, distance: 20, intensity: 0.7 },
-      { angle: 0, hitId: null, distance: null, intensity: 0 },
-      { angle: 1, hitId: 42, distance: 10, intensity: 0.9 },
+      { angle: -1, hitId: 11, distance: 20, intensity: 0.7, paintColor: '#123456' },
+      { angle: 0, hitId: null, distance: null, intensity: 0, paintColor: null },
+      { angle: 1, hitId: 42, distance: 10, intensity: 0.9, paintColor: '#654321' },
     ];
 
     expect(pickFlatlanderSampleAtNormalizedX(samples, 0)).toEqual({
