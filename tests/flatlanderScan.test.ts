@@ -244,6 +244,60 @@ describe('flatlander scan', () => {
     expect(farHit?.intensity ?? 1).toBeLessThan(nearHit?.intensity ?? 0);
   });
 
+  it('marks visible people as known or unidentified from the viewer knowledge state', () => {
+    const world = createWorld(447, {
+      southAttractionEnabled: false,
+      reproductionEnabled: false,
+    });
+    const viewerId = spawnEntity(
+      world,
+      { kind: 'circle', size: 8 },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 100, y: 120 },
+    );
+    const viewerTransform = world.transforms.get(viewerId);
+    if (!viewerTransform) {
+      throw new Error('Missing viewer transform in recognition scan test.');
+    }
+    viewerTransform.rotation = 0;
+
+    const knownId = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 4, size: 12, irregular: false },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 150, y: 120 },
+    );
+    const unknownId = spawnEntity(
+      world,
+      { kind: 'polygon', sides: 5, size: 12, irregular: false },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 100, y: 160 },
+    );
+    const knowledge = world.knowledge.get(viewerId);
+    const knownRank = world.ranks.get(knownId);
+    if (!knowledge || !knownRank) {
+      throw new Error('Missing knowledge state in recognition scan test.');
+    }
+    knowledge.known.set(knownId, {
+      rank: knownRank.rank,
+      learnedBy: 'feeling',
+      learnedAtTick: 10,
+    });
+
+    const result = computeFlatlanderScan(world, viewerId, {
+      ...BASE_SCAN_CONFIG,
+      maxDistance: 300,
+      minVisibleIntensity: 0,
+    });
+
+    const knownSample = result.samples.find((sample) => sample.hitId === knownId);
+    const unknownSample = result.samples.find((sample) => sample.hitId === unknownId);
+    expect(knownSample?.recognition).toBe('known');
+    expect(knownSample?.displayLabel).toBe(world.names.get(knownId)?.displayName);
+    expect(unknownSample?.recognition).toBe('unknown');
+    expect(unknownSample?.displayLabel).toBe('Unidentified');
+  });
+
   it('can filter samples with the same sight threshold semantics used by behavior', () => {
     const { world, viewerId, targetId } = setupViewerAndTarget(150);
     const sightContext: SightVisibilityContext = {
@@ -319,12 +373,16 @@ describe('flatlander segment extraction', () => {
         startIndex: 1,
         endIndex: 3,
         minDistanceIndex: 2,
+        recognition: null,
+        displayLabel: null,
       },
       {
         hitId: 22,
         startIndex: 5,
         endIndex: 5,
         minDistanceIndex: 5,
+        recognition: null,
+        displayLabel: null,
       },
     ]);
   });

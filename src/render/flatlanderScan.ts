@@ -11,6 +11,8 @@ export type FlatlanderSample = {
   paintColor?: string | null;
   strokeColor?: string | null;
   monochromeStrokeColor?: string | null;
+  recognition?: 'known' | 'unknown' | 'inanimate' | 'boundary' | null;
+  displayLabel?: string | null;
 };
 
 export type FlatlanderSegment = {
@@ -18,6 +20,8 @@ export type FlatlanderSegment = {
   startIndex: number;
   endIndex: number;
   minDistanceIndex: number;
+  recognition: 'known' | 'unknown' | 'inanimate' | 'boundary' | null;
+  displayLabel: string | null;
 };
 
 export type FlatlanderScanResult = {
@@ -55,6 +59,8 @@ function emptyScan(rays: number, fovRad: number): FlatlanderScanResult {
       paintColor: null,
       strokeColor: null,
       monochromeStrokeColor: null,
+      recognition: null,
+      displayLabel: null,
     });
   }
 
@@ -95,6 +101,8 @@ export function extractFlatlanderSegments(samples: FlatlanderSample[]): Flatland
       startIndex,
       endIndex,
       minDistanceIndex: minIndex,
+      recognition: samples[minIndex]?.recognition ?? samples[startIndex]?.recognition ?? null,
+      displayLabel: samples[minIndex]?.displayLabel ?? samples[startIndex]?.displayLabel ?? null,
     });
     currentHitId = null;
     startIndex = -1;
@@ -167,10 +175,13 @@ export function computeFlatlanderScan(
         paintColor: null,
         strokeColor: null,
         monochromeStrokeColor: null,
+        recognition: null,
+        displayLabel: null,
       });
       continue;
     }
     const colors = flatlanderStrokeColorsForHit(world, sample.hitId);
+    const recognition = recognitionForHit(world, viewerId, sample.hitId);
     samples.push({
       angle: sample.angle,
       hitId: sample.hitId,
@@ -179,6 +190,8 @@ export function computeFlatlanderScan(
       paintColor: colors.paintColor,
       strokeColor: colors.strokeColor,
       monochromeStrokeColor: colors.monochromeStrokeColor,
+      recognition: recognition.kind,
+      displayLabel: recognition.label,
     });
   }
 
@@ -186,5 +199,37 @@ export function computeFlatlanderScan(
     samples,
     segments: extractFlatlanderSegments(samples),
     fovRad: scan.fovRad,
+  };
+}
+
+function recognitionForHit(
+  world: World,
+  viewerId: number,
+  hitId: number | null,
+): { kind: 'known' | 'unknown' | 'inanimate' | 'boundary' | null; label: string | null } {
+  if (hitId === null) {
+    return { kind: null, label: null };
+  }
+  if (hitId < 0) {
+    return { kind: 'boundary', label: 'Boundary' };
+  }
+  if (world.houses.has(hitId) || world.staticObstacles.has(hitId)) {
+    return { kind: 'inanimate', label: 'House' };
+  }
+
+  const knowledge = world.knowledge.get(viewerId);
+  const known = viewerId === hitId || knowledge?.known.has(hitId) === true;
+  if (known) {
+    return {
+      kind: 'known',
+      label: world.names.get(hitId)?.displayName ?? `#${hitId}`,
+    };
+  }
+
+  // Part I §5: figures are socially "known" through prior recognition-by-feeling;
+  // otherwise the observer sees a person but has not identified them.
+  return {
+    kind: 'unknown',
+    label: 'Unidentified',
   };
 }

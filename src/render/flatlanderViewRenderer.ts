@@ -31,6 +31,17 @@ function sampleDisplayColor(
   return applyAlphaToHexColor(color, alpha);
 }
 
+function recognitionLabelText(label: string | null | undefined, maxLength = 14): string | null {
+  if (!label) {
+    return null;
+  }
+  const trimmed = label.trim();
+  if (trimmed.length <= maxLength) {
+    return trimmed;
+  }
+  return `${trimmed.slice(0, maxLength - 1)}…`;
+}
+
 function scaleCanvasToDisplay(canvas: HTMLCanvasElement): { width: number; height: number } {
   const rect = canvas.getBoundingClientRect();
   const width = Math.max(1, Math.round(rect.width));
@@ -169,6 +180,40 @@ export class FlatlanderViewRenderer {
           this.ctx.stroke();
         }
       }
+
+      const startX = count <= 1 ? width / 2 : (segment.startIndex / (count - 1)) * width;
+      const endX = count <= 1 ? width / 2 : (segment.endIndex / (count - 1)) * width;
+      const midIndex = Math.round((segment.startIndex + segment.endIndex) * 0.5);
+      const midSample = samples[midIndex] ?? samples[segment.minDistanceIndex] ?? samples[segment.startIndex];
+      const midX = count <= 1 ? width / 2 : (midIndex / (count - 1)) * width;
+      const segmentWidth = Math.max(0, Math.abs(endX - startX));
+      const badgeY = baselineY - 22;
+
+      if (segment.recognition === 'known') {
+        const label = recognitionLabelText(segment.displayLabel);
+        const fill = sampleDisplayColor(
+          midSample?.strokeColor ?? null,
+          midSample?.monochromeStrokeColor ?? null,
+          0.9,
+        );
+        this.ctx.fillStyle = fill;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.font = '10px Trebuchet MS, sans-serif';
+        if (label && segmentWidth >= this.ctx.measureText(label).width + 10) {
+          this.ctx.fillText(label, midX, badgeY);
+        } else {
+          this.ctx.beginPath();
+          this.ctx.arc(midX, badgeY, 2.4, 0, Math.PI * 2);
+          this.ctx.fill();
+        }
+      } else if (segment.recognition === 'unknown') {
+        this.ctx.fillStyle = 'rgba(33, 31, 28, 0.74)';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.font = '11px Trebuchet MS, sans-serif';
+        this.ctx.fillText('?', midX, badgeY);
+      }
     }
 
     if (highlightSampleIndex !== null && highlightSampleIndex >= 0 && highlightSampleIndex < count) {
@@ -206,9 +251,16 @@ export class FlatlanderViewRenderer {
       6,
     );
     if (highlightHitId !== null) {
+      const highlightedSample = samples.find((sample) => sample.hitId === highlightHitId) ?? null;
       this.ctx.textAlign = 'right';
       this.ctx.fillStyle = 'rgba(34, 33, 30, 0.76)';
-      this.ctx.fillText(`hover #${highlightHitId}`, width - 8, 6);
+      const hoverLabel =
+        highlightedSample?.recognition === 'known'
+          ? highlightedSample.displayLabel ?? `#${highlightHitId}`
+          : highlightedSample?.recognition === 'unknown'
+            ? 'Unidentified'
+            : highlightedSample?.displayLabel ?? `#${highlightHitId}`;
+      this.ctx.fillText(`hover ${hoverLabel}`, width - 8, 6);
     }
 
     this.ctx.strokeStyle = 'rgba(78, 72, 61, 0.18)';

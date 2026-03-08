@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.38] - 2026-03-08
+
+### Changed
+- The Flatlander 1D panel now distinguishes visible people the observer already knows from unidentified figures, using the same knowledge state established by feeling/handshakes.
+- Hover text in the 1D panel now reports known names when available and marks unknown visible people as `Unidentified`.
+
+### Added
+- Added scan-level recognition metadata for visible hits and regression coverage for known-vs-unidentified classification in the 1D view.
+
+### Validation
+- `npm test` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm run sim:midrun` passed.
+
 ## [0.9.37] - 2026-03-08
 
 ### Changed
