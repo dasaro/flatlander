@@ -1,14 +1,16 @@
 import { computeObserverRayScan } from '../core/perception/observerScan';
 import { sampleVisibleToSight, type SightVisibilityContext } from '../core/perception/sightVisibility';
 import type { World } from '../core/world';
-import { paintedStrokeColorForEntity } from './painting';
+import { flatlanderStrokeColorsForHit } from './painting';
 
 export type FlatlanderSample = {
   angle: number;
   hitId: number | null;
   distance: number | null;
   intensity: number;
-  paintColor: string | null;
+  paintColor?: string | null;
+  strokeColor?: string | null;
+  monochromeStrokeColor?: string | null;
 };
 
 export type FlatlanderSegment = {
@@ -51,6 +53,8 @@ function emptyScan(rays: number, fovRad: number): FlatlanderScanResult {
       distance: null,
       intensity: 0,
       paintColor: null,
+      strokeColor: null,
+      monochromeStrokeColor: null,
     });
   }
 
@@ -161,22 +165,20 @@ export function computeFlatlanderScan(
         distance: null,
         intensity: 0,
         paintColor: null,
+        strokeColor: null,
+        monochromeStrokeColor: null,
       });
       continue;
     }
-    const paintColor =
-      sample.hitId !== null && sample.hitId >= 0
-        ? (() => {
-            const shape = world.shapes.get(sample.hitId);
-            return shape ? paintedStrokeColorForEntity(world.seed, sample.hitId, shape) : null;
-          })()
-        : null;
+    const colors = flatlanderStrokeColorsForHit(world, sample.hitId);
     samples.push({
       angle: sample.angle,
       hitId: sample.hitId,
       distance: sample.distance,
       intensity,
-      paintColor,
+      paintColor: colors.paintColor,
+      strokeColor: colors.strokeColor,
+      monochromeStrokeColor: colors.monochromeStrokeColor,
     });
   }
 

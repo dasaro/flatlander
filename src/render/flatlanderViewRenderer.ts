@@ -19,6 +19,18 @@ function applyAlphaToHexColor(color: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(3)})`;
 }
 
+function sampleDisplayColor(
+  strokeColor: string | null | undefined,
+  monochromeStrokeColor: string | null | undefined,
+  alpha: number,
+): string {
+  const color = strokeColor ?? monochromeStrokeColor;
+  if (!color) {
+    return `rgba(33, 31, 28, ${alpha.toFixed(3)})`;
+  }
+  return applyAlphaToHexColor(color, alpha);
+}
+
 function scaleCanvasToDisplay(canvas: HTMLCanvasElement): { width: number; height: number } {
   const rect = canvas.getBoundingClientRect();
   const width = Math.max(1, Math.round(rect.width));
@@ -115,10 +127,9 @@ export class FlatlanderViewRenderer {
         : Math.max(0.05, Math.min(1, visualIntensity));
       const halfHeight = 2 + visualIntensity * 10 + (isHighlighted ? 4 : 0);
 
-      this.ctx.strokeStyle =
-        useColor && sample.paintColor
-          ? applyAlphaToHexColor(sample.paintColor, alpha)
-          : `rgba(33, 31, 28, ${alpha.toFixed(3)})`;
+      this.ctx.strokeStyle = useColor
+        ? sampleDisplayColor(sample.strokeColor, sample.monochromeStrokeColor, alpha)
+        : sampleDisplayColor(sample.monochromeStrokeColor, sample.monochromeStrokeColor, alpha);
       this.ctx.lineWidth = isHighlighted ? 2 : 1;
       this.ctx.beginPath();
       this.ctx.moveTo(x, baselineY - halfHeight);
@@ -144,10 +155,9 @@ export class FlatlanderViewRenderer {
         const radius = isClosest ? (isHighlightedHit ? 4.1 : 3.2) : isHighlightedHit ? 3.1 : 2.2;
         const visualIntensity = Math.max(0, Math.min(1, sample.intensity ** 1.4));
         const alpha = Math.max(0.2, Math.min(1, visualIntensity * (isClosest ? 1 : 0.8)));
-        const fill =
-          useColor && sample.paintColor
-            ? applyAlphaToHexColor(sample.paintColor, alpha)
-            : `rgba(22, 20, 18, ${alpha.toFixed(3)})`;
+        const fill = useColor
+          ? sampleDisplayColor(sample.strokeColor, sample.monochromeStrokeColor, alpha)
+          : sampleDisplayColor(sample.monochromeStrokeColor, sample.monochromeStrokeColor, alpha);
 
         this.ctx.fillStyle = fill;
         this.ctx.beginPath();

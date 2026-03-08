@@ -9,6 +9,7 @@ import {
   type FlatlanderViewConfig,
 } from '../src/render/flatlanderScan';
 import type { SightVisibilityContext } from '../src/core/perception/sightVisibility';
+import { flatlanderStrokeColorsForHit } from '../src/render/painting';
 
 const BASE_SCAN_CONFIG: FlatlanderViewConfig = {
   enabled: true,
@@ -154,6 +155,73 @@ describe('flatlander scan', () => {
 
     expect(result.samples.some((sample) => sample.hitId === polygonId && sample.paintColor !== null)).toBe(true);
     expect(result.samples.some((sample) => sample.hitId === segmentId && sample.paintColor !== null)).toBe(false);
+  });
+
+  it('records effective stroke colors consistent with the 2D renderer', () => {
+    const polygonWorld = createWorld(445, {
+      southAttractionEnabled: false,
+      reproductionEnabled: false,
+      colorEnabled: true,
+    });
+    const polygonViewerId = spawnEntity(
+      polygonWorld,
+      { kind: 'circle', size: 8 },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 100, y: 120 },
+    );
+    const polygonViewerTransform = polygonWorld.transforms.get(polygonViewerId);
+    if (!polygonViewerTransform) {
+      throw new Error('Missing polygon viewer transform in stroke-color scan test.');
+    }
+    polygonViewerTransform.rotation = 0;
+    const polygonId = spawnEntity(
+      polygonWorld,
+      { kind: 'polygon', sides: 4, size: 12, irregular: false },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 150, y: 120 },
+    );
+    const polygonResult = computeFlatlanderScan(polygonWorld, polygonViewerId, {
+      ...BASE_SCAN_CONFIG,
+      maxDistance: 300,
+      minVisibleIntensity: 0,
+    });
+    const polygonSample = polygonResult.samples.find((sample) => sample.hitId === polygonId);
+    expect(polygonSample).toBeDefined();
+    expect(polygonSample?.strokeColor).toBe(flatlanderStrokeColorsForHit(polygonWorld, polygonId).strokeColor);
+
+    const segmentWorld = createWorld(446, {
+      southAttractionEnabled: false,
+      reproductionEnabled: false,
+      colorEnabled: true,
+    });
+    const segmentViewerId = spawnEntity(
+      segmentWorld,
+      { kind: 'circle', size: 8 },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 100, y: 120 },
+    );
+    const segmentViewerTransform = segmentWorld.transforms.get(segmentViewerId);
+    if (!segmentViewerTransform) {
+      throw new Error('Missing segment viewer transform in stroke-color scan test.');
+    }
+    segmentViewerTransform.rotation = 0;
+    const segmentId = spawnEntity(
+      segmentWorld,
+      { kind: 'segment', size: 16 },
+      { type: 'straightDrift', vx: 0, vy: 0, boundary: 'wrap' },
+      { x: 150, y: 120 },
+    );
+    const segmentResult = computeFlatlanderScan(segmentWorld, segmentViewerId, {
+      ...BASE_SCAN_CONFIG,
+      maxDistance: 300,
+      minVisibleIntensity: 0,
+    });
+    const segmentSample = segmentResult.samples.find((sample) => sample.hitId === segmentId);
+    expect(segmentSample).toBeDefined();
+    expect(segmentSample?.strokeColor).toBe(flatlanderStrokeColorsForHit(segmentWorld, segmentId).strokeColor);
+    expect(segmentSample?.monochromeStrokeColor).toBe(
+      flatlanderStrokeColorsForHit(segmentWorld, segmentId).monochromeStrokeColor,
+    );
   });
 
   it('decreases intensity with greater distance when fog is enabled', () => {

@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.9.37] - 2026-03-08
+
+### Changed
+- Unified the Flatlander 1D panel with the God-view stroke-color policy so polygons, segments, houses, and boundaries now use the same effective visible colours as the 2D view.
+- The 1D panel now keeps monochrome outline differentiation when colour is disabled instead of collapsing most hits to near-black.
+
+### Added
+- Added regression coverage to verify Flatlander hit colours match the shared 2D stroke resolution path for paintable and non-paintable entities.
+
+### Validation
+- `npm test` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm run sim:midrun` passed.
+
 ## [0.9.36] - 2026-03-08
 
 ### Added

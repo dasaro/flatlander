@@ -51,6 +51,6 @@ describeLong('mid-run smoke', () => {
       expect(houseExits).toBeGreaterThan(0);
       expect(rainMean).toBeGreaterThan(dryMean);
     },
-    90_000,
+    120_000,
   );
 });

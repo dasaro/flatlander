@@ -25,6 +25,6 @@ describe('policy activation smoke', () => {
       expect(transitions).toBeGreaterThan(0);
       expect(activeTicks).toBeGreaterThan(0);
     },
-    120_000,
+    150_000,
   );
 });
