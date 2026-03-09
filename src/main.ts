@@ -11,10 +11,14 @@ import { spawnFromRequest, type SpawnMovementConfig, type SpawnRequest } from '.
 import { requestStillness } from './core/stillness';
 import { FixedTimestepSimulation } from './core/simulation';
 import { boundaryFromTopology, type WorldTopology } from './core/topology';
-import { createWorld, type WorldConfig } from './core/world';
+import { createWorld } from './core/world';
 import { spawnHouses } from './core/worldgen/houses';
 import { applySpawnPlan as applyScenarioSpawnPlan, defaultSpawnPlan } from './presets/defaultScenario';
 import { createDefaultSystems } from './presets/defaultSimulation';
+import {
+  createReleaseUiDefaults,
+  createReleaseWorldConfigFromUiSettings,
+} from './presets/releasePreset';
 import { fogDensityAt } from './core/fogField';
 import type { Vec2 } from './geometry/vector';
 import { Camera } from './render/camera';
@@ -118,101 +122,18 @@ const primaryRunBtn = document.getElementById('run-btn');
 installParameterHelp(document);
 
 const systems = createDefaultSystems();
+const releaseUiDefaults = createReleaseUiDefaults();
 
 let worldTopology: WorldTopology = topologyInput.value === 'bounded' ? 'bounded' : 'torus';
 const initialBoundary = boundaryFromTopology(worldTopology);
 let spawnPlan: SpawnRequest[] = defaultSpawnPlan(initialBoundary);
-let environmentSettings: EnvironmentSettings = {
-  housesEnabled: true,
-  houseCount: 8,
-  townPopulation: 5000,
-  allowTriangularForts: false,
-  allowSquareHouses: false,
-  houseSize: 30,
-  rainEnabled: true,
-  colorEnabled: false,
-  showRainOverlay: true,
-  showFogOverlay: true,
-  showDoors: true,
-  showOccupancy: true,
-};
-let peaceCrySettings: PeaceCrySettings = {
-  enabled: true,
-  cadenceTicks: 20,
-  radius: 120,
-  strictComplianceEnabled: true,
-  complianceStillnessTicks: 3,
-  northYieldEnabled: true,
-  northYieldRadius: 170,
-  rainCurfewEnabled: true,
-  rainCurfewOutsideGraceTicks: 150,
-};
-let reproductionSettings: ReproductionSettings = {
-  enabled: true,
-  gestationTicks: 130,
-  matingRadius: 52,
-  conceptionChancePerTick: 0.02,
-  femaleBirthProbability: 0.52,
-  maxPopulation: 650,
-  irregularBirthsEnabled: true,
-  irregularBirthBaseChance: 0.14,
-  priestMediationEnabled: true,
-  priestMediationRadius: 180,
-  priestMediationBias: 0.45,
-};
-let eventHighlightsSettings: EventHighlightsSettings = {
-  enabled: true,
-  intensity: 1,
-  capPerTick: 120,
-  showFeeling: true,
-  focusOnSelected: false,
-  showHearingOverlay: true,
-  showTalkingOverlay: false,
-  strokeByKills: false,
-  showContactNetwork: true,
-  networkShowParents: true,
-  networkShowKnown: true,
-  networkMaxKnownEdges: 25,
-  networkShowOnlyOnScreen: true,
-  networkFocusRadius: 400,
-  dimByAge: true,
-  dimByDeterioration: true,
-  dimStrength: 0.55,
-  fogPreviewEnabled: true,
-  fogPreviewStrength: 0.5,
-  fogPreviewHideBelowMin: false,
-  fogPreviewRings: true,
-  showEyes: true,
-  showPovCone: false,
-};
-let flatlanderViewSettings: FlatlanderViewSettings = {
-  enabled: true,
-  rays: 720,
-  fovRad: Math.PI,
-  lookOffsetRad: 0,
-  maxDistance: 400,
-  fogDensity: 0.012,
-  minVisibleIntensity: 0.06,
-  grayscaleMode: true,
-  includeObstacles: true,
-  includeBoundaries: true,
-  inanimateDimMultiplier: 0.65,
-};
-let fogSightSettings: FogSightSettings = {
-  sightEnabled: true,
-  fogDensity: 0.012,
-};
-let southAttractionSettings: SouthAttractionSettings = {
-  enabled: true,
-  strength: 2,
-  womenMultiplier: 2,
-  zoneStartFrac: 0.75,
-  zoneEndFrac: 0.95,
-  drag: 12,
-  maxTerminal: 1.8,
-  escapeFraction: 0.5,
-  showSouthZoneOverlay: false,
-};
+let environmentSettings: EnvironmentSettings = { ...releaseUiDefaults.environment };
+let peaceCrySettings: PeaceCrySettings = { ...releaseUiDefaults.peaceCry };
+let reproductionSettings: ReproductionSettings = { ...releaseUiDefaults.reproduction };
+let eventHighlightsSettings: EventHighlightsSettings = { ...releaseUiDefaults.eventHighlights };
+let flatlanderViewSettings: FlatlanderViewSettings = { ...releaseUiDefaults.flatlanderView };
+let fogSightSettings: FogSightSettings = { ...releaseUiDefaults.fogSight };
+let southAttractionSettings: SouthAttractionSettings = { ...releaseUiDefaults.southAttraction };
 let world = createWorld(
   readInitialSeed(initialSeedInput.value),
       settingsToWorldConfig(
@@ -1418,45 +1339,15 @@ function settingsToWorldConfig(
   peaceCry: PeaceCrySettings,
   reproduction: ReproductionSettings,
   fogSight: FogSightSettings,
-): Partial<WorldConfig> {
-  return {
+) {
+  return createReleaseWorldConfigFromUiSettings(
     topology,
-    housesEnabled: environment.housesEnabled,
-    houseCount: Math.max(0, Math.round(environment.houseCount)),
-    townPopulation: Math.max(0, Math.round(environment.townPopulation)),
-    allowTriangularForts: environment.allowTriangularForts,
-    allowSquareHouses: environment.allowSquareHouses,
-    houseSize: Math.max(4, environment.houseSize),
-    houseMinSpacing: Math.max(0, Math.round(environment.houseSize * 0.35)),
-    rainEnabled: environment.rainEnabled && environment.housesEnabled,
-    colorEnabled: environment.colorEnabled,
-    peaceCryEnabled: peaceCry.enabled,
-    strictPeaceCryComplianceEnabled: peaceCry.strictComplianceEnabled,
-    peaceCryComplianceStillnessTicks: peaceCry.complianceStillnessTicks,
-    northYieldEtiquetteEnabled: peaceCry.northYieldEnabled,
-    northYieldRadius: peaceCry.northYieldRadius,
-    defaultPeaceCryCadenceTicks: peaceCry.cadenceTicks,
-    defaultPeaceCryRadius: peaceCry.radius,
-    reproductionEnabled: reproduction.enabled,
-    gestationTicks: reproduction.gestationTicks,
-    matingRadius: reproduction.matingRadius,
-    conceptionChancePerTick: reproduction.conceptionChancePerTick,
-    femaleBirthProbability: reproduction.femaleBirthProbability,
-    maxPopulation: reproduction.maxPopulation,
-    irregularBirthsEnabled: reproduction.irregularBirthsEnabled,
-    irregularBirthBaseChance: reproduction.irregularBirthBaseChance,
-    irregularBirthChance: reproduction.irregularBirthBaseChance,
-    southAttractionEnabled: settings.enabled,
-    southAttractionStrength: settings.strength,
-    southAttractionWomenMultiplier: settings.womenMultiplier,
-    southAttractionZoneStartFrac: settings.zoneStartFrac,
-    southAttractionZoneEndFrac: settings.zoneEndFrac,
-    southAttractionDrag: settings.drag,
-    southAttractionMaxTerminal: settings.maxTerminal,
-    southEscapeFraction: settings.escapeFraction,
-    sightEnabled: fogSight.sightEnabled,
-    fogDensity: fogSight.fogDensity,
-  };
+    settings,
+    environment,
+    peaceCry,
+    reproduction,
+    fogSight,
+  );
 }
 
 function applyEnvironmentSettingsToWorld(

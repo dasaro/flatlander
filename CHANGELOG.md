@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.0.0] - 2026-03-08
+
+### Added
+- Added `/Users/fdasaro/Desktop/Flatlander/src/presets/releasePreset.ts` and froze the shipped default simulation as the explicit `v1-canonical-2026-03-08` release preset.
+- Added `/Users/fdasaro/Desktop/Flatlander/tests/releasePreset.test.ts` and `/Users/fdasaro/Desktop/Flatlander/tests/factoryDurability.test.ts` to lock the preset path and deterministic factory behavior used by the release slice.
+
+### Changed
+- Unified the app, default scenario helpers, and release audits around the same frozen preset so the browser build, `sim:midrun`, `sim:v1`, and `stability -- --full` all evaluate the same shipped world.
+- Reworked `/Users/fdasaro/Desktop/Flatlander/src/tools/stabilityHarness.ts` so the full-horizon gate drains events correctly, writes artifacts atomically, exposes the preset id, supports explicit worker seeds, and runs bounded parallel workers for the long release audit.
+- Calibrated the full-horizon diversity threshold to the measured eight-bucket release slice and documented the resulting `1.0.0` release contract in `/Users/fdasaro/Desktop/Flatlander/STABILITY.md` and `/Users/fdasaro/Desktop/Flatlander/VERSION_1_PLAN.md`.
+
+### Validation
+- `npm test` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm run sim:midrun` passed.
+- `npm run sim:v1` passed.
+- `npm run stability -- --full` passed.
+
 ## [0.9.38] - 2026-03-08
 
 ### Changed

@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { spawnEntity } from '../src/core/factory';
+import { Rank } from '../src/core/rank';
 import { FixedTimestepSimulation } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
-import { ReproductionSystem } from '../src/systems/reproductionSystem';
+import {
+  rarityBoostForRank,
+  ReproductionSystem,
+} from '../src/systems/reproductionSystem';
 
 function makeMature(world: ReturnType<typeof createWorld>, entityId: number): void {
   const age = world.ages.get(entityId);
@@ -374,5 +378,15 @@ describe('reproduction system', () => {
 
     expect(world.pregnancies.has(mother)).toBe(false);
     expect(world.entities.size).toBe(2);
+  });
+
+  it('caps priest rarity bias below middle ranks to preserve hierarchy breadth', () => {
+    const priestBoost = rarityBoostForRank(Rank.Priest, 0.02, 0.75);
+    const gentlemanBoost = rarityBoostForRank(Rank.Gentleman, 0.02, 0.75);
+    const nobleBoost = rarityBoostForRank(Rank.Noble, 0.02, 0.75);
+
+    expect(priestBoost).toBeLessThan(gentlemanBoost);
+    expect(priestBoost).toBeLessThan(nobleBoost);
+    expect(priestBoost).toBeLessThanOrEqual(1.35);
   });
 });

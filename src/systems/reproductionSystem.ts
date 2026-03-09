@@ -30,14 +30,14 @@ const BIRTH_OFFSET_MAX = 14;
 const HOME_REPRODUCTION_RADIUS_MULTIPLIER = 1.45;
 const ECO_LOW_POPULATION_PIVOT = 90;
 const ECO_HIGH_POPULATION_PIVOT = 260;
-const ECO_LOW_POPULATION_MULTIPLIER = 7.8;
-const ECO_HIGH_POPULATION_MULTIPLIER = 0.09;
-const ECO_DRY_PHASE_MULTIPLIER = 1.35;
-const ECO_RAIN_PHASE_MULTIPLIER = 0.08;
-const ECO_OVERLOAD_DAMPING = 2.2;
-const LOW_POPULATION_PAIRING_RADIUS_MULTIPLIER = 3.4;
-const LOW_POPULATION_RECOVERY_POSTPARTUM_FACTOR = 0.55;
-const LOW_POPULATION_RECOVERY_CONCEPTION_BOOST = 1.65;
+const ECO_LOW_POPULATION_MULTIPLIER = 2.6;
+const ECO_HIGH_POPULATION_MULTIPLIER = 0.04;
+const ECO_DRY_PHASE_MULTIPLIER = 1.08;
+const ECO_RAIN_PHASE_MULTIPLIER = 0.03;
+const ECO_OVERLOAD_DAMPING = 3.4;
+const LOW_POPULATION_PAIRING_RADIUS_MULTIPLIER = 2.2;
+const LOW_POPULATION_RECOVERY_POSTPARTUM_FACTOR = 0.75;
+const LOW_POPULATION_RECOVERY_CONCEPTION_BOOST = 1.15;
 const LOW_POPULATION_RECOVERY_PIVOT = 120;
 
 function isFemaleShape(shapeKind: 'segment' | 'circle' | 'polygon'): boolean {
@@ -114,7 +114,7 @@ function densityConceptionMultiplier(world: World): number {
   );
   const overloadDamping = 1 / (1 + overloadRatio * ECO_OVERLOAD_DAMPING);
 
-  return clamp(baseMultiplier * phaseMultiplier * overloadDamping, 0.03, 5.5);
+  return clamp(baseMultiplier * phaseMultiplier * overloadDamping, 0.02, 2.4);
 }
 
 function irregularBirthChance(world: World, motherId: number, fatherId: number): number {
@@ -145,6 +145,26 @@ export function rarityBoostForShare(share: number, strength: number): number {
   const inverse = 1 / safeShare;
   const raw = 1 + safeStrength * (inverse - 1);
   return Math.max(1, Math.min(2.5, raw));
+}
+
+export function rarityBoostForRank(rank: Rank | undefined, share: number, strength: number): number {
+  const base = rarityBoostForShare(share, strength);
+  if (!rank) {
+    return base;
+  }
+  switch (rank) {
+    case Rank.Priest:
+    case Rank.NearCircle:
+      return Math.min(base, 1.35);
+    case Rank.Noble:
+      return Math.min(base, 1.85);
+    case Rank.Gentleman:
+      return Math.min(base, 2.1);
+    case Rank.Triangle:
+      return Math.min(base, 1.95);
+    default:
+      return base;
+  }
 }
 
 function buildMaleRankShares(world: World, ids: number[]): Map<Rank, number> {
@@ -282,7 +302,7 @@ function nearestUnbondedFatherId(
     const rank = world.ranks.get(candidateId)?.rank;
     const share = rank ? (maleRankShares.get(rank) ?? 0) : 0;
     const rarityBoost =
-      rarityBiasEnabled && rank ? rarityBoostForShare(share, rarityStrength) : 1;
+      rarityBiasEnabled ? rarityBoostForRank(rank, share, rarityStrength) : 1;
     const priestBoost = priestMediationBoost(
       world,
       motherPosition,

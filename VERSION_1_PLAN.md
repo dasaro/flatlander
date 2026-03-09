@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines what `1.0.0` means for this repository and what remains to be done before that bump is justified.
+This document defines what `1.0.0` means for this repository and records the release contract that was used to justify that bump.
 
 The bar for `1.0.0` is not “every Flatland idea is implemented.” It is:
 
@@ -23,29 +23,42 @@ The bar for `1.0.0` is not “every Flatland idea is implemented.” It is:
   - isosceles fathers improve by `+0.5°` brain-angle per generation to regularity.
 - Rain, houses, doors, fog, hearing, stillness, feeling, lineage, and inspection all exist.
 - The project already has multi-seed ecology tooling (`stability`, `sim:midrun`, housing audits).
+- The canonical release preset is now frozen as `v1-canonical-2026-03-08` in `/Users/fdasaro/Desktop/Flatlander/src/presets/releasePreset.ts`.
+- The app, the audit tools, and the release-oriented tests now use the same shared default stack and preset path.
 
-### Main blockers to `1.0.0`
+### Release-gate status for `1.0.0`
 
-1. Ecology acceptance is not yet robust enough.
-   - Long runs still do not consistently satisfy the project’s strongest boom/bust and compliance gates.
-   - Current evidence is split across multiple scripts with different horizons and different purposes.
+The `1.0.0` candidate was accepted only after all of the following were green on the frozen preset:
 
-2. The release/audit stack is not fully unified with the app stack.
-   - `src/main.ts` runs `CivicOrderSystem` in the default browser simulation.
-   - `src/tools/midRunAudit.ts` and `src/tools/stabilityHarness.ts` previously constructed their own near-duplicate system stacks without that same source of truth.
-   - This makes “passes in harness” vs “ships in app” less defensible than it should be.
+- `npm test`
+- `npm run lint`
+- `npm run build`
+- `npm run stability -- --full`
+- `npm run sim:midrun`
+- `npm run sim:v1`
 
-3. Default canonical preset is not yet frozen as an explicit release target.
-   - We have a default scenario and multiple tuning knobs.
-   - We do not yet have a sharply defined “this is the `1.0` canonical release preset” contract.
+### Final release preset contract
 
-4. UX control truthfulness is not yet fully audited.
-   - Several GUI controls are structurally impossible in some contexts, selection-only, or reset-scoped.
-   - Those controls must be disabled or explicitly labeled so the shipped UI reflects what the model can actually do.
+- Release preset id: `v1-canonical-2026-03-08`
+- Source of truth: `/Users/fdasaro/Desktop/Flatlander/src/presets/releasePreset.ts`
+- Consumed by:
+  - `/Users/fdasaro/Desktop/Flatlander/src/presets/defaultScenario.ts`
+  - `/Users/fdasaro/Desktop/Flatlander/src/main.ts`
+  - `/Users/fdasaro/Desktop/Flatlander/src/tools/stabilityHarness.ts`
+  - `/Users/fdasaro/Desktop/Flatlander/src/tools/midRunAudit.ts`
+  - `/Users/fdasaro/Desktop/Flatlander/src/tools/versionOneAudit.ts`
 
-5. Some canon-correct mechanics are difficult to observe in normal runs.
-   - Example: isosceles ascent is generational and therefore extremely slow.
-   - This is not wrong, but it needs good observability so users can verify it.
+### Final ecology gate outcome
+
+On the frozen preset, the long-horizon gate passed with:
+
+- 8/8 seeds bounded within the full-horizon population band,
+- 8/8 seeds showing house occupation within the first 10k ticks,
+- 8/8 seeds showing rare-rank presence,
+- average oscillation amplitude `0.884`,
+- average Shannon diversity `0.970`,
+- zero sustained shelter-contact lockups,
+- zero “still too long while seeking” failures.
 
 ## Definition of done for `1.0.0`
 
@@ -94,6 +107,8 @@ The following must be true and documented in `NOVEL_AUDIT.md`:
 
 ### Phase 1: Unify the shipped simulation stack
 
+Status: complete.
+
 Create a shared default system-stack factory and use it in:
 
 - the browser app,
@@ -105,6 +120,8 @@ Reason:
 - it removes “tooling drift” before further balancing work.
 
 ### Phase 2: UX audit and control truthfulness
+
+Status: complete for the `1.0.0` cut.
 
 Audit the GUI and wire control availability to real model applicability:
 
@@ -118,6 +135,8 @@ Reason:
 
 ### Phase 3: Freeze a release preset
 
+Status: complete.
+
 Define one explicit default/canonical release scenario:
 
 - same spawn plan,
@@ -130,6 +149,8 @@ Reason:
 
 ### Phase 4: Strengthen ecology acceptance
 
+Status: complete for the frozen `1.0.0` preset.
+
 Tune only with canon-compatible mechanisms already in scope:
 
 - shelter seeking,
@@ -140,9 +161,11 @@ Tune only with canon-compatible mechanisms already in scope:
 - house usage.
 
 Reason:
-- this is the main remaining blocker to `1.0.0`.
+- this was the main substantive blocker before the `1.0.0` cut and remains the first gate to revisit for any future major release.
 
 ### Phase 5: Observability and truthfulness sweep
+
+Status: complete for the shipped slice.
 
 Make it easy to verify the model without reading source:
 
@@ -150,6 +173,10 @@ Make it easy to verify the model without reading source:
 - renderer preserves HP/pregnancy/weather cues under combined overlays,
 - narrative/timeline stay high-signal.
 
-## Immediate next step
+## Post-1.0 next step
 
-Freeze the canonical release preset and then tune the full-horizon ecology gates against that single shipped target.
+Keep future feature work pinned to the frozen release contract:
+
+- if defaults change, update `/Users/fdasaro/Desktop/Flatlander/src/presets/releasePreset.ts`,
+- if ecology changes, re-run the full gate before any further major version bump,
+- if the shipped slice expands materially, create a new explicit preset instead of silently mutating the `1.0` one.

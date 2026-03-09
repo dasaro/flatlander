@@ -3,6 +3,7 @@ import { join } from 'node:path';
 
 import { Rank } from '../core/rank';
 import { createDefaultSimulation, createDefaultSystems } from '../presets/defaultSimulation';
+import { RELEASE_PRESET_ID } from '../presets/releasePreset';
 import { auditDefaultSystemStack } from './versionOneReadiness';
 
 const DEFAULT_SEEDS = [42, 7, 13];
@@ -20,6 +21,7 @@ interface SeedAudit {
 
 interface VersionOneAuditReport {
   generatedAt: string;
+  preset: string;
   ticks: number;
   planPresent: boolean;
   systemStack: ReturnType<typeof auditDefaultSystemStack>;
@@ -82,6 +84,7 @@ function main(): void {
 
   const report: VersionOneAuditReport = {
     generatedAt: new Date().toISOString(),
+    preset: RELEASE_PRESET_ID,
     ticks,
     planPresent,
     systemStack,
@@ -94,6 +97,7 @@ function main(): void {
   const artifactPath = join(artifactDir, 'version_one_audit.json');
   writeFileSync(artifactPath, JSON.stringify(report, null, 2));
 
+  console.log(`preset=${RELEASE_PRESET_ID}`);
   console.log(`planPresent=${planPresent ? 'yes' : 'no'}`);
   console.log(
     `systemStack=${systemStack.ok ? 'ok' : 'FAIL'}${systemStack.issues.length > 0 ? ` (${systemStack.issues.join('; ')})` : ''}`,

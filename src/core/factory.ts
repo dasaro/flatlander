@@ -409,8 +409,8 @@ function durabilityForRank(rank: Rank, shape: ShapeComponent): DurabilityCompone
 
   if (rank === Rank.Priest || rank === Rank.NearCircle) {
     return {
-      hp: 66,
-      maxHp: 66,
+      hp: 58,
+      maxHp: 58,
       wear: 0,
     };
   }
@@ -425,16 +425,16 @@ function durabilityForRank(rank: Rank, shape: ShapeComponent): DurabilityCompone
 
   if (rank === Rank.Gentleman) {
     return {
-      hp: 48,
-      maxHp: 48,
+      hp: 52,
+      maxHp: 52,
       wear: 0,
     };
   }
 
   if (rank === Rank.Triangle) {
     return {
-      hp: 42,
-      maxHp: 42,
+      hp: 48,
+      maxHp: 48,
       wear: 0,
     };
   }
