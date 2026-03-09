@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.0.1] - 2026-03-09
+
+### Added
+- Added `/Users/fdasaro/Desktop/Flatlander/CANON_FEATURE_AUDIT.md`, a runtime + code audit for the screenshot-visible Part I mechanics and event tracks.
+- Added `/Users/fdasaro/Desktop/Flatlander/src/tools/canonAudit.ts` and the `npm run canon:audit` script to verify rain/shelter correlation, house usage, policy visibility, handshake outcomes, inspection outcomes, and population cycles headlessly.
+- Added focused canon regression tests for rain schedule, cry compliance, yield-to-lady etiquette, handshake protocol, house door law, shelter behavior during rain, inspection outcomes, and reproduction law.
+
+### Changed
+- Distinguished `peaceCryComplianceHalt` reasons in `/Users/fdasaro/Desktop/Flatlander/src/core/events.ts`, so cry compliance and rain curfew are separately auditable in analytics and narrative output.
+- Retuned shipped policy thresholds in `/Users/fdasaro/Desktop/Flatlander/src/core/world.ts` so policy phases occur visibly under the frozen `v1` preset instead of remaining mostly latent.
+- Updated `/Users/fdasaro/Desktop/Flatlander/NOVEL_AUDIT.md` so screenshot-visible tracks and their canon/assumption boundaries match the shipped implementation.
+
+### Validation
+- `npm test` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm run canon:audit` passed.
+- `npm run sim:midrun` passed.
+
 ## [1.0.0] - 2026-03-08
 
 ### Added

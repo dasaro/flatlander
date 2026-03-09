@@ -73,6 +73,7 @@ describe('effects mapping', () => {
         tick: 1,
         entityId: 11,
         pos: origin,
+        reason: 'CryCompliance',
       },
       {
         type: 'yieldToLady',
@@ -132,6 +133,7 @@ describe('effects mapping', () => {
         tick: 1,
         entityId: 11,
         pos: origin,
+        reason: 'CryCompliance',
       },
       {
         type: 'yieldToLady',

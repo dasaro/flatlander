@@ -119,6 +119,8 @@ function reasonForEvent(event: WorldEvent): string | null {
       return event.reason;
     case 'policyShift':
       return event.reason;
+    case 'peaceCryComplianceHalt':
+      return event.reason;
     default:
       return null;
   }

@@ -1,8 +1,8 @@
-# NOVEL_FAITHFULNESS AUDIT (Flatlander v0.9.36)
+# NOVEL_FAITHFULNESS AUDIT (Flatlander v1.0.1)
 
 ## 0. Repo snapshot
 - Commit: `HEAD` (current working revision at audit time)
-- App version: `0.9.36` (`package.json` at audit update time)
+- App version: `1.0.1` (`package.json` at audit update time)
 - Runtime: browser-only Vite/TS app (`src/main.ts`, `src/core/world.ts`)
 - Run commands:
   - `npm run dev`
@@ -80,7 +80,7 @@ Canon status used in this patch:
    - Severity: **medium**.
 2. **Housing entry/exit and “indoors” are abstracted as a container state rather than full interior geometry/pathfinding.**
    - Severity: **medium**.
-3. **Handshake stillness is enforced *after* successful recognition, not strictly as precondition for the felt individual**.
+3. **Some etiquette/policy mechanics remain simulation assumptions rather than strict institutional law transcripts**.
    - Severity: **medium**.
 4. **Social movement is BDI-lite gameplay logic, not direct textual behavior laws**.
    - Severity: **medium**.
@@ -134,7 +134,7 @@ Canon status used in this patch:
 | Pressure kill in jams | Not explicitly stated | Implementation assumption / extrapolation | Persistent acute contact eventually kills even at low closing speed | `src/systems/lethalitySystem.ts` `world.stabPressure` logic | `pressureTicksToKill=120` | `tests/stabLethality.test.ts` |
 | Erosion / wear attrition | Injury risk is implied; explicit HP is not textual | Implementation assumption / extrapolation | Sliding/rubbing wears hp over time; severe contacts damage more | `src/systems/erosionSystem.ts` `applyWear`, `applyDirectDamage` | `wearEnabled=true`, `wearRate=0.11`, `wearToHpStep=7.5`, `stabHpDamageScale=0.85` | `tests/erosion.test.ts` |
 | Touch / feeling recognition | Part I, Sec. 5 | Directly stated in the novel | Safe low-speed contact produces touch events and can update knowledge | `src/systems/feelingSystem.ts` `update`, `canFeel`, `orderedCollisionPairs` | `feelSpeedThreshold=7.5`; per-entity `FeelingComponent` | `tests/feeling.test.ts` |
-| Handshake stillness protocol | Part I, Sec. 5 (“felt should stand perfectly still”) | Strongly implied by the novel (partial implementation) | On successful new recognition, both entities get temporary stillness lock | `src/systems/feelingSystem.ts` `requestHandshakeStillness`; `src/systems/stillnessControllerSystem.ts`; `src/systems/movementSystem.ts` stillness skip | `handshakeStillnessTicks=12` | `tests/stillnessHandshake.test.ts`, `tests/stillnessController.test.ts` |
+| Handshake stillness protocol | Part I, Sec. 5 (“felt should stand perfectly still”) | Strongly implied by the novel | Deliberate feeling requests impose full stillness on the felt individual, translation stillness on the feeler, and only then allow reciprocal recognition | `src/systems/introductionIntentSystem.ts`; `src/systems/feelingSystem.ts` (`requestHandshakeStillness`, `canLearnFromFeeling`); `src/systems/stillnessControllerSystem.ts`; `src/systems/movementSystem.ts` | `handshakeStillnessTicks=12`, `handshakePreStillnessTicks=2`, `handshakeCooldownTicks=40` | `tests/stillnessHandshake.test.ts`, `tests/handshakeIntegration.test.ts`, `tests/feeling.test.ts` |
 | Peace-cry | Part I, Sec. 4 | Directly stated in the novel | Moving women emit periodic pings; stronger/faster in southern zone | `src/systems/peaceCrySystem.ts` `update`, `isMoving` | `peaceCryEnabled=true`, cadence/radius defaults; south stringency knobs | `tests/peaceCry.test.ts` |
 | Hearing + hearing-hit selection | Part I, Sec. 5 | Strongly implied by the novel | Listener stores nearest audible signature/direction deterministically | `src/systems/hearingSystem.ts` `heardSignature`, `update` | `PerceptionComponent` (`hearingSkill`, `hearingRadius`) | `tests/hearingSystem.test.ts` |
 | Isosceles voice imposture | Part I, Sec. 5 (hearing weakness, imposture theme) | Strongly implied by the novel | Isosceles can mimic a claimed signature (`Square/Pentagon/HighOrder`) | `src/core/voice.ts`; `src/core/factory.ts` `voiceFromConfig`; `src/systems/hearingSystem.ts` | Spawn UI `#spawn-mimicry-enabled`, `#spawn-mimicry-signature`; Inspector voice row | `tests/hearingSystem.test.ts` |
@@ -811,6 +811,16 @@ Part I, Section 2 contains explicit house orientation and law-like constraints.
 | Strict peace-cry compliance (movement requires active cry channel) | Part I, Section 4 (women’s public warning cry) | Strongly implied by the novel (strict enforcement mode is an assumption) | When strict mode is enabled, a moving woman with disabled cry channel is immediately forced into temporary translation stillness instead of silently moving in traffic. | `/Users/fdasaro/Desktop/Flatlander/src/systems/peaceCrySystem.ts` (`requestComplianceStillness`, `update`); `/Users/fdasaro/Desktop/Flatlander/src/core/world.ts` strict compliance config | `strictPeaceCryComplianceEnabled=true`, `peaceCryComplianceStillnessTicks=3` (world config defaults; no dedicated UI control yet) | `/Users/fdasaro/Desktop/Flatlander/tests/peaceCry.test.ts` |
 | North-side yielding etiquette in response to women’s peace-cry | Part I, Section 2/4 (traffic etiquette + women warning context) | Implementation assumption / extrapolation (canon-coherent) | SocialNav entities hearing a nearby woman’s peace-cry prioritize `yield`, bias heading northward/away, and may request short `yieldToLady` stillness at very close range. | `/Users/fdasaro/Desktop/Flatlander/src/systems/socialNavMindSystem.ts` (`nearestWomanCryCandidate`, `northYieldDirection`, intention overrides); `/Users/fdasaro/Desktop/Flatlander/src/core/stillness.ts` priority integration | `northYieldEtiquetteEnabled=true`, `northYieldRadius=170` (world config defaults) | `/Users/fdasaro/Desktop/Flatlander/tests/socialNavEnvironmentAdaptation.test.ts` |
 | Fancy deterministic names (inspector-visible) | No direct named-person catalog in novel text; social titles are strongly implied by hierarchy | Implementation assumption / extrapolation | Inspector and hover show title+family names (e.g., `Lady`, `Mr.`, `Sir`, `His Circularity`) with deterministic identity across runs | `/Users/fdasaro/Desktop/Flatlander/src/core/names.ts` `buildDeterministicName`; `/Users/fdasaro/Desktop/Flatlander/src/core/factory.ts`; `/Users/fdasaro/Desktop/Flatlander/src/ui/uiController.ts`; `/Users/fdasaro/Desktop/Flatlander/src/main.ts` | No gameplay config; pure hash from `(worldSeed, entityId)`; UI: *Inspector* row `Name` | `/Users/fdasaro/Desktop/Flatlander/tests/names.test.ts`; determinism coverage in `/Users/fdasaro/Desktop/Flatlander/tests/determinism.test.ts` |
+
+### Screenshot-visible track clarifications
+- `peaceCryComplianceHalt` is a compliance-stop track, not a generic listener-response track.
+  - `reason='CryCompliance'`: emitted by `/Users/fdasaro/Desktop/Flatlander/src/systems/peaceCrySystem.ts` when a moving woman disables the cry channel under strict compliance.
+  - `reason='RainCurfew'`: emitted by `/Users/fdasaro/Desktop/Flatlander/src/systems/civicOrderSystem.ts` when rain curfew halts an outside woman lacking bearings/shelter guidance.
+- `handshakeAttemptFailed` is distinct from `touch`.
+  - It is emitted by `/Users/fdasaro/Desktop/Flatlander/src/systems/feelingSystem.ts` when the feeling window expires without satisfying the stillness/recognition protocol.
+- `policyShift` records only phase transitions.
+  - The visible policy line in the timeline is partly UI-state-derived from the active policy phase, not just a count of transition events.
+- Population cycles should be evaluated from sampled headless counts (`src/tools/midRunAudit.ts`, `src/tools/stabilityHarness.ts`, `src/tools/canonAudit.ts`), not from renderer output alone.
 
 ### Assumption notes for this addendum
 - `arrangeBondIfNeeded` is explicitly a simulation assumption: it models priest-arranged households as a deterministic rarity-aware matching pass.

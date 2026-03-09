@@ -60,6 +60,17 @@ function handshakeFailureLabel(reason: string): string {
   }
 }
 
+function complianceHaltLabel(reason: string): string {
+  switch (reason) {
+    case 'CryCompliance':
+      return 'peace-cry compliance';
+    case 'RainCurfew':
+      return 'rain curfew discipline';
+    default:
+      return reason;
+  }
+}
+
 function policyShiftReasonLabel(reason: string): string {
   switch (reason) {
     case 'IrregularitySpike':
@@ -115,8 +126,8 @@ function eventToNarrativeItem(event: WorldEvent): StoredNarrativeItem | null {
       const text = pickTemplate(
         [event.tick, event.entityId],
         [
-          `Safety desk: #${event.entityId} was halted for moving without an active peace-cry.`,
-          `Traffic note: #${event.entityId} paused to restore peace-cry compliance.`,
+          `Safety desk: #${event.entityId} was halted under ${complianceHaltLabel(event.reason)}.`,
+          `Traffic note: #${event.entityId} paused to satisfy ${complianceHaltLabel(event.reason)}.`,
         ],
       );
       return {

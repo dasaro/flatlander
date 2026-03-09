@@ -14,6 +14,8 @@ export type HandshakeFailureReason =
   | 'StillnessNotSatisfied'
   | 'KnowledgeNotEstablished';
 
+export type ComplianceHaltReason = 'CryCompliance' | 'RainCurfew';
+
 export type PolicyShiftReason =
   | 'IrregularitySpike'
   | 'Overcrowding'
@@ -27,6 +29,7 @@ export type WorldEvent =
       tick: number;
       entityId: number;
       pos: Vec2;
+      reason: ComplianceHaltReason;
       rankKey?: string;
     }
   | {

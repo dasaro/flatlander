@@ -38,6 +38,7 @@ function emitComplianceHaltEvent(world: World, entityId: number, position: { x: 
       tick: world.tick,
       entityId,
       pos: position,
+      reason: 'CryCompliance',
       rankKey: rankKeyForEntity(world, entityId),
     });
     world.cryComplianceHaltLastTick.set(entityId, world.tick);

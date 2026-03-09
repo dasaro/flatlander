@@ -40,6 +40,7 @@ function maybeApplyCurfewStillness(world: World, entityId: number): void {
     tick: world.tick,
     entityId,
     pos: transform.position,
+    reason: 'RainCurfew',
     rankKey: rankKeyForEntity(world, entityId),
   });
   world.rainCurfewLastTick.set(entityId, world.tick);

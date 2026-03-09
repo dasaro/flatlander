@@ -34,6 +34,7 @@ describe('event analytics', () => {
         tick: 11,
         entityId: 3,
         pos: { x: 1.2, y: 1.3 },
+        reason: 'CryCompliance',
         rankKey: 'Gentleman',
       },
       {
@@ -67,6 +68,7 @@ describe('event analytics', () => {
     expect(tickEleven?.countsByType.houseEnter).toBe(1);
     expect(tickEleven?.countsByType.peaceCryComplianceHalt).toBe(1);
     expect(tickEleven?.countsByType.yieldToLady).toBe(1);
+    expect(tickEleven?.reasonsByType.peaceCryComplianceHalt.CryCompliance).toBe(1);
     expect(tickEleven?.reasonsByType.handshakeAttemptFailed.StillnessNotSatisfied).toBe(1);
     expect(tickEleven?.reasonsByType.houseEnter.RainShelter).toBe(1);
     const tickTwelve = summaries.find((summary) => summary.tick === 12);
